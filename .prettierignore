@@ -1,6 +1,7 @@
 dist/
 coverage/
 .sanmaime-gen/
+.features-gen/
 test-results/
 playwright-report/
 package-lock.json

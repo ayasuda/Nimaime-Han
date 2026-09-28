@@ -1,0 +1,21 @@
+# The "Relationship with Gherkin" example of the main README. Loaded at run time by fixtures.ts;
+# the Then steps check it with $nimaime.verify().
+Screen: User Details
+
+  Element: User Information
+    Show: Username
+
+    When: Viewing your own profile
+    Show: Full name
+    And: Email address
+
+    When: Viewing another user's profile
+    Hide: Full name
+    And: Email address
+
+  Element: Edit Action
+    When: Viewing your own profile
+    Show: Edit button
+
+    When: Viewing another user's profile
+    Hide: Edit button

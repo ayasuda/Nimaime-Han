@@ -1,0 +1,72 @@
+name: Release
+
+# Changesets release flow (docs/releasing.md):
+#   - A push to main that carries changesets opens or updates the "Version Packages" pull request.
+#   - Merging that pull request pushes a commit with no changesets left, so this workflow publishes the
+#     new version to npm with provenance, pushes the vX.Y.Z git tag and creates a GitHub release.
+# End-to-end and example-project checks are not repeated here; CI (ci.yml) runs them on every push.
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version pull request or publish
+    # Forks never publish.
+    if: github.repository == 'ayasuda/Nimaime-Han'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # commit the version bump, push tags, create GitHub releases
+      pull-requests: write # open and update the "Version Packages" pull request
+      id-token: write # npm provenance (and trusted publishing, if configured)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package contents
+        run: npm pack --dry-run
+
+      - name: Create the version pull request or publish to npm
+        uses: changesets/action@v2
+        with:
+          version-script: npm run version
+          publish-script: npm run release
+          commit-message: 'Version Packages'
+          pr-title: 'Version Packages'
+        env:
+          # Automation token from npmjs.com (repository secret). `setup-node` writes it to .npmrc.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # `changeset publish` runs `npm publish`; this makes it `npm publish --provenance`
+          # (package.json `publishConfig.provenance` says the same).
+          NPM_CONFIG_PROVENANCE: 'true'

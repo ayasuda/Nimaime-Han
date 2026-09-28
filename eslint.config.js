@@ -14,6 +14,8 @@ export default tseslint.config(
       'playwright-report/',
       // A self-contained project with its own package.json and tsconfig.json (npm run test:example:basic).
       'examples/basic/',
+      // Same, with playwright-bdd (npm run test:example:bdd).
+      'examples/with-playwright-bdd/',
     ],
   },
   js.configs.recommended,

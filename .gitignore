@@ -8,6 +8,9 @@ dist/
 # Generated Playwright specs (nimaime-gen output)
 .sanmaime-gen/
 
+# Generated Playwright specs (playwright-bdd bddgen output, examples/with-playwright-bdd)
+.features-gen/
+
 # Playwright artifacts
 test-results/
 playwright-report/

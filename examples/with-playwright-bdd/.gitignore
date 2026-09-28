@@ -1,0 +1,5 @@
+node_modules/
+# bddgen output
+.features-gen/
+test-results/
+playwright-report/

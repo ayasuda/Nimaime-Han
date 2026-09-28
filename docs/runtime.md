@@ -29,6 +29,9 @@ playwright-bdd's special fixtures (`$bddContext`, `$test`, …).
 | `formatExpectationFailure(ctx, err)`                                       | builds the failure message (see [Failures](#failures))                                            |
 | `parseExpectationFailure(message)`                                         | recovers the structured failure from a message (for reporters)                                    |
 | registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see definitions.md)           |
+| `loadSanmaimeSpecs(files, { cwd?, language? })`                            | reads `.sanmaime` files at run time and registers their screens (for `verify`)                    |
+| `registerScreenSpec(spec)`, `findScreenSpec`, `listScreenSpecs`, …         | the spec registry used by `verify` (see [with-gherkin.md](./with-gherkin.md))                     |
+| `planVerify(screen, options)`                                              | what a `verify` call checks, resolved from the spec registry (throws on unknown names)            |
 
 ## Why the fixtures are passed explicitly
 
@@ -59,6 +62,11 @@ did not provide it…`) instead of failing with `undefined` inside user code.
 ```ts
 interface Nimaime {
   run(fixtures: object, plan: NimaimePlan): Promise<void>;
+  verify(
+    fixtures: object,
+    screen: string,
+    options?: { when?: string | string[]; elements?: string | string[] },
+  ): Promise<void>;
   screen(fixtures: object, screen: string, ctx?: ExpectationContext): Promise<void>;
   condition(fixtures: object, condition: string, ctx?: ExpectationContext): Promise<void>;
   expectShow(
@@ -92,7 +100,9 @@ interface ExpectationContext {
 ```
 
 `run` is what generated code calls; the other methods are its building blocks (and allow custom
-flows, e.g. checking several elements after one condition).
+flows, e.g. checking several elements after one condition). `verify` checks the current page
+against a screen's Sanmaime spec loaded at run time, without opening the screen or establishing
+conditions — for Gherkin `Then` steps (see [`verify`](#verifyfixtures-screen-options) below).
 
 | Sanmaime             | Runtime                                                    | Step title  |
 | -------------------- | ---------------------------------------------------------- | ----------- |
@@ -143,6 +153,26 @@ Order of execution:
 
 One plan is one Sanmaime block: an Element's unconditional block (checked in the base state,
 as required by [sanmaime.md §5.4](./sanmaime.md)) or one of its `When:` blocks.
+
+### `verify(fixtures, screen, options)`
+
+For hand-written steps, typically a playwright-bdd `Then` step after the `Given` / `When` steps
+brought the page to a state (see [with-gherkin.md](./with-gherkin.md)):
+
+```ts
+await $nimaime.verify({ page }, 'User Details', { when: 'Viewing your own profile' });
+```
+
+- The expectations come from the **spec registry**, filled once per worker by
+  `loadSanmaimeSpecs('specs/**/*.sanmaime', { cwd })` or `registerScreenSpec(spec)`.
+- It checks, for every element of the screen (or of `options.elements`), the unconditional
+  expectations and the `When:` blocks named in `options.when` — **without** calling the screen's
+  `open` or any condition definition.
+- Every name is resolved first (`planVerify`, then the element definitions); an unknown screen,
+  element or `when` name, or a selection with nothing to check, throws a `NimaimeRuntimeError`
+  listing the known names.
+- Steps: `Screen: X` > `Element: Y` > (`When: C` >) `Show: T` / `Hide: T` / `Enable` / `Disable`,
+  located at the `.sanmaime` lines. Failures are `NimaimeExpectationError`s with the usual header.
 
 ### Step locations
 

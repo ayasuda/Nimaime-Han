@@ -52,3 +52,6 @@ jobs:
 
       - name: Example project (examples/basic)
         run: npm run test:example:basic
+
+      - name: Example project (examples/with-playwright-bdd)
+        run: npm run test:example:bdd

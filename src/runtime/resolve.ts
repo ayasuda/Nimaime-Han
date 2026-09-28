@@ -107,6 +107,17 @@ export function validatePlan(plan: NimaimePlan): void {
   if (plan.condition !== undefined) {
     resolveCondition(plan.condition, { ...base, location: plan.locations?.condition });
   }
+  validateExpectations(plan);
+}
+
+/**
+ * Checks that the element of `plan` and every target / `self` locator its expectations use
+ * resolve, without looking at the condition definition (`$nimaime.verify` does not establish the
+ * condition). Throws `NimaimeRuntimeError`.
+ */
+export function validateExpectations(plan: NimaimePlan): void {
+  const base: ExpectationContext = { screen: plan.screen, file: plan.file };
+  resolveElement(plan.element, { ...base, location: plan.locations?.element });
   for (const expectation of plan.expectations) {
     const ctx = { ...base, condition: plan.condition, location: expectation.location };
     if (expectation.kind === 'show' || expectation.kind === 'hide') {

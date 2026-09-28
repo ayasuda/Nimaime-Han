@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Log in</title>
+  </head>
+  <body>
+    <!--
+      The login page of ../app with a regression, for the failing run (npm run test:fail):
+      the button is enabled as soon as the email field is not empty, even if the address is invalid.
+    -->
+    <h1>Log in</h1>
+    <form id="login-form">
+      <p>
+        <label>Email address <input name="email" type="email" required /></label>
+      </p>
+      <p>
+        <label>Password <input name="password" type="password" required /></label>
+      </p>
+      <button type="submit" disabled>Log in</button>
+    </form>
+    <script>
+      const form = document.getElementById('login-form');
+      const button = form.querySelector('button');
+      form.addEventListener('input', () => {
+        button.disabled = form.elements.email.value === ''; // Bug: should be !form.checkValidity()
+      });
+      form.addEventListener('submit', (event) => event.preventDefault());
+    </script>
+  </body>
+</html>

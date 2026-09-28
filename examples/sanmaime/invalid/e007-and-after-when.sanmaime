@@ -1,0 +1,8 @@
+# expect: SANMAIME_E007
+# at: 7:5
+# And: cannot start a condition block.
+Screen: User Details
+  Element: User Information
+    When: Viewing your own profile
+    And: Full name
+    Show: Username

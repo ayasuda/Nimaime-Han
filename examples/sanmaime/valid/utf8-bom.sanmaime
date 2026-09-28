@@ -1,0 +1,5 @@
+﻿# This file starts with a UTF-8 byte order mark, which is ignored.
+Screen: Home
+
+  Element: Header
+    Show: Logo

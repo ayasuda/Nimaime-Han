@@ -1,0 +1,8 @@
+# expect: SANMAIME_E014
+# at: 8:5
+# A state keyword with a target is a fact about that target: Check: X and Uncheck: X contradict.
+Screen: Login
+  Element: Login Form
+    Check: Remember me
+    Show: Remember me
+    Uncheck: Remember me

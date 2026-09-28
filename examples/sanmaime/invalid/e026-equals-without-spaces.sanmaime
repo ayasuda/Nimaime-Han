@@ -1,0 +1,7 @@
+# expect: SANMAIME_E026
+# at: 7:5
+# The "=" between the target and the value must stand alone (spaces around it), so that targets
+# may contain "=" (here the whole argument "Items=3" is read as a target without a value).
+Screen: Cart
+  Element: Cart List
+    Count: Items=3

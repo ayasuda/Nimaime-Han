@@ -1,0 +1,13 @@
+# Only the keyword's own colon is special. '#', '@', ':', quotes and emoji
+# inside a name are ordinary characters, and internal spaces are kept.
+Screen: Checkout: Step 2 of 3
+
+  Element: Order #1234 / "Summary"
+    Show: Price: ¥1,200 (tax incl.)
+    And: Contact: support@example.com
+    And: 🎉 Promotion banner
+    And: Time:12:00
+
+    When: Coupon "SAVE10" is applied
+    Show: Discount   line
+    Hide: Coupon input

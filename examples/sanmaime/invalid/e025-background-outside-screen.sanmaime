@@ -1,0 +1,7 @@
+# expect: SANMAIME_E025
+# at: 4:1
+# Background: must appear inside a Screen:.
+Background: The user is logged in
+Screen: Cart
+  Element: Item List
+    Show: Items

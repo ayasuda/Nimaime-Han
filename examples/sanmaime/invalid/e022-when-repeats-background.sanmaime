@@ -1,0 +1,9 @@
+# expect: SANMAIME_E022
+# at: 8:5
+# A block condition must not repeat a Background: condition of its screen.
+Screen: Cart
+  Background: The user is logged in
+
+  Element: Item List
+    When: The user is logged in
+    Show: Items

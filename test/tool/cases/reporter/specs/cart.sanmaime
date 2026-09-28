@@ -1,0 +1,21 @@
+# Passes, fails (an expectation, and a condition), and skips on purpose.
+Screen: Cart
+
+  Element: Cart Summary
+    Show: Title
+
+    When: The cart is empty
+    Show: Empty message
+
+    When: An item was added
+    Hide: Empty message
+
+    When: Coupons are enabled
+    Show: Empty message
+
+  Element: Checkout Button
+    When: An item was added
+    Enable
+
+    When: The user is signed out
+    Disable

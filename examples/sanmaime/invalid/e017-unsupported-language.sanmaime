@@ -1,0 +1,7 @@
+# expect: SANMAIME_E017
+# at: 4:1
+# "fr" is not a supported keyword language (supported: en, ja).
+# language: fr
+Screen: Login
+  Element: Login Form
+    Show: Email address

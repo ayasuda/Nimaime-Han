@@ -1,0 +1,26 @@
+# Background: (v0.2) conditions run before every block of the screen, in order; And when:
+# composes the conditions of a block. The coupon block fails on purpose.
+Screen: Checkout
+  Background: The user is signed in
+  Background: The cart has an item
+
+  Element: Summary
+    Show: Greeting
+    And: Item count
+
+  Element: Pay Button
+    When: An address is entered
+    And when: A card is entered
+    Enable
+
+    When: An address is entered
+    Disable
+
+    When: An address is entered
+    And when: An expired card is entered
+    Disable
+
+  Element: Coupon
+    When: An address is entered
+    And when: A coupon is applied
+    Show: Discount

@@ -1,0 +1,5 @@
+# Nothing of this screen is defined yet: no file is generated for it.
+Screen: Settings
+
+  Element: Theme Switch
+    Enable

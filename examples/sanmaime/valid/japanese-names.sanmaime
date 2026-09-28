@@ -1,0 +1,22 @@
+# Names may be written in any script. Keywords are English here (no directive);
+# see ja-*.sanmaime for the same kind of file with "# language: ja" keywords.
+Screen: ユーザー詳細
+
+  Element: ユーザー情報
+
+    When: 自分のプロフィールを表示している
+    Show: ユーザー名
+    And: 氏名
+    And: メールアドレス
+
+    When: 他のユーザーのプロフィールを表示している
+    Show: ユーザー名
+    Hide: 氏名
+    And: メールアドレス
+
+  Element: 編集ボタン
+    When: 自分のプロフィールを表示している
+    Enable
+
+    When: 他のユーザーのプロフィールを表示している
+    Disable

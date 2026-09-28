@@ -1,0 +1,9 @@
+# expect: SANMAIME_E014
+# at: 9:5
+# One fact per target and family in a block: Show: and Text: of one target are two facts, two
+# Text: of one target contradict each other.
+Screen: Welcome
+  Element: Header
+    Show: Title
+    Text: Title = "Welcome"
+    Text: Title = "Hello"

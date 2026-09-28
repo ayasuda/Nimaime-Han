@@ -1,0 +1,7 @@
+# expect: SANMAIME_E020
+# at: 4:1
+# Every token on a tag line must start with "@".
+@smoke regression
+Screen: Login
+  Element: Login Form
+    Show: Email address

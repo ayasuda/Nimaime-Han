@@ -1,0 +1,29 @@
+# The expectation vocabulary v1 (v0.3): value keywords (Text:, Contain:, Count:) and state
+# keywords, alone (the element itself) or with a target. Every line holds on the page of
+# definitions/vocabulary.ts.
+Screen: Preferences
+
+  Element: Preferences Form
+    Text: Title = "Preferences"
+    Contain: Summary = "3 topics"
+    Count: Topics = 3
+    Check: Remember me
+    Uncheck: Promotions
+    ReadOnly: Account ID
+    Empty: Notes
+
+    When: The newsletter is chosen
+    Contain: Summary = "newsletter on"
+
+  Element: Newsletter Checkbox
+    Enable
+
+    When: The newsletter is chosen
+    Check
+
+  Element: Email Field
+    Editable
+    Empty
+
+    When: The email field is clicked
+    Focus

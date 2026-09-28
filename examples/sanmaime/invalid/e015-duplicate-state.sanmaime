@@ -1,0 +1,8 @@
+# expect: SANMAIME_E015
+# at: 8:5
+# The element itself has at most one state of each family per block (here Enable / Disable).
+Screen: Login
+  Element: Login Button
+    When: Input is valid
+    Enable
+    Disable

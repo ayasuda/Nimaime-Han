@@ -1,0 +1,7 @@
+# expect: SANMAIME_E001
+# at: 7:5
+# Japanese keywords need "# language: ja" (or the config option language: 'ja').
+Screen: User Details
+  Element: User Information
+    Show: Username
+    表示: Full name

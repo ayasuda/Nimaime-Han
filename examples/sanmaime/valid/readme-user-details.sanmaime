@@ -1,0 +1,16 @@
+# The "Sanmaime DSL" example in README.md.
+# Two condition blocks in one element; "And: Email address" in the second
+# block continues "Hide:", so Email address must be hidden there.
+Screen: User Details
+
+  Element: User Information
+
+    When: Viewing your own profile
+    Show: Username
+    And: Full name
+    And: Email address
+
+    When: Viewing another user's profile
+    Show: Username
+    Hide: Full name
+    And: Email address

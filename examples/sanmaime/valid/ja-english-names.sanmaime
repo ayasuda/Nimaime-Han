@@ -1,0 +1,16 @@
+# language: ja
+# Japanese keywords with English names. Same layout as readme-user-details.sanmaime,
+# so both files produce the same screens (keywords in the AST are canonical English).
+画面: User Details
+
+  要素: User Information
+
+    条件: Viewing your own profile
+    表示: Username
+    かつ: Full name
+    かつ: Email address
+
+    条件: Viewing another user's profile
+    表示: Username
+    非表示: Full name
+    かつ: Email address

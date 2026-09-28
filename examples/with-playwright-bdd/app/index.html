@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Example app</title>
+  </head>
+  <body>
+    <!-- A fake single-page app: log in, then open a user's profile. -->
+    <form id="login">
+      <label>Username <input name="username" /></label>
+      <button type="submit">Log in</button>
+    </form>
+
+    <nav id="nav" hidden>
+      <a href="#/users/me">My profile</a>
+    </nav>
+
+    <section id="user-details" hidden>
+      <h1 data-testid="username"></h1>
+      <p data-testid="full-name"></p>
+      <p data-testid="email"></p>
+      <button type="button">Edit profile</button>
+    </section>
+
+    <script>
+      const users = {
+        alice: { name: 'Alice Liddell', email: 'alice@example.com' },
+        bob: { name: 'Bob Builder', email: 'bob@example.com' },
+      };
+      let currentUser;
+
+      document.getElementById('login').addEventListener('submit', (event) => {
+        event.preventDefault();
+        currentUser = new FormData(event.target).get('username');
+        event.target.hidden = true;
+        document.getElementById('nav').hidden = false;
+      });
+
+      function render() {
+        const match = /^#\/users\/(.+)$/.exec(location.hash);
+        const section = document.getElementById('user-details');
+        section.hidden = !match || !currentUser;
+        if (section.hidden) return;
+        const username = match[1] === 'me' ? currentUser : match[1];
+        const own = username === currentUser;
+        const user = users[username];
+        section.querySelector('[data-testid="username"]').textContent = username;
+        // Other users' full name, email address and the edit button are not shown.
+        for (const [testId, value] of [
+          ['full-name', user.name],
+          ['email', user.email],
+        ]) {
+          const field = section.querySelector(`[data-testid="${testId}"]`);
+          field.textContent = value;
+          field.hidden = !own;
+        }
+        section.querySelector('button').hidden = !own;
+      }
+      window.addEventListener('hashchange', render);
+    </script>
+  </body>
+</html>

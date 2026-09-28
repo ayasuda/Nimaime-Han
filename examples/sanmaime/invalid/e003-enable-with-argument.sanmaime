@@ -1,0 +1,8 @@
+# expect: SANMAIME_E003
+# at: 8:5
+# A state keyword takes its target after a colon ("Enable: Login button"); alone, it is about the
+# element itself ("Enable"). "Enable Login button" is neither.
+Screen: Login
+  Element: Login Button
+    When: Input is valid
+    Enable Login button

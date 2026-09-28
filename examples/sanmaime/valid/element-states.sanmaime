@@ -1,0 +1,23 @@
+# State keywords (v0.3): alone on their line, they are about the element itself (its self locator).
+# At most one state of each family per block: Enable/Disable, Check/Uncheck, Editable/ReadOnly,
+# Focus, Empty.
+Screen: Settings
+
+  Element: Newsletter Checkbox
+    Enable
+
+    When: The user is new
+    Uncheck
+
+    When: The user subscribed
+    Check
+
+  Element: Email Field
+    Editable
+    Empty
+
+    When: The email field was clicked
+    Focus
+
+  Element: Account ID Field
+    ReadOnly

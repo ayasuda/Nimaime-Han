@@ -1,0 +1,6 @@
+# expect: SANMAIME_E027
+# at: 6:5
+# The text of Text: / Contain: is written in double quotes.
+Screen: Welcome
+  Element: Header
+    Text: Title = Welcome

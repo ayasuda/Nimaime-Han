@@ -1,0 +1,16 @@
+{
+  // Used by Playwright's TypeScript loader (bddgen and playwright test), by editors and by
+  // `npm run typecheck`. Keeping one here also stops the loader from picking up the repository's
+  // tsconfig.json, which maps `nimaime-han` to the sources instead of the installed package.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", ".features-gen"]
+}

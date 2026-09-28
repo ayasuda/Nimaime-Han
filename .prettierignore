@@ -1,0 +1,9 @@
+dist/
+coverage/
+.sanmaime-gen/
+.features-gen/
+test-results/
+playwright-report/
+package-lock.json
+README.md
+examples/basic/.sanmaime-gen-failing/

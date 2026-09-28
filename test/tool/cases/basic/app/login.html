@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Log in</title>
+  </head>
+  <body>
+    <h1>Log in</h1>
+    <form id="login-form">
+      <p>
+        <label>Email address <input name="email" type="email" required /></label>
+      </p>
+      <p>
+        <label>Password <input name="password" type="password" required /></label>
+      </p>
+      <button type="submit" disabled>Log in</button>
+    </form>
+    <script>
+      // The button is enabled only while every input is valid.
+      const form = document.getElementById('login-form');
+      const button = form.querySelector('button');
+      form.addEventListener('input', () => {
+        button.disabled = !form.checkValidity();
+      });
+      form.addEventListener('submit', (event) => event.preventDefault());
+    </script>
+  </body>
+</html>

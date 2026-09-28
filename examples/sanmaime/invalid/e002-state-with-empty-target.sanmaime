@@ -1,0 +1,7 @@
+# expect: SANMAIME_E002
+# at: 7:5
+# "Disable:" with a colon takes a target (v0.3); for the element itself write "Disable" alone.
+Screen: Login
+  Element: Login Button
+    When: Input is invalid
+    Disable:

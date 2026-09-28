@@ -1,0 +1,19 @@
+{
+  "name": "nimaime-han-example-basic",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A small static app tested with Sanmaime specifications and Nimaime-Han.",
+  "type": "module",
+  "scripts": {
+    "gen": "nimaime-gen",
+    "test": "nimaime-gen && playwright test",
+    "test:fail": "nimaime-gen -c playwright.failing.config.ts && playwright test -c playwright.failing.config.ts",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "nimaime-han": "file:../..",
+    "typescript": "^6.0.3"
+  }
+}

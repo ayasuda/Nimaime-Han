@@ -1,0 +1,9 @@
+# Definitions are global to a Playwright run (all projects' spec files are loaded in the runner
+# process), so the projects use different screen and element names.
+Screen: Home
+
+  Element: Main Menu
+    Hide: Settings
+
+  Element: Welcome Banner
+    Show: Greeting

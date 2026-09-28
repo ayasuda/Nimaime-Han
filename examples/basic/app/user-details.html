@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>User details</title>
+  </head>
+  <body>
+    <!--
+      Shows the profile of ?user=<username> (default: the signed-in user). The full name, the email
+      address and the edit button are shown only on your own profile.
+    -->
+    <h1>User details</h1>
+    <dl>
+      <dt>Username</dt>
+      <dd data-testid="username"></dd>
+      <dt class="private">Full name</dt>
+      <dd class="private" data-testid="real-name"></dd>
+      <dt class="private">Email address</dt>
+      <dd class="private" data-testid="email"></dd>
+    </dl>
+    <button class="private" type="button" data-testid="edit-button">Edit profile</button>
+    <script>
+      const signedInUser = 'alice';
+      const users = {
+        alice: { name: 'Alice Liddell', email: 'alice@example.com' },
+        bob: { name: 'Bob Kane', email: 'bob@example.com' },
+      };
+      const username = new URLSearchParams(location.search).get('user') ?? signedInUser;
+      const user = users[username];
+      document.querySelector('[data-testid="username"]').textContent = username;
+      document.querySelector('[data-testid="real-name"]').textContent = user.name;
+      document.querySelector('[data-testid="email"]').textContent = user.email;
+      for (const element of document.querySelectorAll('.private')) {
+        element.hidden = username !== signedInUser;
+      }
+    </script>
+  </body>
+</html>

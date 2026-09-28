@@ -1,0 +1,19 @@
+{
+  "name": "nimaime-han-example-with-playwright-bdd",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Gherkin scenarios (playwright-bdd) whose Then steps verify Sanmaime screen specifications.",
+  "type": "module",
+  "scripts": {
+    "gen": "bddgen",
+    "test": "bddgen && playwright test",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "nimaime-han": "file:../..",
+    "playwright-bdd": "^9.2.1",
+    "typescript": "^6.0.3"
+  }
+}

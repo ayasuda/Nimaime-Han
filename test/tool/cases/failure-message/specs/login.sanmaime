@@ -1,0 +1,9 @@
+# The button is enabled once the input is valid, so the first block fails on purpose.
+Screen: Login
+
+  Element: Login Button
+    When: Input is valid
+    Disable
+
+    When: Input is empty
+    Disable

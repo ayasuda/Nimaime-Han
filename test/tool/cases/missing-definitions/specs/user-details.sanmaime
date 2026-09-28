@@ -1,0 +1,16 @@
+# Written before all of its definitions: "Viewing your own profile", the "Full name" target and
+# the "Edit Button" element are not defined yet.
+Screen: User Details
+
+  Element: User Information
+    Show: Username
+
+    When: Viewing your own profile
+    Show: Full name
+
+    When: Viewing another user's profile
+    Hide: Email address
+
+  Element: Edit Button
+    When: Viewing another user's profile
+    Disable

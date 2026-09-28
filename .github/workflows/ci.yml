@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium for end-to-end tests
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: End-to-end tests of nimaime-gen
+        run: npm run test:e2e:gen
+
+      - name: End-to-end tests of nimaime draft
+        run: npm run test:e2e:draft
+      - name: Tool test cases (nimaime-gen + playwright test on test/tool/cases)
+        run: npm run test:tool
+
+      - name: Example project (examples/basic)
+        run: npm run test:example:basic
+
+      - name: Example project (examples/with-playwright-bdd)
+        run: npm run test:example:bdd
+  # Runs the `basic` tool case against several @playwright/test versions of the peerDependency range
+  # (docs/contributing-tests.md). The version under test is installed with a packed nimaime-han into
+  # a directory of its own, never into the repository. The browser is the Chromium of the
+  # repository's Playwright: older Playwright versions drive it fine, and their own browser builds
+  # may no longer be downloadable.
+  playwright-matrix:
+    name: Playwright ${{ matrix.playwright }} (${{ matrix.type }})
+    needs: ci
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # "type" is the package.json type of the test project. ES module projects need
+          # Playwright >= 1.61 (nimaime-gen loads definition files through Playwright's loader).
+          - { playwright: 1.40.0, type: commonjs } # peerDependency minimum
+          - { playwright: 1.45.0, type: commonjs }
+          - { playwright: 1.50.0, type: commonjs }
+          - { playwright: 1.55.0, type: commonjs }
+          - { playwright: 1.61.0, type: module }
+          - { playwright: latest, type: commonjs }
+          - { playwright: latest, type: module }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install @playwright/test@${{ matrix.playwright }} with the packed nimaime-han
+        run: node test/tool/install-playwright.js "${{ matrix.playwright }}" "$RUNNER_TEMP/playwright"
+
+      - name: Tool case "basic"
+        env:
+          NIMAIME_TOOL_NODE_MODULES: ${{ runner.temp }}/playwright/node_modules
+          NIMAIME_TOOL_PACKAGE_TYPE: ${{ matrix.type }}
+        run: |
+          export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$(node -e "import('@playwright/test').then((m) => console.log(m.chromium.executablePath()))")"
+          npx vitest run -c vitest.tool.config.ts test/tool/cases/basic

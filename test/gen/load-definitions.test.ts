@@ -54,6 +54,21 @@ describe('loadDefinitions', () => {
     expect(second.screens.get('User Details')).toBe(first.screens.get('User Details'));
   });
 
+  it('records and replays hooks like definitions', async () => {
+    const files = [path.join(fixtures, 'hooks', 'hooks.ts')];
+    const first = await loadDefinitions(files);
+    expect(first.hooks.map((hook) => `${hook.kind} ${hook.screen ?? '*'}`)).toEqual([
+      'beforeScreen Login',
+      'afterElement *',
+    ]);
+    expect(first.hooks[0]?.source?.file).toBe(files[0]);
+    const second = await loadDefinitions(files);
+    expect(second.hooks).toEqual(first.hooks);
+    expect(getRegistry().hooks).toEqual(first.hooks);
+    expect((await loadDefinitions([])).hooks).toEqual([]);
+    expect(first.hooks).toHaveLength(2);
+  });
+
   it('returns only the definitions of the given files, as an independent snapshot', async () => {
     const all = await loadDefinitions(definitions('user-details.ts', 'login.ts'));
     const some = await loadDefinitions(definitions('login.ts'));

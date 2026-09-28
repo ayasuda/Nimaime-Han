@@ -22,19 +22,31 @@ export type {
   ConditionFn,
   ConditionOptions,
   DefaultFixtures,
+  DefaultWorkerFixtures,
   DefineCondition,
   DefineElement,
+  DefineElementHook,
   DefineScreen,
+  DefineScreenHook,
+  ElementHookFn,
+  ElementHookInfo,
+  ElementHookOptions,
   ElementTargets,
   FixturesOf,
+  HookInfo,
+  HookKind,
   LocatorFn,
   NimaimeDefinitions,
   OpenScreenFn,
+  ScreenHookFn,
+  ScreenHookInfo,
+  ScreenHookOptions,
   ScreenOptions,
+  WorkerFixturesOf,
 } from './runtime/types';
 // Runtime errors and the failure parser, re-exported so users and reporters can import them from
 // the main entry (the classes are also exported from `nimaime-han/runtime`).
-export { NimaimeRuntimeError } from './runtime/errors';
+export { NimaimeHookError, NimaimeRuntimeError } from './runtime/errors';
 export { NimaimeExpectationError, parseExpectationFailure } from './runtime/failure';
 export type { ExpectationFailureJSON } from './runtime/failure';
 // Types of `nimaime draft` (docs/draft.md), for users who write an LLM adapter in TypeScript:

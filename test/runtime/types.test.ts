@@ -5,6 +5,7 @@
 import {
   test as base,
   type APIRequestContext,
+  type Browser,
   type BrowserContext,
   type Locator,
   type Page,
@@ -14,10 +15,14 @@ import {
   createNimaime,
   type ConditionFn,
   type DefaultFixtures,
+  type DefaultWorkerFixtures,
+  type ElementHookInfo,
   type FixturesOf,
   type LocatorFn,
   type NimaimeDefinitions,
   type OpenScreenFn,
+  type ScreenHookInfo,
+  type WorkerFixturesOf,
 } from '../../src/index';
 import { findCondition, findElement, findScreen, resetRegistry } from '../../src/runtime/index';
 
@@ -134,5 +139,36 @@ describe('createNimaime(test) typing', () => {
     custom.defineCondition('Logged in', ({ login }) => login('alice'));
     expect(findScreen('User Details')?.open).toBeTypeOf('function');
     expect(findCondition('Anywhere')?.fn).toBeTypeOf('function');
+  });
+
+  it('gives screen hooks worker-scoped fixtures only and element hooks every fixture', () => {
+    expectTypeOf<WorkerFixturesOf<typeof base>>().toEqualTypeOf<DefaultWorkerFixtures>();
+    expectTypeOf<WorkerFixturesOf<typeof test>>().toHaveProperty('tenant');
+    const { beforeScreen, afterScreen, beforeElement, afterElement } = createNimaime(test);
+    beforeScreen(async ({ browser, tenant }, info) => {
+      expectTypeOf(browser).toEqualTypeOf<Browser>();
+      expectTypeOf(tenant).toEqualTypeOf<string>();
+      expectTypeOf(info).toEqualTypeOf<ScreenHookInfo>();
+      await Promise.resolve();
+    });
+    // @ts-expect-error -- `page` is test-scoped: not available in screen hooks (test.beforeAll)
+    afterScreen(({ page }) => page, { screen: 'Login' });
+    // @ts-expect-error -- `login` is test-scoped: not available in screen hooks
+    beforeScreen(({ login }) => login);
+    beforeElement(
+      async ({ page, login, tenant }, info) => {
+        expectTypeOf(info).toEqualTypeOf<ElementHookInfo>();
+        expectTypeOf(info.condition).toEqualTypeOf<string | undefined>();
+        await login(tenant);
+        await page.goto('/');
+      },
+      { screen: 'Login', element: 'Login Form' },
+    );
+    afterElement(({ page }) => page.close(), { element: 'Login Form', tags: '@smoke' });
+    expect(() => {
+      // @ts-expect-error -- screen hooks take no `element` option
+      beforeScreen(() => undefined, { element: 'Login Form' });
+    }).toThrow(/no `element`/);
+    resetRegistry();
   });
 });

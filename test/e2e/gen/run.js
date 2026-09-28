@@ -1,8 +1,10 @@
 // End-to-end test of nimaime-gen (npm run test:e2e:gen): runs the built CLI (dist/) on this
 // project, then `playwright test` on the generated specs, and checks the outcome:
 // every test passes except the one of specs/failing/broken-on-purpose.sanmaime, which must fail
-// with a Sanmaime failure message. Then checks tags: `nimaime-gen export --tags @smoke` and
-// `playwright test --grep @smoke` select exactly the tests of specs/tagged.sanmaime.
+// with a Sanmaime failure message. specs/hooks.sanmaime passes only if the hooks of
+// definitions/hooks.ts run (they open the page and check their own order). Then checks tags:
+// `nimaime-gen export --tags @smoke` and `playwright test --grep @smoke` select exactly the tests
+// of specs/tagged.sanmaime.
 //
 // Needs `npm run build` first (the npm script does it): the CLI and the `nimaime-han` imports of
 // the generated specs and definitions resolve to dist/.
@@ -32,6 +34,8 @@ const EXPECTED_PASSED = [
   'Screen: ユーザー詳細 > Element: ユーザー情報 > When: 他のユーザーのプロフィールを閲覧している',
   'Screen: ユーザー詳細 > Element: 編集ボタン > When: 自分のプロフィールを閲覧している',
   'Screen: ユーザー詳細 > Element: 編集ボタン > When: 他のユーザーのプロフィールを閲覧している',
+  'Screen: Hooked Login > Element: Login Button > When: The hooks filled in the form',
+  'Screen: Hooked Login > Element: Login Button > When: Email is cleared',
   ...TAGGED,
 ];
 const EXPECTED_FAILED = ['Screen: Login > Element: Login Button > When: Input is valid'];
@@ -67,7 +71,7 @@ process.stdout.write(gen.stdout);
 process.stderr.write(gen.stderr);
 check(gen.status === 0, 'nimaime-gen exits with 0');
 check(
-  /^Generated 4 spec files \(11 tests\) into /.test(gen.stdout),
+  /^Generated 5 spec files \(13 tests\) into /.test(gen.stdout),
   'nimaime-gen prints a summary',
 );
 for (const file of [
@@ -75,6 +79,7 @@ for (const file of [
   'tagged.spec.ts',
   'ja/user-details.spec.ts',
   'failing/broken-on-purpose.spec.ts',
+  'hooks.spec.ts',
 ]) {
   const generated = path.join(outputDir, 'specs', file);
   check(
@@ -83,6 +88,16 @@ for (const file of [
     `generated ${path.relative(root, generated)}`,
   );
 }
+
+const hooksSpec = fs.readFileSync(path.join(outputDir, 'specs', 'hooks.spec.ts'), 'utf8');
+check(
+  hooksSpec.includes(`import { createNimaimeTest, runHooks } from 'nimaime-han/runtime';`) &&
+    hooksSpec.includes(`test.beforeAll(async ({ browser }) => {`) &&
+    hooksSpec.includes(`test.afterAll(async ({ browser }) => {`) &&
+    hooksSpec.includes(`test.beforeEach(async ({ loginHtml, page }) => {`) &&
+    hooksSpec.includes(`test.afterEach(async ({}) => {`),
+  'hooks are generated as test.beforeAll / afterAll / beforeEach / afterEach',
+);
 
 console.log(`\nplaywright test -c ${config}`);
 const report = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nimaime-e2e-')), 'report.json');
@@ -123,7 +138,7 @@ const json = JSON.parse(fs.readFileSync(report, 'utf8'));
 const tests = json.suites.flatMap((suite) => collect(suite));
 const passed = tests.filter((t) => t.status === 'passed');
 const failed = tests.filter((t) => t.status !== 'passed');
-check(tests.length === 11, `11 tests ran (got ${tests.length})`);
+check(tests.length === 13, `13 tests ran (got ${tests.length})`);
 check(
   JSON.stringify(passed.map((t) => t.title).sort()) === JSON.stringify([...EXPECTED_PASSED].sort()),
   `the expected tests passed: ${passed.map((t) => t.title).join(' | ')}`,

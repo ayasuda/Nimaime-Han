@@ -26,10 +26,12 @@ import {
   getRegistry,
   registerCondition,
   registerElement,
+  registerHook,
   registerScreen,
   resetRegistry,
   type ConditionDefinition,
   type ElementDefinition,
+  type HookDefinition,
   type Registry,
   type ScreenDefinition,
 } from '../runtime/registry';
@@ -59,7 +61,8 @@ export interface LoadDefinitionsOptions {
 type RecordedDefinition =
   | { kind: 'screen'; def: ScreenDefinition }
   | { kind: 'element'; def: ElementDefinition }
-  | { kind: 'condition'; def: ConditionDefinition };
+  | { kind: 'condition'; def: ConditionDefinition }
+  | { kind: 'hook'; def: HookDefinition };
 
 // Kept on globalThis (like the registry) so that every copy of this module in the process agrees
 // on which files were already evaluated.
@@ -137,6 +140,7 @@ function allDefinitions(registry: Registry): RecordedDefinition[] {
     if (scopes.global) result.push({ kind: 'condition', def: scopes.global });
     for (const def of scopes.screens.values()) result.push({ kind: 'condition', def });
   }
+  for (const def of registry.hooks) result.push({ kind: 'hook', def });
   return result;
 }
 
@@ -144,7 +148,8 @@ function replay(recorded: readonly RecordedDefinition[]): void {
   for (const entry of recorded) {
     if (entry.kind === 'screen') registerScreen(entry.def);
     else if (entry.kind === 'element') registerElement(entry.def);
-    else registerCondition(entry.def);
+    else if (entry.kind === 'condition') registerCondition(entry.def);
+    else registerHook(entry.def);
   }
 }
 
@@ -157,6 +162,7 @@ function snapshot(registry: Registry): Registry {
     screens: new Map(registry.screens),
     elements: new Map(registry.elements),
     conditions,
+    hooks: [...registry.hooks],
   };
 }
 

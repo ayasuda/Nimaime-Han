@@ -52,6 +52,16 @@ export {
   type GenerateOptions,
   type UnknownFixtures,
 } from './generate';
+export {
+  documentHooks,
+  ELEMENT_HOOK_FALLBACK_FIXTURE,
+  hasHooks,
+  SCREEN_HOOK_FALLBACK_FIXTURE,
+  type DocumentHooks,
+  type HookCall,
+  type HookUsage,
+  type ScreenHookUsage,
+} from './hooks';
 export { cleanOutputDir, writeGeneratedFiles, type CleanResult } from './output';
 export {
   displayPath,

@@ -14,6 +14,7 @@ import {
   type GeneratedSpecFile,
   type GeneratedTest,
 } from './generate';
+import { documentHooks } from './hooks';
 import { loadDefinitions } from './load-definitions';
 import { hasErrors, loadSpecs, type ParsedSpec } from './load-specs';
 import {
@@ -333,13 +334,14 @@ export async function processConfig(
       importTestFrom: config.importTestFrom,
       quotes: config.quotes,
       definitionFiles,
+      hooks: documentHooks(doc),
     });
     result.files.push(file);
     result.tests.push(...file.tests);
     for (const unknown of file.unknownFixtures) {
       stderr.write(
         `${displayPath(doc.file, cwd)}: warning: cannot tell which fixtures ${unknown.callback} uses ` +
-          `(its first parameter is not destructured), so "${unknown.titlePath.join(' > ')}" requests "page" for it. ` +
+          `(its first parameter is not destructured), so "${unknown.titlePath.join(' > ')}" requests "${unknown.fallback ?? 'page'}" for it. ` +
           'Destructure the fixtures it needs, e.g. async ({ page }) => { … }.\n',
       );
     }

@@ -16,6 +16,7 @@ import type { QuoteStyle, ResolvedImportTestFrom } from '../config/types';
 import { fixtureNamesOf } from '../runtime/resolve';
 import type { Tag } from '../parser';
 import type { ElementDefinition } from '../runtime/registry';
+import { hasHooks, type DocumentHooks, type HookCall, type HookUsage } from './hooks';
 import { tagNames } from './tags';
 import type {
   ResolvedCondition,
@@ -51,6 +52,8 @@ export interface GenerateOptions {
   quotes: QuoteStyle;
   /** Absolute paths of the definition files, imported for their side effects, in this order. */
   definitionFiles: readonly string[];
+  /** The hooks that apply to the document's screens and elements (`documentHooks(doc)`). */
+  hooks?: DocumentHooks | undefined;
 }
 
 /** One generated test: its title path, e.g. `['Screen: Login', 'Element: Login Form', 'Always']`. */
@@ -64,8 +67,10 @@ export interface GeneratedTest {
 export interface UnknownFixtures {
   /** E.g. `condition "Logged in"`. */
   callback: string;
-  /** The test that requests `page` for it instead. */
+  /** The test (or hook, e.g. `[…, 'beforeAll hook']`) that requests `fallback` for it instead. */
   titlePath: string[];
+  /** The fixture requested instead; `page` when absent. */
+  fallback?: string;
 }
 
 export interface GeneratedSpecFile {
@@ -473,6 +478,127 @@ function writeTest(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Hooks (docs/hooks.md)
+// ---------------------------------------------------------------------------------------------
+
+/** `{ screen: 'X', element: 'Y' }`, broken one property per line when it does not fit. */
+function writeStringObject(w: Writer, depth: number, entries: [string, string][]): void {
+  const flat = `{ ${entries.map(([key, value]) => `${key}: ${w.q(value)}`).join(', ')} },`;
+  if (w.fits(depth, flat)) {
+    w.line(depth, flat);
+    return;
+  }
+  w.line(depth, '{');
+  for (const [key, value] of entries) w.stringProperty(depth + 1, key, value);
+  w.line(depth, '},');
+}
+
+/**
+ * `test.beforeAll(async ({ browser }) => { await runHooks('beforeScreen', { browser }, info); });`
+ * laid out like Prettier: when the callback head does not fit after `test.beforeAll(`, the
+ * callback moves to its own line, and its destructured parameter breaks if it still does not fit.
+ */
+function writeHook(
+  w: Writer,
+  depth: number,
+  playwrightHook: string,
+  kind: string,
+  call: HookCall,
+  info: [string, string][],
+): void {
+  const { params, args } = fixtureEntries(call.fixtures, w);
+  const names = params.slice(1); // without `$nimaime`
+  const flatParams = names.length === 0 ? '({})' : `({ ${names.join(', ')} })`;
+  const head = `test.${playwrightHook}(async ${flatParams} => {`;
+  let body = depth + 1;
+  if (w.fits(depth, head)) {
+    w.line(depth, head);
+  } else {
+    w.line(depth, `test.${playwrightHook}(`);
+    if (w.fits(depth + 1, `async ${flatParams} => {`)) {
+      w.line(depth + 1, `async ${flatParams} => {`);
+    } else {
+      w.line(depth + 1, 'async ({');
+      for (const name of names) w.line(depth + 2, `${name},`);
+      w.line(depth + 1, '}) => {');
+    }
+    body = depth + 2;
+  }
+  const fixturesFlat = args.length === 0 ? '{}' : `{ ${args.join(', ')} }`;
+  const infoFlat = `{ ${info.map(([key, value]) => `${key}: ${w.q(value)}`).join(', ')} }`;
+  const flatCall = `await runHooks(${w.q(kind)}, ${fixturesFlat}, ${infoFlat});`;
+  if (w.fits(body, flatCall)) {
+    w.line(body, flatCall);
+  } else {
+    w.line(body, 'await runHooks(');
+    w.line(body + 1, `${w.q(kind)},`);
+    w.inlineOrBrokenObject(body + 1, '', args);
+    writeStringObject(w, body + 1, info);
+    w.line(body, ');');
+  }
+  if (body === depth + 1) {
+    w.line(depth, '});');
+  } else {
+    w.line(depth + 1, '},');
+    w.line(depth, ');');
+  }
+}
+
+/**
+ * The `test.beforeAll` / `test.afterAll` (screen) or `test.beforeEach` / `test.afterEach`
+ * (element) calls of one scope. Returns whether anything was written. `info` carries the names
+ * as written in the spec (hooks are matched by name, not bound to a definition).
+ */
+function writeScopeHooks(
+  w: Writer,
+  depth: number,
+  scope: HookUsage | undefined,
+  info: { screen: string; element?: string },
+  titlePath: string[],
+  unknownFixtures: UnknownFixtures[],
+): boolean {
+  if (!scope || !hasHooks(scope)) return false;
+  const element = info.element !== undefined;
+  const entries: [string, string][] = [['screen', info.screen]];
+  if (info.element !== undefined) entries.push(['element', info.element]);
+  const sides = [
+    [
+      element ? 'beforeEach' : 'beforeAll',
+      element ? 'beforeElement' : 'beforeScreen',
+      scope.before,
+    ],
+    [element ? 'afterEach' : 'afterAll', element ? 'afterElement' : 'afterScreen', scope.after],
+  ] as const;
+  let first = true;
+  for (const [playwrightHook, kind, call] of sides) {
+    if (!call) continue;
+    if (!first) w.blank();
+    first = false;
+    for (const callback of call.unknown) {
+      unknownFixtures.push({
+        callback,
+        titlePath: [...titlePath, `${playwrightHook} hook`],
+        fallback: call.fallback,
+      });
+    }
+    writeHook(w, depth, playwrightHook, kind, call, entries);
+  }
+  return true;
+}
+
+/** Whether any screen or element of `doc` gets generated hooks (then `runHooks` is imported). */
+function documentUsesHooks(doc: ResolvedDocument, hooks: DocumentHooks | undefined): boolean {
+  if (!hooks) return false;
+  return doc.screens.some((screen) => {
+    const usage = hooks.get(screen.name);
+    return (
+      hasHooks(usage) ||
+      screen.elements.some((element) => hasHooks(usage?.elements.get(element.name)))
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Files
 // ---------------------------------------------------------------------------------------------
 
@@ -508,7 +634,10 @@ export function generateSpecFile(
   const unknownFixtures: UnknownFixtures[] = [];
 
   w.line(0, `${GENERATED_HEADER_PREFIX} from ${doc.uri}. Do not edit.`);
-  w.line(0, `import { createNimaimeTest } from ${w.q(RUNTIME_MODULE)};`);
+  const runtimeImports = documentUsesHooks(doc, options.hooks)
+    ? 'createNimaimeTest, runHooks'
+    : 'createNimaimeTest';
+  w.line(0, `import { ${runtimeImports} } from ${w.q(RUNTIME_MODULE)};`);
   const custom = options.importTestFrom;
   if (custom) {
     const binding = custom.varName === 'base' ? 'base' : `${custom.varName} as base`;
@@ -543,8 +672,17 @@ export function generateSpecFile(
       screenTitle,
       { async: false, names: undefined },
       (d1) => {
+        const screenHooks = options.hooks?.get(screen.name);
+        const wroteScreenHooks = writeScopeHooks(
+          w,
+          d1,
+          screenHooks,
+          { screen: screen.name },
+          [screenTitle],
+          unknownFixtures,
+        );
         screen.elements.forEach((element, elementIndex) => {
-          if (elementIndex > 0) w.blank();
+          if (elementIndex > 0 || wroteScreenHooks) w.blank();
           const elementTitle = `Element: ${element.name}`;
           w.callWithCallback(
             d1,
@@ -552,6 +690,14 @@ export function generateSpecFile(
             elementTitle,
             { async: false, names: undefined },
             (d2) => {
+              const wroteElementHooks = writeScopeHooks(
+                w,
+                d2,
+                screenHooks?.elements.get(element.name),
+                { screen: screen.name, element: element.name },
+                [screenTitle, elementTitle],
+                unknownFixtures,
+              );
               const blocks: {
                 title: string;
                 condition: ResolvedCondition | undefined;
@@ -575,7 +721,7 @@ export function generateSpecFile(
                 });
               }
               blocks.forEach((block, blockIndex) => {
-                if (blockIndex > 0) w.blank();
+                if (blockIndex > 0 || wroteElementHooks) w.blank();
                 const titlePath = [screenTitle, elementTitle, block.title];
                 const fixtures = blockFixtures(
                   screen,

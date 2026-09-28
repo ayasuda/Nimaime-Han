@@ -12,3 +12,12 @@ export class NimaimeDefinitionError extends Error {
 export class NimaimeRuntimeError extends Error {
   override name = 'NimaimeRuntimeError';
 }
+
+/**
+ * Error thrown when a `beforeScreen` / `afterScreen` / `beforeElement` / `afterElement` hook throws.
+ * The message is prefixed with the hook and its scope (`BeforeElement hook for Element "Login
+ * Form" failed: …`); `cause` is the original error, whose stack frames are kept.
+ */
+export class NimaimeHookError extends Error {
+  override name = 'NimaimeHookError';
+}

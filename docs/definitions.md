@@ -72,7 +72,8 @@ the same registry. The `test` is stored on every definition, together with a `cu
 
 Binds `Screen: <name>`. `open(fixtures)` navigates to the screen, i.e. establishes its _base state_
 ([sanmaime.md §5.4](./sanmaime.md)). It is optional (e.g. when a `BeforeScreen` hook or a condition
-does the navigation).
+does the navigation). Its type is `(fixtures) => unknown`: a returned promise is awaited and its
+value ignored, so `open: ({ page }) => page.goto('/users/me')` works as is.
 
 ## `defineElement(name, targets)` / `defineElement(name, self, targets?)`
 
@@ -94,6 +95,7 @@ later if screen-specific elements with the same name turn out to be needed.
 
 Binds `When: <name>`. `fn(fixtures)` establishes the state named by the condition (log in as
 another user, fill in invalid input, …), starting from the base state reached by the screen's `open`.
+Like `open`, its type is `(fixtures) => unknown`: a returned promise is awaited, its value ignored.
 
 **Scope and lookup:**
 

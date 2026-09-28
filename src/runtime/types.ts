@@ -37,11 +37,17 @@ export type AnyFixtures = any;
 /** Locates a Sanmaime target (or the Element itself) from the test's fixtures. */
 export type LocatorFn<F = DefaultFixtures> = (fixtures: F) => Locator;
 
-/** Establishes the state named by a Sanmaime `When:` condition. */
-export type ConditionFn<F = DefaultFixtures> = (fixtures: F) => Promise<void> | void;
+/**
+ * Establishes the state named by a Sanmaime `When:` condition. It may return a promise, which is
+ * awaited; its value is ignored (so `({ page }) => page.click('…')` is fine).
+ */
+export type ConditionFn<F = DefaultFixtures> = (fixtures: F) => unknown;
 
-/** Navigates to a screen (reaches its base state). */
-export type OpenScreenFn<F = DefaultFixtures> = (fixtures: F) => Promise<void> | void;
+/**
+ * Navigates to a screen (reaches its base state). It may return a promise, which is awaited; its
+ * value is ignored (so `({ page }) => page.goto('/users/me')` is fine).
+ */
+export type OpenScreenFn<F = DefaultFixtures> = (fixtures: F) => unknown;
 
 /** Options of `defineScreen`. */
 export interface ScreenOptions<F = DefaultFixtures> {

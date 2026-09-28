@@ -1,0 +1,107 @@
+{
+  "name": "nimaime-han",
+  "version": "0.0.0",
+  "description": "Screen specification testing for Playwright using the Sanmaime DSL.",
+  "keywords": [
+    "playwright",
+    "testing",
+    "e2e",
+    "specification",
+    "dsl",
+    "sanmaime"
+  ],
+  "license": "MIT",
+  "author": "Atsushi Yasuda",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ayasuda/Nimaime-Han.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ayasuda/Nimaime-Han/issues"
+  },
+  "homepage": "https://github.com/ayasuda/Nimaime-Han#readme",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./parser": {
+      "import": {
+        "types": "./dist/parser/index.d.ts",
+        "default": "./dist/parser/index.js"
+      },
+      "require": {
+        "types": "./dist/parser/index.d.cts",
+        "default": "./dist/parser/index.cjs"
+      }
+    },
+    "./runtime": {
+      "import": {
+        "types": "./dist/runtime/index.d.ts",
+        "default": "./dist/runtime/index.js"
+      },
+      "require": {
+        "types": "./dist/runtime/index.d.cts",
+        "default": "./dist/runtime/index.cjs"
+      }
+    },
+    "./reporter": {
+      "import": {
+        "types": "./dist/reporter/index.d.ts",
+        "default": "./dist/reporter/index.js"
+      },
+      "require": {
+        "types": "./dist/reporter/index.d.cts",
+        "default": "./dist/reporter/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "nimaime-gen": "./dist/cli/nimaime-gen.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  }
+}

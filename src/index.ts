@@ -15,3 +15,20 @@ export type {
   ResolvedSanmaimeConfig,
   SanmaimeConfig,
 } from './config/types';
+// Definition API (createNimaime -> defineScreen / defineElement / defineCondition).
+export { createNimaime } from './runtime/define';
+export { NimaimeDefinitionError } from './runtime/errors';
+export type {
+  ConditionFn,
+  ConditionOptions,
+  DefaultFixtures,
+  DefineCondition,
+  DefineElement,
+  DefineScreen,
+  ElementTargets,
+  FixturesOf,
+  LocatorFn,
+  NimaimeDefinitions,
+  OpenScreenFn,
+  ScreenOptions,
+} from './runtime/types';

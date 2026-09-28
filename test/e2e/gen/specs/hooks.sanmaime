@@ -1,0 +1,10 @@
+# Nothing opens this screen (no defineScreen): the hooks of definitions/hooks.ts bring the page to
+# its base state, so these tests pass only if the generated test.beforeEach runs them.
+Screen: Hooked Login
+
+  Element: Login Button
+    When: The hooks filled in the form
+    Enable
+
+    When: Email is cleared
+    Disable

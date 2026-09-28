@@ -342,6 +342,12 @@ Details:
   `$nimaime.run()`. When a callback does not destructure its parameter
   (`(fixtures) => fixtures.page…`), its fixtures cannot be known: `nimaime-gen` warns and the test
   requests `page` for it. Destructure what you use to avoid the warning.
+- **Hooks.** When `beforeScreen` / `afterScreen` hooks apply to a screen, its describe starts with
+  `test.beforeAll` / `test.afterAll` calling `runHooks(…)`; `beforeElement` / `afterElement` hooks
+  become `test.beforeEach` / `test.afterEach` in the element's describe. They destructure the
+  fixtures their hooks use (worker-scoped only for screen hooks; the fallback is `browser` for
+  screen hooks, `page` for element hooks), and `runHooks` is imported only when used. See
+  [hooks.md](./hooks.md#generated-code).
 - **Source locations.** `file` is the `.sanmaime` file relative to the generated file; every plan
   carries the line and column of its `Screen:`, `Element:` and `When:` lines and of each
   expectation. The runtime uses them for step locations, failure messages and code frames that

@@ -13,7 +13,9 @@ created with `createBdd(test)`.
 | `When: X`                      | `defineCondition('X', async ({ page }) => {…})` | `Given` steps                   |
 
 Definition files are the files matched by the `definitions` option of
-[`defineSanmaimeConfig()`](./config.md).
+[`defineSanmaimeConfig()`](./config.md). They may also register **hooks** —
+`beforeScreen` / `afterScreen` / `beforeElement` / `afterElement`, the counterpart of
+playwright-bdd's `BeforeAll` / `AfterAll` / `Before` / `After` — see [hooks.md](./hooks.md).
 
 ```ts
 // definitions/user-details.ts
@@ -55,8 +57,9 @@ function createNimaime<T extends TestType<any, any> = typeof test /* from @playw
 ): NimaimeDefinitions<FixturesOf<T>>;
 ```
 
-Returns `{ defineScreen, defineElement, defineCondition }`. Every callback receives the **fixtures**
-of a test as its only argument:
+Returns `{ defineScreen, defineElement, defineCondition }` and the hooks `{ beforeScreen,
+afterScreen, beforeElement, afterElement }` ([hooks.md](./hooks.md)). Every definition callback
+receives the **fixtures** of a test as its only argument:
 
 - Without `test`: the built-in Playwright fixtures (`page`, `context`, `browser`, `request`,
   `baseURL`, … — `PlaywrightTestArgs & PlaywrightTestOptions & PlaywrightWorkerArgs &
@@ -141,14 +144,16 @@ The registry is a process-wide singleton. It is stored on `globalThis` under
 bundled separately, in both ESM and CJS builds — share one registry. It is queried through
 `nimaime-han/runtime`:
 
-| Function                          | Returns                                                                                     |
-| --------------------------------- | ------------------------------------------------------------------------------------------- |
-| `findScreen(name)`                | `ScreenDefinition \| undefined` — `{ name, open, source, test, customTest }`                |
-| `findElement(name)`               | `ElementDefinition \| undefined` — `{ name, self, targets: Map, source, … }`                |
-| `findCondition(name, { screen })` | `ConditionDefinition \| undefined` — screen-scoped first, then global                       |
-| `listDefinitions()`               | `{ screens, elements, conditions }` — every definition (e.g. for unused-definition reports) |
-| `getRegistry()`                   | the raw maps (`screens`, `elements`, `conditions` keyed by name, then scope)                |
-| `resetRegistry()`                 | removes every definition (for tests)                                                        |
+| Function                                | Returns                                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `findScreen(name)`                      | `ScreenDefinition \| undefined` — `{ name, open, source, test, customTest }`                |
+| `findElement(name)`                     | `ElementDefinition \| undefined` — `{ name, self, targets: Map, source, … }`                |
+| `findCondition(name, { screen })`       | `ConditionDefinition \| undefined` — screen-scoped first, then global                       |
+| `listDefinitions()`                     | `{ screens, elements, conditions }` — every definition (e.g. for unused-definition reports) |
+| `findHooks(kind, { screen, element? })` | the hooks of `kind` that apply, in execution order ([hooks.md](./hooks.md))                 |
+| `hooksFor(screen, element?)`            | `{ before, after }` — the screen hooks of a screen, or the element hooks of an element      |
+| `getRegistry()`                         | the raw maps (`screens`, `elements`, `conditions` keyed by name, then scope) and `hooks`    |
+| `resetRegistry()`                       | removes every definition (for tests)                                                        |
 
 Stored callbacks have their fixture type erased; the runtime calls them with the fixtures object of
 the running test.

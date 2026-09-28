@@ -1,5 +1,11 @@
 import { NimaimeDefinitionError } from './errors';
-import { registerCondition, registerElement, registerScreen } from './registry';
+import {
+  registerCondition,
+  registerElement,
+  registerHook,
+  registerScreen,
+  type HookDefinition,
+} from './registry';
 import { captureSource } from './source';
 import type {
   AnyFixtures,
@@ -9,13 +15,17 @@ import type {
   DefaultTestType,
   DefineCondition,
   DefineElement,
+  DefineElementHook,
   DefineScreen,
+  DefineScreenHook,
   ElementTargets,
   FixturesOf,
+  HookKind,
   LocatorFn,
   NimaimeDefinitions,
   OpenScreenFn,
   ScreenOptions,
+  WorkerFixturesOf,
 } from './types';
 
 /**
@@ -37,10 +47,13 @@ import type {
  *   await page.goto('/users/42');
  * });
  * ```
+ *
+ * It also returns the hooks `beforeScreen` / `afterScreen` / `beforeElement` / `afterElement`
+ * (docs/hooks.md).
  */
 export function createNimaime<T extends AnyTestType = DefaultTestType>(
   test?: T,
-): NimaimeDefinitions<FixturesOf<T>> {
+): NimaimeDefinitions<FixturesOf<T>, WorkerFixturesOf<T>> {
   if (test !== undefined && !isTestType(test)) {
     throw new NimaimeDefinitionError(
       'createNimaime(test): expected a Playwright `test` (from @playwright/test or test.extend()).',
@@ -114,10 +127,64 @@ export function createNimaime<T extends AnyTestType = DefaultTestType>(
     registerCondition({ ...base, name, source, fn, screen });
   };
 
-  const definitions: NimaimeDefinitions<AnyFixtures> = {
+  const hook = (kind: HookKind, fn: unknown, options: unknown, callee: unknown): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    const source = captureSource(callee as Function);
+    const label = `${kind}()`;
+    if (typeof fn !== 'function') {
+      throw new NimaimeDefinitionError(`${label}: the first argument must be a function.`);
+    }
+    const elementHook = kind === 'beforeElement' || kind === 'afterElement';
+    if (options !== undefined && !isPlainObject(options)) {
+      throw new NimaimeDefinitionError(
+        `${label}: the second argument must be an object like ${elementHook ? '{ screen, element }' : '{ screen }'}.`,
+      );
+    }
+    const { screen, element, tags } = options ?? {};
+    if (screen !== undefined) checkName(label, 'screen', screen);
+    if (element !== undefined) {
+      if (!elementHook) {
+        throw new NimaimeDefinitionError(
+          `${label}: screen hooks take no \`element\` option; use beforeElement / afterElement.`,
+        );
+      }
+      checkName(label, 'element', element);
+    }
+    if (tags !== undefined && typeof tags !== 'string') {
+      throw new NimaimeDefinitionError(`${label}: \`tags\` must be a tag expression string.`);
+    }
+    registerHook({
+      ...base,
+      kind,
+      fn: fn as HookDefinition['fn'],
+      screen,
+      element,
+      tags,
+      source,
+    });
+  };
+
+  const beforeScreen: DefineScreenHook<AnyFixtures> = (fn, options) => {
+    hook('beforeScreen', fn, options, beforeScreen);
+  };
+  const afterScreen: DefineScreenHook<AnyFixtures> = (fn, options) => {
+    hook('afterScreen', fn, options, afterScreen);
+  };
+  const beforeElement: DefineElementHook<AnyFixtures> = (fn, options) => {
+    hook('beforeElement', fn, options, beforeElement);
+  };
+  const afterElement: DefineElementHook<AnyFixtures> = (fn, options) => {
+    hook('afterElement', fn, options, afterElement);
+  };
+
+  const definitions: NimaimeDefinitions<AnyFixtures, AnyFixtures> = {
     defineScreen,
     defineElement,
     defineCondition,
+    beforeScreen,
+    afterScreen,
+    beforeElement,
+    afterElement,
   };
   // Callbacks are stored with their fixture type erased; the typed view is what users see.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return

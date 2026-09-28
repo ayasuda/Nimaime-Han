@@ -66,10 +66,20 @@ export {
   type SanmaimeFrame,
 } from './failure';
 export {
+  createHookRunner,
+  HOOK_TITLES,
+  playwrightHookDriver,
+  runHooks,
+  type HookDriver,
+  type RunHooks,
+} from './hooks';
+export {
   findCondition,
   findElement,
+  findHooks,
   findScreen,
   getRegistry,
+  hooksFor,
   listDefinitions,
   resetRegistry,
 } from './registry';
@@ -79,8 +89,20 @@ export type {
   DefinitionBase,
   DefinitionList,
   ElementDefinition,
+  HookDefinition,
+  HookSet,
   Registry,
   ScreenDefinition,
 } from './registry';
-export { NimaimeDefinitionError, NimaimeRuntimeError } from './errors';
+export { NimaimeDefinitionError, NimaimeHookError, NimaimeRuntimeError } from './errors';
+export type {
+  ElementHookFn,
+  ElementHookInfo,
+  ElementHookOptions,
+  HookInfo,
+  HookKind,
+  ScreenHookFn,
+  ScreenHookInfo,
+  ScreenHookOptions,
+} from './types';
 export type { SourceLocation } from './source';

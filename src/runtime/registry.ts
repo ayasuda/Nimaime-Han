@@ -1,6 +1,13 @@
 import { NimaimeDefinitionError } from './errors';
 import { formatSource, sameSource, type SourceLocation } from './source';
-import type { AnyFixtures, AnyTestType, ConditionFn, LocatorFn, OpenScreenFn } from './types';
+import type {
+  AnyFixtures,
+  AnyTestType,
+  ConditionFn,
+  HookKind,
+  LocatorFn,
+  OpenScreenFn,
+} from './types';
 
 /** Fields shared by every registered definition. */
 export interface DefinitionBase {
@@ -34,6 +41,25 @@ export interface ConditionDefinition extends DefinitionBase {
   screen: string | undefined;
 }
 
+/** A `beforeScreen` / `afterScreen` / `beforeElement` / `afterElement` entry. */
+export interface HookDefinition {
+  kind: HookKind;
+  /** `(fixtures, info) => unknown`, with its fixture type erased. */
+  fn: (fixtures: AnyFixtures, info: AnyFixtures) => unknown;
+  /** The screen the hook is restricted to; `undefined` for every screen. */
+  screen: string | undefined;
+  /** The element the hook is restricted to (element hooks); `undefined` for every element. */
+  element: string | undefined;
+  /** The tag expression of the hook. Stored, but not applied yet (docs/hooks.md). */
+  tags: string | undefined;
+  /** Call site of the hook function, when it could be determined. */
+  source: SourceLocation | undefined;
+  /** The `test` passed to `createNimaime(test)`, or `undefined` for the default. */
+  test: AnyTestType | undefined;
+  /** Whether a custom `test` was passed to `createNimaime`. */
+  customTest: boolean;
+}
+
 /** All definitions of one condition name: at most one global and one per screen. */
 export interface ConditionScopes {
   global: ConditionDefinition | undefined;
@@ -46,6 +72,8 @@ export interface Registry {
   elements: Map<string, ElementDefinition>;
   /** Keyed by condition name. */
   conditions: Map<string, ConditionScopes>;
+  /** Hooks, in registration order. */
+  hooks: HookDefinition[];
 }
 
 // The registry lives on globalThis so that every bundle that includes this module (the main entry,
@@ -57,7 +85,15 @@ type GlobalWithRegistry = typeof globalThis & { [REGISTRY_KEY]?: Registry };
 /** Returns the process-wide registry, creating it on first use. */
 export function getRegistry(): Registry {
   const g = globalThis as GlobalWithRegistry;
-  g[REGISTRY_KEY] ??= { screens: new Map(), elements: new Map(), conditions: new Map() };
+  g[REGISTRY_KEY] ??= {
+    screens: new Map(),
+    elements: new Map(),
+    conditions: new Map(),
+    hooks: [],
+  };
+  // A registry created by an older copy of this module in the same process has no hooks yet.
+  const registry = g[REGISTRY_KEY] as Omit<Registry, 'hooks'> & { hooks?: HookDefinition[] };
+  registry.hooks ??= [];
   return g[REGISTRY_KEY];
 }
 
@@ -67,6 +103,7 @@ export function resetRegistry(): void {
   registry.screens.clear();
   registry.elements.clear();
   registry.conditions.clear();
+  registry.hooks.length = 0;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -111,6 +148,25 @@ export function registerCondition(def: ConditionDefinition): void {
   }
   if (def.screen === undefined) scopes.global = def;
   else scopes.screens.set(def.screen, def);
+}
+
+/**
+ * Registers a hook. Any number of hooks may apply to the same scope; they run in registration
+ * order. Registering the same hook again (the same call site evaluated again, or the same function
+ * with the same kind and scope) is ignored.
+ */
+export function registerHook(def: HookDefinition): void {
+  const { hooks } = getRegistry();
+  const equivalent = hooks.some(
+    (existing) =>
+      existing.kind === def.kind &&
+      (sameSource(existing.source, def.source) ||
+        (existing.fn === def.fn &&
+          existing.screen === def.screen &&
+          existing.element === def.element &&
+          existing.tags === def.tags)),
+  );
+  if (!equivalent) hooks.push(def);
 }
 
 function sameElement(a: ElementDefinition, b: ElementDefinition): boolean {
@@ -160,6 +216,62 @@ export function findCondition(
   if (!scopes) return undefined;
   const scoped = options.screen === undefined ? undefined : scopes.screens.get(options.screen);
   return scoped ?? scopes.global;
+}
+
+/** The hooks that run around one Screen `describe` or one Element's tests, in execution order. */
+export interface HookSet {
+  /** `beforeScreen` / `beforeElement` hooks: global first, then screen-, then element-scoped. */
+  before: HookDefinition[];
+  /** `afterScreen` / `afterElement` hooks: the reverse (element-scoped first, global last). */
+  after: HookDefinition[];
+}
+
+function sameName(a: string | undefined, b: string | undefined): boolean {
+  return a === undefined || a.trim() === b?.trim();
+}
+
+/** 0 = global, 1 = screen, 2 = element, 3 = screen and element. */
+function specificity(hook: HookDefinition): number {
+  return (hook.screen === undefined ? 0 : 1) + (hook.element === undefined ? 0 : 2);
+}
+
+/**
+ * The hooks of `kind` that apply to `screen` (and `element`, for element hooks), in execution
+ * order: `before*` hooks from the least to the most specific scope (global, screen, element,
+ * screen + element), in registration order within a scope; `after*` hooks in the reverse order.
+ * Names are compared after `trim()`, like Sanmaime names are matched to definitions.
+ */
+export function findHooks(
+  kind: HookKind,
+  scope: { screen: string; element?: string | undefined },
+): HookDefinition[] {
+  const matching = getRegistry()
+    .hooks.filter(
+      (hook) =>
+        hook.kind === kind &&
+        sameName(hook.screen, scope.screen) &&
+        sameName(hook.element, scope.element),
+    )
+    .map((hook, index) => ({ hook, index }))
+    .sort((a, b) => specificity(a.hook) - specificity(b.hook) || a.index - b.index)
+    .map(({ hook }) => hook);
+  return kind.startsWith('after') ? matching.reverse() : matching;
+}
+
+/**
+ * The hooks around `screen` (`beforeScreen` / `afterScreen`) or, with `element`, around the tests
+ * of that element in that screen (`beforeElement` / `afterElement`), in execution order.
+ */
+export function hooksFor(screen: string, element?: string): HookSet {
+  return element === undefined
+    ? {
+        before: findHooks('beforeScreen', { screen }),
+        after: findHooks('afterScreen', { screen }),
+      }
+    : {
+        before: findHooks('beforeElement', { screen, element }),
+        after: findHooks('afterElement', { screen, element }),
+      };
 }
 
 /** Every registered definition. */

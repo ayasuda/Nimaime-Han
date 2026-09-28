@@ -13,6 +13,9 @@ export type DefaultFixtures = PlaywrightTestArgs &
   PlaywrightWorkerArgs &
   PlaywrightWorkerOptions;
 
+/** Worker-scoped fixtures available to `beforeScreen` / `afterScreen` hooks by default. */
+export type DefaultWorkerFixtures = PlaywrightWorkerArgs & PlaywrightWorkerOptions;
+
 /** The type of `test` exported by `@playwright/test`. */
 export type DefaultTestType = TestType<
   PlaywrightTestArgs & PlaywrightTestOptions,
@@ -26,6 +29,11 @@ export type AnyTestType = TestType<any, any>;
 /** Test-scoped and worker-scoped fixtures of a Playwright `test` type. */
 export type FixturesOf<T> =
   T extends TestType<infer TestArgs, infer WorkerArgs> ? TestArgs & WorkerArgs : never;
+
+/** Worker-scoped fixtures of a Playwright `test` type (what `test.beforeAll` may use). */
+export type WorkerFixturesOf<T> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends TestType<any, infer WorkerArgs> ? WorkerArgs : never;
 
 /**
  * Fixture type used where definitions are stored with their fixture type erased (the registry).
@@ -88,9 +96,96 @@ export type DefineCondition<F = DefaultFixtures> = (
   options?: ConditionOptions,
 ) => void;
 
+// ---------------------------------------------------------------------------------------------
+// Hooks (docs/hooks.md)
+// ---------------------------------------------------------------------------------------------
+
+/** The four hook kinds, in the order of a Screen's life cycle. */
+export type HookKind = 'beforeScreen' | 'afterScreen' | 'beforeElement' | 'afterElement';
+
+/** What a hook runs for: the second argument of every hook. */
+export interface HookInfo {
+  /** The `Screen:` name. */
+  screen: string;
+  /** The `Element:` name (element hooks only). */
+  element?: string;
+  /**
+   * The `When:` name of the block the test checks (element hooks only); `undefined` for the
+   * element's unconditional block.
+   */
+  condition?: string;
+}
+
+/** The second argument of `beforeScreen` / `afterScreen` hooks. */
+export interface ScreenHookInfo {
+  screen: string;
+}
+
+/** The second argument of `beforeElement` / `afterElement` hooks. */
+export interface ElementHookInfo {
+  screen: string;
+  element: string;
+  /** The `When:` name of the test's block; `undefined` for the unconditional block. */
+  condition?: string;
+}
+
+/**
+ * A `beforeScreen` / `afterScreen` hook. It runs in `test.beforeAll` / `test.afterAll`, so it
+ * receives **worker-scoped** fixtures only (`browser`, custom worker fixtures) — no `page`.
+ * A returned promise is awaited; its value is ignored.
+ */
+export type ScreenHookFn<W = DefaultWorkerFixtures> = (
+  fixtures: W,
+  info: ScreenHookInfo,
+) => unknown;
+
+/**
+ * A `beforeElement` / `afterElement` hook. It runs in `test.beforeEach` / `test.afterEach` of the
+ * Element's tests, with the test's fixtures (`page`, custom fixtures, …). A returned promise is
+ * awaited; its value is ignored.
+ */
+export type ElementHookFn<F = DefaultFixtures> = (fixtures: F, info: ElementHookInfo) => unknown;
+
+/** Options of `beforeScreen` / `afterScreen`. */
+export interface ScreenHookOptions {
+  /** Restricts the hook to one screen (its `Screen:` name). Without it the hook is global. */
+  screen?: string;
+  /**
+   * A tag expression restricting the hook (like playwright-bdd's `Before({ tags })`).
+   * **Not supported yet:** it is stored but ignored until tag expressions land (#15 / #17).
+   */
+  tags?: string;
+}
+
+/** Options of `beforeElement` / `afterElement`. */
+export interface ElementHookOptions extends ScreenHookOptions {
+  /** Restricts the hook to one element (its `Element:` name), in every screen unless `screen` is set. */
+  element?: string;
+}
+
+/** `beforeScreen(fn, { screen?, tags? })` / `afterScreen(fn, …)`. */
+export type DefineScreenHook<W = DefaultWorkerFixtures> = (
+  fn: ScreenHookFn<W>,
+  options?: ScreenHookOptions,
+) => void;
+
+/** `beforeElement(fn, { screen?, element?, tags? })` / `afterElement(fn, …)`. */
+export type DefineElementHook<F = DefaultFixtures> = (
+  fn: ElementHookFn<F>,
+  options?: ElementHookOptions,
+) => void;
+
 /** The definition functions returned by `createNimaime(test)`. */
-export interface NimaimeDefinitions<F = DefaultFixtures> {
+export interface NimaimeDefinitions<F = DefaultFixtures, W = DefaultWorkerFixtures> {
   defineScreen: DefineScreen<F>;
   defineElement: DefineElement<F>;
   defineCondition: DefineCondition<F>;
+  /** Runs `fn` once per Screen `describe` and worker, before its tests (`test.beforeAll`). */
+  beforeScreen: DefineScreenHook<W>;
+  /** Runs `fn` once per Screen `describe` and worker, after its tests (`test.afterAll`). */
+  afterScreen: DefineScreenHook<W>;
+  /** Runs `fn` before every test of an Element (`test.beforeEach`). */
+  beforeElement: DefineElementHook<F>;
+  /** Runs `fn` after every test of an Element (`test.afterEach`). */
+  afterElement: DefineElementHook<F>;
 }

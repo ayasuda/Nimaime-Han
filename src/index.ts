@@ -37,3 +37,12 @@ export type {
 export { NimaimeRuntimeError } from './runtime/errors';
 export { NimaimeExpectationError, parseExpectationFailure } from './runtime/failure';
 export type { ExpectationFailureJSON } from './runtime/failure';
+// Types of `nimaime draft` (docs/draft.md), for users who write an LLM adapter in TypeScript:
+// `const adapter: LlmAdapter = async ({ system, prompt }) => …; export default adapter;`
+export type {
+  LlmAdapter,
+  LlmRequest,
+  ObservedElement,
+  ObservedRegion,
+  ScreenObservation,
+} from './draft';

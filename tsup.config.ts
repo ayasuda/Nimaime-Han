@@ -24,7 +24,7 @@ export default defineConfig([
   },
   // CLI (bin): ESM only, no declarations. The shebang in the source is preserved.
   {
-    entry: { 'cli/nimaime-gen': 'src/cli/nimaime-gen.ts' },
+    entry: { 'cli/nimaime-gen': 'src/cli/nimaime-gen.ts', 'cli/nimaime': 'src/cli/nimaime.ts' },
     format: ['esm'],
     dts: false,
     sourcemap: true,

@@ -68,7 +68,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "nimaime-gen": "./dist/cli/nimaime-gen.js"
+    "nimaime-gen": "./dist/cli/nimaime-gen.js",
+    "nimaime": "./dist/cli/nimaime.js"
   },
   "files": [
     "dist"
@@ -88,6 +89,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
     "test:e2e:gen": "npm run build && node test/e2e/gen/run.js",
+    "test:e2e:draft": "npm run build && vitest run -c test/e2e/draft/vitest.config.ts",
     "test:example:basic": "npm run build && npm ci --prefix examples/basic && npm test --prefix examples/basic && npm run typecheck --prefix examples/basic",
     "build:grammar": "node --experimental-strip-types --disable-warning=ExperimentalWarning editors/vscode-sanmaime/scripts/build-grammar.ts",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"

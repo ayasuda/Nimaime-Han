@@ -1,0 +1,7 @@
+# expect: SANMAIME_E002
+# at: 6:5
+# "When:" requires a condition name.
+Screen: User Details
+  Element: User Information
+    When:   
+    Show: Username

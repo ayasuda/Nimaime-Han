@@ -1,0 +1,10 @@
+# expect: SANMAIME_E016
+# at: 10:5
+# Unconditional expectations hold in every state; a condition block must not
+# re-assert (or contradict) them.
+Screen: User Details
+  Element: User Information
+    Show: Username
+
+    When: Viewing another user's profile
+    Hide: Username

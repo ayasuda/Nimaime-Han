@@ -1,0 +1,15 @@
+# Tags (issue #15) are reserved in v0: they are tokenised and attached to the
+# following Screen: or Element:, but have no effect yet.
+@smoke @regression
+@owner:team-profile
+Screen: User Details
+
+  @critical
+  # Comments and blank lines may separate tags from their header.
+
+  Element: User Information
+    Show: Username
+
+  @wip @日本語タグ
+  Element: Edit Action
+    Show: Edit button

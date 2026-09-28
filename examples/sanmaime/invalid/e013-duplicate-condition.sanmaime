@@ -1,0 +1,10 @@
+# expect: SANMAIME_E013
+# at: 9:5
+# A condition may appear only once per element; merge the two blocks.
+Screen: User Details
+  Element: User Information
+    When: Viewing your own profile
+    Show: Username
+
+    When: Viewing your own profile
+    Show: Full name

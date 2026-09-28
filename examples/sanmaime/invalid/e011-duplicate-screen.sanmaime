@@ -1,0 +1,10 @@
+# expect: SANMAIME_E011
+# at: 8:1
+# Screen names must be unique within a file.
+Screen: Login
+  Element: Login Form
+    Show: Email address
+
+Screen: Login
+  Element: Login Button
+    Enable

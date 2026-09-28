@@ -1,0 +1,8 @@
+# expect: SANMAIME_E019
+# at: 5:3
+# Background: is reserved for a future version.
+Screen: User Details
+  Background: The user is logged in
+
+  Element: User Information
+    Show: Username

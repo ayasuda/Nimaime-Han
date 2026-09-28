@@ -1,0 +1,9 @@
+# expect: SANMAIME_E012
+# at: 8:3
+# Element names must be unique within a screen.
+Screen: User Details
+  Element: User Information
+    Show: Username
+
+  Element: User Information
+    Show: Full name

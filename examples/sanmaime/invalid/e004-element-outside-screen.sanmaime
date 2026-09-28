@@ -1,0 +1,9 @@
+# expect: SANMAIME_E004
+# at: 4:1
+# Element: must appear inside a Screen:.
+Element: User Information
+  Show: Username
+
+Screen: User Details
+  Element: User Information
+    Show: Username

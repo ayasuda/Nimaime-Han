@@ -1,0 +1,8 @@
+# expect: SANMAIME_E018
+# at: 6:5
+# Tags may only precede Screen: or Element:.
+Screen: Login
+  Element: Login Button
+    @slow
+    When: Input is valid
+    Enable

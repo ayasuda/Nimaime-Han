@@ -1,0 +1,26 @@
+# An element may have an unconditional block (invariants, before the first
+# When:) followed by condition blocks. The unconditional block and the
+# condition blocks assert different targets.
+Screen: Order Details
+
+  Element: Order Summary
+    Show: Order number
+    And: Order date
+    And: Total amount
+
+    When: The order has shipped
+    Show: Tracking number
+    Hide: Cancel link
+
+    When: The order has not shipped
+    Show: Cancel link
+    Hide: Tracking number
+
+  Element: Cancel Button
+    Show: Cancel label
+
+    When: The order has not shipped
+    Enable
+
+    When: The order has shipped
+    Disable

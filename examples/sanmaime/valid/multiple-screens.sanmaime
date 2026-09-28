@@ -1,0 +1,31 @@
+# Several screens in one file. Element names only need to be unique per
+# screen, so "Header" appears in both.
+Screen: Home
+
+  Element: Header
+    Show: Logo
+    And: Search box
+
+Screen: Search Results
+
+  Element: Header
+    Show: Logo
+    And: Search box
+
+  Element: Result List
+    When: Results found
+    Show: Result items
+    Hide: Empty message
+
+    When: No results found
+    Show: Empty message
+    Hide: Result items
+
+Screen: Settings
+
+  Element: Save Button
+    When: Nothing has changed
+    Disable
+
+    When: A setting has changed
+    Enable

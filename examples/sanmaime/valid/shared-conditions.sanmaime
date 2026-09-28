@@ -1,0 +1,19 @@
+# The same condition name in several elements of one screen denotes one
+# condition: the runtime may establish that state once.
+Screen: Cart
+
+  Element: Item List
+    When: The cart is empty
+    Hide: Items
+    Show: Empty cart message
+
+    When: The cart has items
+    Show: Items
+    Hide: Empty cart message
+
+  Element: Checkout Button
+    When: The cart is empty
+    Disable
+
+    When: The cart has items
+    Enable

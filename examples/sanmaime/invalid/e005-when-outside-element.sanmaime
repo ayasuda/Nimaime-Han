@@ -1,0 +1,9 @@
+# expect: SANMAIME_E005
+# at: 5:3
+# When: must appear inside an Element:.
+Screen: User Details
+  When: Viewing your own profile
+  Show: Username
+
+  Element: User Information
+    Show: Username

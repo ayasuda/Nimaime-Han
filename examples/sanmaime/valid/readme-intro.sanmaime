@@ -1,0 +1,7 @@
+# The first example in README.md.
+Screen: User Details
+
+  Element: User Information
+    When: Viewing your own profile
+    Show: Username
+    And: Full name

@@ -1,0 +1,8 @@
+# expect: SANMAIME_E015
+# at: 8:5
+# A block may contain at most one Enable / Disable.
+Screen: Login
+  Element: Login Button
+    When: Input is valid
+    Enable
+    Disable

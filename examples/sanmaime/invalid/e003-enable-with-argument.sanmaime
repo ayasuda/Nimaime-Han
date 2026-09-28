@@ -1,0 +1,7 @@
+# expect: SANMAIME_E003
+# at: 7:5
+# Enable / Disable take no argument; they apply to the element itself.
+Screen: Login
+  Element: Login Button
+    When: Input is valid
+    Enable: Login button

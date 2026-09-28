@@ -1,0 +1,9 @@
+# expect: SANMAIME_E006
+# at: 5:3
+# Expectations must appear inside an Element:.
+Screen: User Details
+  Show: Username
+  And: Full name
+
+  Element: User Information
+    Show: Username

@@ -1,0 +1,7 @@
+# expect: SANMAIME_E017
+# at: 4:1
+# v0 supports only the "en" keyword language.
+# language: fr
+Screen: Login
+  Element: Login Form
+    Show: Email address

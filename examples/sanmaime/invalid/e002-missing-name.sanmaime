@@ -1,0 +1,7 @@
+# expect: SANMAIME_E002
+# at: 7:5
+# "Show:" requires a target name.
+Screen: User Details
+  Element: User Information
+    Show: Username
+    Show:

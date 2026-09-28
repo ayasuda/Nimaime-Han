@@ -35,9 +35,11 @@ export async function loadSpecs(
     files.map(async (file): Promise<ParsedSpec> => {
       const source = await fs.readFile(file, 'utf8');
       const uri = specUri(file, config.configDir);
-      // TODO(#5): pass `language: config.language` (the default keyword language) once the parser
-      // accepts it in ParseOptions; until then the parser uses its own default ('en').
-      const { document, diagnostics } = parse(source, { uri });
+      // `language` is the default keyword language; a `# language:` directive in the file wins.
+      const { document, diagnostics } = parse(
+        source,
+        config.language === undefined ? { uri } : { uri, language: config.language },
+      );
       return { file, source, document, diagnostics };
     }),
   );

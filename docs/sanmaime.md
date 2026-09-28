@@ -488,6 +488,19 @@ continues after an error SHOULD recover as follows:
 A document with at least one error has no defined meaning; generators MUST
 NOT generate tests from it.
 
+Clarifications implemented by the reference parser (`src/parser`):
+
+- Lexical diagnostics (`E001`, `E002`, `E003`, `E019`, `E020`) are reported
+  for every line, including lines skipped after `E004`–`E006`; only the
+  structural checks are suppressed while skipping.
+- Lines ignored by recovery (`E001`, `E019`, `E020`) do not end a tag group:
+  `@a` / `free text` / `Screen: S` reports `E001` and attaches `@a` to `S`.
+- Duplicate checks (`E011`–`E014`) are not applied to empty names (already
+  `E002`). When a target is both repeated in its block and asserted
+  unconditionally, only `E014` is reported.
+- Diagnostics are sorted by line and column; diagnostics at the same location
+  keep the order in which they were detected.
+
 ---
 
 ## 8. Reserved syntax and future extensions
@@ -546,7 +559,10 @@ Screen: Login
 ## 10. Suggested AST (non-normative)
 
 The parser API is defined by its own issue. This shape is a suggestion
-that captures everything the language defines:
+that captures everything the language defines. The implemented AST
+(`src/parser/ast.ts`, exported by `nimaime-han/parser`) follows it and adds
+`uri` and `languageDirective` to the document, `viaAnd` to `Show:`/`Hide:`
+expectations and `severity` to diagnostics:
 
 ```ts
 interface Location {

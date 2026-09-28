@@ -1,0 +1,17 @@
+# Used by ../verify.spec.ts: $nimaime.verify() checks the current page against this screen.
+Screen: Account Profile
+
+  Element: Profile Card
+    Show: Username
+
+    When: Own profile
+    Show: Full name
+    And: Email address
+
+    When: Another user's profile
+    Hide: Full name
+    And: Email address
+
+  Element: Profile Actions
+    When: Own profile
+    Show: Edit button

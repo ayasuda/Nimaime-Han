@@ -52,6 +52,7 @@ describe('nimaimeFixtures', () => {
         'expectShow',
         'run',
         'screen',
+        'verify',
       ].sort(),
     );
   });

@@ -18,8 +18,10 @@ import {
   resolveScreen,
   resolveSelf,
   resolveTarget,
+  validateExpectations,
   validatePlan,
 } from './resolve';
+import { planVerify, type VerifyOptions } from './verify';
 
 /**
  * The fixtures object a generated test passes to `$nimaime`: the fixtures it destructured
@@ -43,6 +45,18 @@ export interface Nimaime {
    * (if any, once per test) and checks each expectation in order. Stops at the first failure.
    */
   run(fixtures: NimaimeFixtures, plan: NimaimePlan): Promise<void>;
+  /**
+   * Verifies the **current page** against the Sanmaime spec of `screen` (registered with
+   * `loadSanmaimeSpecs` / `registerScreenSpec`): the unconditional expectations of every element
+   * (or of `options.elements`) and, for each name in `options.when`, the matching `When:` blocks.
+   *
+   * Unlike `run`, it does **not** open the screen and does **not** run condition definitions: the
+   * caller (typically the preceding Gherkin steps) has already brought the page to that state.
+   * Every name is resolved before the browser is touched; unknown screen / element / condition
+   * names throw `NimaimeRuntimeError`. Checks are nested steps: `Screen: X` > `Element: Y` >
+   * (`When: C` >) `Show: T`. Stops at the first failure (`NimaimeExpectationError`).
+   */
+  verify(fixtures: NimaimeFixtures, screen: string, options?: VerifyOptions): Promise<void>;
   /** Opens `screen` with its definition's `open`, once per test. No definition / no `open`: no-op. */
   screen(fixtures: NimaimeFixtures, screen: string, ctx?: ExpectationContext): Promise<void>;
   /**
@@ -212,6 +226,48 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
           location: expectation.location,
         });
       }
+    },
+
+    async verify(fixtures, screen, options = {}) {
+      const plan = planVerify(screen, options);
+      for (const element of plan.elements) {
+        for (const block of element.blocks) validateExpectations(block);
+      }
+      const checkBlock = async (block: NimaimePlan): Promise<void> => {
+        for (const expectation of block.expectations) {
+          await nimaime.check(fixtures, block.element, expectation, {
+            screen: block.screen,
+            condition: block.condition,
+            file: block.file,
+            location: expectation.location,
+          });
+        }
+      };
+      await driver.step(
+        `Screen: ${plan.screen}`,
+        async () => {
+          for (const element of plan.elements) {
+            await driver.step(
+              `Element: ${element.element}`,
+              async () => {
+                for (const block of element.blocks) {
+                  if (block.condition === undefined) {
+                    await checkBlock(block);
+                  } else {
+                    await driver.step(
+                      `When: ${block.condition}`,
+                      () => checkBlock(block),
+                      stepLocation(block.file, block.locations?.condition),
+                    );
+                  }
+                }
+              },
+              stepLocation(plan.file, element.location),
+            );
+          }
+        },
+        stepLocation(plan.file, plan.location),
+      );
     },
 
     async screen(fixtures, screen, ctx = {}) {

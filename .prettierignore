@@ -1,0 +1,7 @@
+dist/
+coverage/
+.sanmaime-gen/
+test-results/
+playwright-report/
+package-lock.json
+README.md

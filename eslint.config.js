@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'coverage/', '**/.sanmaime-gen/', 'test-results/', 'playwright-report/'],
+    ignores: [
+      'dist/',
+      'coverage/',
+      '**/.sanmaime-gen/',
+      'test-results/',
+      'playwright-report/',
+      // A self-contained project with its own package.json and tsconfig.json (npm run test:example:basic).
+      'examples/basic/',
+    ],
   },
   js.configs.recommended,
   {

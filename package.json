@@ -88,6 +88,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
     "test:e2e:gen": "npm run build && node test/e2e/gen/run.js",
+    "build:grammar": "node --experimental-strip-types --disable-warning=ExperimentalWarning editors/vscode-sanmaime/scripts/build-grammar.ts",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
@@ -104,6 +105,8 @@
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.2",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }

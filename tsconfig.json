@@ -27,6 +27,6 @@
       "nimaime-han/*": ["./src/*/index.ts"]
     }
   },
-  "include": ["src", "test", "*.ts"],
+  "include": ["src", "test", "editors", "*.ts"],
   "exclude": ["node_modules", "dist"]
 }

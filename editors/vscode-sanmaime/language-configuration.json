@@ -1,0 +1,15 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [],
+  "autoClosingPairs": [],
+  "surroundingPairs": [],
+  "wordPattern": {
+    "pattern": "[\\p{L}\\p{M}\\p{N}_'\\-]+",
+    "flags": "u"
+  },
+  "folding": {
+    "offSide": true
+  }
+}

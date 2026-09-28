@@ -6,6 +6,15 @@
  * diagnostics, so that all messages live in one place.
  */
 import type { Location, Tag } from './ast';
+import {
+  DEFAULT_LANGUAGE,
+  type LanguageDefinition,
+  type LanguageKeywords,
+  getLanguage,
+} from './languages';
+
+// Canonical keywords. The parser and the AST speak only in these (English) identifiers; the
+// spellings of each language come from the dictionaries in `languages.ts`.
 
 /** Keywords that take a name after their colon (`Show: Username`). */
 export const NAME_KEYWORDS = ['Screen', 'Element', 'When', 'Show', 'Hide', 'And'] as const;
@@ -18,6 +27,89 @@ export type BareKeyword = (typeof BARE_KEYWORDS)[number];
 /** Keywords reserved for a future version (`SANMAIME_E019`). */
 export const RESERVED_KEYWORDS = ['Background'] as const;
 export type ReservedKeyword = (typeof RESERVED_KEYWORDS)[number];
+
+export type CanonicalKeyword = NameKeyword | BareKeyword | ReservedKeyword;
+
+/** The dictionary slot of every canonical keyword. */
+export const KEYWORD_SLOTS: Readonly<Record<CanonicalKeyword, keyof LanguageKeywords>> = {
+  Screen: 'screen',
+  Element: 'element',
+  When: 'when',
+  Show: 'show',
+  Hide: 'hide',
+  And: 'and',
+  Enable: 'enable',
+  Disable: 'disable',
+  Background: 'background',
+};
+
+/** One spelling of a keyword in a language. */
+export interface KeywordSpelling<K extends CanonicalKeyword> {
+  /** The spelling, without colon. */
+  text: string;
+  keyword: K;
+}
+
+/** A language dictionary compiled for the lexer. */
+export interface KeywordTable {
+  language: LanguageDefinition;
+  /** Colons accepted after name keywords (`:`, and `：` for some languages). */
+  colons: readonly string[];
+  /** All spellings, longest first, so that a synonym never shadows a longer one. */
+  name: readonly KeywordSpelling<NameKeyword>[];
+  bare: readonly KeywordSpelling<BareKeyword>[];
+  reserved: readonly KeywordSpelling<ReservedKeyword>[];
+  /** The primary (first) spelling of every keyword, used in diagnostics. */
+  primary: Readonly<Record<CanonicalKeyword, string>>;
+}
+
+function spellings<K extends CanonicalKeyword>(
+  language: LanguageDefinition,
+  keywords: readonly K[],
+): KeywordSpelling<K>[] {
+  return keywords
+    .flatMap((keyword) =>
+      language.keywords[KEYWORD_SLOTS[keyword]].map((text) => ({ text, keyword })),
+    )
+    .sort((a, b) => b.text.length - a.text.length);
+}
+
+/** Compile a language dictionary into the lookup structure used by `classifyLine()`. */
+export function compileKeywordTable(language: LanguageDefinition): KeywordTable {
+  const primary = {} as Record<CanonicalKeyword, string>;
+  for (const [keyword, slot] of Object.entries(KEYWORD_SLOTS) as [
+    CanonicalKeyword,
+    keyof LanguageKeywords,
+  ][]) {
+    const first = language.keywords[slot][0];
+    if (first === undefined) {
+      throw new TypeError(`Language '${language.code}' has no spelling for '${keyword}'.`);
+    }
+    primary[keyword] = first;
+  }
+  return {
+    language,
+    colons: language.colons,
+    name: spellings(language, NAME_KEYWORDS),
+    bare: spellings(language, BARE_KEYWORDS),
+    reserved: spellings(language, RESERVED_KEYWORDS),
+    primary,
+  };
+}
+
+const tables = new Map<string, KeywordTable>();
+
+/** The compiled table of a supported language. Throws a `TypeError` for an unsupported code. */
+export function keywordTable(code: string): KeywordTable {
+  let table = tables.get(code);
+  if (table === undefined) {
+    const language = getLanguage(code);
+    if (language === undefined) throw new TypeError(`Unsupported language '${code}'.`);
+    table = compileKeywordTable(language);
+    tables.set(code, table);
+  }
+  return table;
+}
 
 /** Blank line (§3.2). */
 export interface BlankToken {
@@ -52,7 +144,10 @@ export interface InvalidTagsToken {
 /** `Screen:`, `Element:`, `When:`, `Show:`, `Hide:` or `And:`; `name` is `""` when missing (E002). */
 export interface NameKeywordToken {
   type: 'name-keyword';
+  /** Canonical keyword. */
   keyword: NameKeyword;
+  /** The keyword as written, without its colon (`"Show"`, `"表示"`). */
+  text: string;
   name: string;
   location: Location;
 }
@@ -60,7 +155,10 @@ export interface NameKeywordToken {
 /** `Enable` / `Disable`. `hasArgument` is set for `Enable: X`, `Disable:` etc. (E003). */
 export interface BareKeywordToken {
   type: 'bare-keyword';
+  /** Canonical keyword. */
   keyword: BareKeyword;
+  /** The keyword as written (`"Enable"`, `"有効"`). */
+  text: string;
   hasArgument: boolean;
   location: Location;
 }
@@ -68,7 +166,10 @@ export interface BareKeywordToken {
 /** A reserved keyword such as `Background:` (E019). */
 export interface ReservedToken {
   type: 'reserved';
+  /** Canonical keyword. */
   keyword: ReservedKeyword;
+  /** The keyword as written, without its colon. */
+  text: string;
   location: Location;
 }
 
@@ -113,8 +214,21 @@ function codePointLength(text: string): number {
   return Array.from(text).length;
 }
 
-/** Classify one physical line (without its line break) according to §3.8. */
-export function classifyLine(raw: string, line: number): LineToken {
+/** The length of the colon at the start of `rest` if it is one of `colons`, else 0. */
+function colonAt(rest: string, colons: readonly string[]): number {
+  for (const colon of colons) if (rest.startsWith(colon)) return colon.length;
+  return 0;
+}
+
+/**
+ * Classify one physical line (without its line break) according to §3.8, using the keywords of
+ * `table` (English by default).
+ */
+export function classifyLine(
+  raw: string,
+  line: number,
+  table: KeywordTable = keywordTable(DEFAULT_LANGUAGE),
+): LineToken {
   const t = raw.trim();
   // Leading whitespace characters are all in the BMP, so UTF-16 length equals code point count.
   const column = raw.length - raw.trimStart().length + 1;
@@ -133,27 +247,31 @@ export function classifyLine(raw: string, line: number): LineToken {
   if (t.startsWith('@')) return classifyTagLine(t, location);
 
   // Rule 4: name keyword.
-  for (const keyword of NAME_KEYWORDS) {
-    const prefix = `${keyword}:`;
-    if (t.startsWith(prefix)) {
-      return { type: 'name-keyword', keyword, name: t.slice(prefix.length).trim(), location };
+  for (const { text, keyword } of table.name) {
+    if (!t.startsWith(text)) continue;
+    const colon = colonAt(t.slice(text.length), table.colons);
+    if (colon > 0) {
+      const name = t.slice(text.length + colon).trim();
+      return { type: 'name-keyword', keyword, text, name, location };
     }
   }
 
   // Rules 5 and 6: bare keyword, or bare keyword followed by whitespace or a colon.
-  for (const keyword of BARE_KEYWORDS) {
-    if (t === keyword) return { type: 'bare-keyword', keyword, hasArgument: false, location };
-    if (t.startsWith(keyword)) {
-      const next = t.charAt(keyword.length);
-      if (next === ':' || /\s/.test(next)) {
-        return { type: 'bare-keyword', keyword, hasArgument: true, location };
+  for (const { text, keyword } of table.bare) {
+    if (t === text) return { type: 'bare-keyword', keyword, text, hasArgument: false, location };
+    if (t.startsWith(text)) {
+      const rest = t.slice(text.length);
+      if (colonAt(rest, table.colons) > 0 || /^\s/.test(rest)) {
+        return { type: 'bare-keyword', keyword, text, hasArgument: true, location };
       }
     }
   }
 
   // Rule 7: reserved keywords.
-  for (const keyword of RESERVED_KEYWORDS) {
-    if (t.startsWith(`${keyword}:`)) return { type: 'reserved', keyword, location };
+  for (const { text, keyword } of table.reserved) {
+    if (t.startsWith(text) && colonAt(t.slice(text.length), table.colons) > 0) {
+      return { type: 'reserved', keyword, text, location };
+    }
   }
 
   // Rule 8: anything else.
@@ -180,7 +298,14 @@ function classifyTagLine(t: string, location: Location): TagsToken | InvalidTags
   return { type: 'tags', tags, location };
 }
 
-/** Split and classify a whole source text. Line numbers are 1-based. */
-export function tokenize(source: string): LineToken[] {
-  return splitLines(source).map((raw, index) => classifyLine(raw, index + 1));
+/**
+ * Split and classify a whole source text with one keyword language. Line numbers are 1-based.
+ * (The parser classifies line by line instead, because the header's `# language:` directive
+ * selects the table for the lines after it.)
+ */
+export function tokenize(
+  source: string,
+  table: KeywordTable = keywordTable(DEFAULT_LANGUAGE),
+): LineToken[] {
+  return splitLines(source).map((raw, index) => classifyLine(raw, index + 1, table));
 }

@@ -1,5 +1,5 @@
-# Names may be written in any script. Keywords stay in English in v0
-# (Japanese keywords are specified by issue #5).
+# Names may be written in any script. Keywords are English here (no directive);
+# see ja-*.sanmaime for the same kind of file with "# language: ja" keywords.
 Screen: ユーザー詳細
 
   Element: ユーザー情報

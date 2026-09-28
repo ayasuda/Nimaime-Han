@@ -13,7 +13,8 @@ describe('valid fixtures', () => {
     const { document, diagnostics } = parse(f.source, { uri: f.uri });
     expect(diagnostics).toEqual([]);
     expect(document.uri).toBe(f.uri);
-    expect(document.language).toBe('en');
+    // Fixtures named ja-* use `# language: ja`; all others use English keywords.
+    expect(document.language).toBe(f.name.startsWith('ja-') ? 'ja' : 'en');
   });
 });
 

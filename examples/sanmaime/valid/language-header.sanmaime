@@ -1,4 +1,4 @@
-# Keyword language directive (issue #5). v0 supports only "en", the default.
+# Keyword language directive (§3.4). "en" is the default; "ja" is also supported.
 # language: en
 
 Screen: Home

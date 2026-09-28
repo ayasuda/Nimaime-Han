@@ -39,6 +39,7 @@ describe('classifyLine', () => {
     expect(classifyLine('　Enable　', 3)).toEqual({
       type: 'bare-keyword',
       keyword: 'Enable',
+      text: 'Enable',
       hasArgument: false,
       location: { line: 3, column: 2 },
     });
@@ -106,6 +107,7 @@ describe('classifyLine', () => {
     expect(classifyLine('  Background: logged in', 2)).toEqual({
       type: 'reserved',
       keyword: 'Background',
+      text: 'Background',
       location: { line: 2, column: 3 },
     });
     expect(classifyLine('Background', 1).type).toBe('unknown');

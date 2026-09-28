@@ -15,7 +15,10 @@ export interface Location {
 export interface SanmaimeDocument {
   /** The `uri` passed to `parse()`, if any (a file path or URL; used for diagnostics rendering). */
   uri: string | undefined;
-  /** Effective keyword language. `"en"` in v0 (also used when the directive is invalid). */
+  /**
+   * Effective keyword language (`"en"`, `"ja"`): the header directive if valid, else the `language`
+   * option of `parse()`, else `"en"`.
+   */
   language: string;
   /** The first `# language:` directive of the header, as written, or `undefined` if none. */
   languageDirective: LanguageDirective | undefined;
@@ -70,7 +73,7 @@ export interface ConditionBlock {
 export interface VisibilityExpectation {
   kind: 'show' | 'hide';
   target: string;
-  /** The keyword as written. */
+  /** The keyword used, in its canonical (English) form whatever the file's language. */
   keyword: 'Show' | 'Hide' | 'And';
   /** `true` when written as `And:` (then `kind` is inherited from the preceding `Show:`/`Hide:`). */
   viaAnd: boolean;
@@ -80,6 +83,7 @@ export interface VisibilityExpectation {
 /** `Enable` / `Disable` — a state expectation about the element itself. */
 export interface StateExpectation {
   kind: 'enable' | 'disable';
+  /** Canonical (English) keyword, whatever the file's language. */
   keyword: 'Enable' | 'Disable';
   location: Location;
 }

@@ -6,13 +6,14 @@ import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { DraftArgs } from '../cli/nimaime-args';
+import type { DraftArgs, ObserveArgs } from '../cli/nimaime-args';
 import type { LlmAdapter, LlmProposal } from './llm';
 import { proposeWithLlm } from './llm';
 import { cleanName } from './names';
 import { ObservationFormatError, observeScreen, parseObservation } from './observe';
 import { parse } from '../parser';
 import { proposeSanmaime, type Proposal } from './propose';
+import { setStatusDirective } from './status';
 import type { ScreenObservation } from './types';
 
 export interface DraftIO {
@@ -60,10 +61,10 @@ export async function resolveSource(source: string, cwd: string): Promise<DraftS
   return { kind: 'url', url: pathToFileURL(file).href };
 }
 
-/** Opens `url` in a browser and observes it. */
-async function observeUrl(
+/** Opens `url` in a browser and observes it (`nimaime draft` and `nimaime diff`). */
+export async function observeUrl(
   url: string,
-  args: DraftArgs,
+  args: ObserveArgs,
   cwd: string,
   env: Readonly<Record<string, string | undefined>>,
 ): Promise<ScreenObservation> {
@@ -120,7 +121,43 @@ export async function loadLlmAdapter(specifier: string, cwd: string): Promise<Ll
   return adapter as LlmAdapter;
 }
 
-async function writeFile(file: string, content: string): Promise<void> {
+/**
+ * The observation of `source`: read from a saved observation, or observed in a browser; saved to
+ * `args.observation` when given. @throws DraftUsageError, ObservationFormatError
+ */
+export async function observeSource(
+  source: DraftSource,
+  args: ObserveArgs & { observation: string | undefined },
+  context: {
+    cwd: string;
+    env: Readonly<Record<string, string | undefined>>;
+    say: (text: string) => void;
+  },
+): Promise<ScreenObservation> {
+  const { cwd, env, say } = context;
+  let observation: ScreenObservation;
+  if (source.kind === 'observation') {
+    let json: unknown;
+    try {
+      json = JSON.parse(await fs.readFile(source.file, 'utf8'));
+    } catch (error) {
+      throw new DraftUsageError(
+        `Cannot read ${path.relative(cwd, source.file) || source.file}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    observation = parseObservation(json);
+  } else {
+    observation = await observeUrl(source.url, args, cwd, env);
+  }
+  if (args.observation !== undefined) {
+    const file = path.resolve(cwd, args.observation);
+    await writeFile(file, `${JSON.stringify(observation, null, 2)}\n`);
+    say(`Saved the observation to ${path.relative(cwd, file) || file}`);
+  }
+  return observation;
+}
+
+export async function writeFile(file: string, content: string): Promise<void> {
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, content);
 }
@@ -152,25 +189,7 @@ export async function runDraft(args: DraftArgs, io: DraftIO): Promise<DraftExitC
     const source = await resolveSource(args.source, cwd);
     const adapter = args.llm !== undefined ? await loadLlmAdapter(args.llm, cwd) : undefined;
 
-    let observation: ScreenObservation;
-    if (source.kind === 'observation') {
-      let json: unknown;
-      try {
-        json = JSON.parse(await fs.readFile(source.file, 'utf8'));
-      } catch (error) {
-        throw new DraftUsageError(
-          `Cannot read ${args.source}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-      observation = parseObservation(json);
-    } else {
-      observation = await observeUrl(source.url, args, cwd, env);
-    }
-    if (args.observation !== undefined) {
-      const file = path.resolve(cwd, args.observation);
-      await writeFile(file, `${JSON.stringify(observation, null, 2)}\n`);
-      say(`Saved the observation to ${path.relative(cwd, file) || file}`);
-    }
+    const observation = await observeSource(source, args, { cwd, env, say });
     if (observation.truncated) {
       say('warning: the page has more elements than were observed; the draft is incomplete.');
     }
@@ -200,12 +219,14 @@ export async function runDraft(args: DraftArgs, io: DraftIO): Promise<DraftExitC
       );
     }
 
+    // The first line says what the file is: a draft, until a reviewer approves it.
+    const sanmaime = setStatusDirective(proposal.sanmaime, args.status);
     if (args.out !== undefined) {
       const file = path.resolve(cwd, args.out);
-      await writeFile(file, proposal.sanmaime);
+      await writeFile(file, sanmaime);
       say(`Wrote the Sanmaime draft to ${path.relative(cwd, file) || file}`);
     } else {
-      io.stdout.write(proposal.sanmaime);
+      io.stdout.write(sanmaime);
     }
     if (args.definitions === '-') {
       if (args.out === undefined) io.stdout.write(`\n${DEFINITIONS_SEPARATOR}\n\n`);

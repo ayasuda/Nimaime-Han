@@ -43,6 +43,7 @@ describe('parseNimaimeArgs', () => {
       screen: undefined,
       language: 'en',
       out: undefined,
+      status: 'draft',
       definitions: undefined,
       observation: undefined,
       groupBy: 'region',
@@ -114,7 +115,7 @@ describe('parseNimaimeArgs', () => {
 
   it.each([
     [[], 'Missing command.'],
-    [['nope'], "Unknown command 'nope'. Commands: draft."],
+    [['nope'], "Unknown command 'nope'. Commands: draft, diff, approve."],
     [['draft'], 'nimaime draft needs a URL, an HTML file or an observation file.'],
     [['draft', 'a', 'b'], "Unexpected argument 'b'."],
     [['draft', 'a', '--language', 'fr'], "Invalid --language 'fr'. Use one of: en, ja."],
@@ -130,6 +131,8 @@ describe('parseNimaimeArgs', () => {
     [['draft', 'a', '--screen', ' '], 'Option --screen needs a name.'],
     [['draft', 'a', '--out', ''], 'Option --out needs a value.'],
     [['draft', 'a', '--bogus'], "Unknown option '--bogus'"],
+    [['draft', 'a', '--status', 'done'], "Invalid --status 'done'. Use one of: draft, approved."],
+    [['draft', 'a', '--json'], 'Option --json is not an option of nimaime draft.'],
   ])('rejects %j', (argv, message) => {
     expect(() => parseNimaimeArgs(argv)).toThrow(NimaimeUsageError);
     expect(() => parseNimaimeArgs(argv)).toThrow(message);
@@ -149,7 +152,7 @@ describe('nimaime', () => {
     const bad = await run(['nope'], dir);
     expect(bad.code).toBe(2);
     expect(bad.err).toBe(
-      "nimaime: Unknown command 'nope'. Commands: draft.\nRun 'nimaime --help' for usage.\n",
+      "nimaime: Unknown command 'nope'. Commands: draft, diff, approve.\nRun 'nimaime --help' for usage.\n",
     );
     expect((await run(['help', 'nope'], dir)).code).toBe(2);
   });
@@ -161,7 +164,7 @@ describe('nimaime', () => {
     expect(result.code).toBe(0);
     const expected = proposeSanmaime(LOGIN, { screen: 'Login' });
     expect(result.out).toBe(
-      `${expected.sanmaime}\n${DEFINITIONS_SEPARATOR}\n\n${expected.definitions}`,
+      `# status: draft\n${expected.sanmaime}\n${DEFINITIONS_SEPARATOR}\n\n${expected.definitions}`,
     );
     expect(result.err).toBe(
       'Drafted Screen "Login" from http://localhost:3000/login: 3 elements, 4 targets (rule-based). Review it before committing.\n',
@@ -190,7 +193,9 @@ describe('nimaime', () => {
     expect(result.out).toBe('');
     // The screen name defaults to the page title.
     const expected = proposeSanmaime(LOGIN, { screen: 'Log in', language: 'ja' });
-    expect(fs.readFileSync(path.join(dir, 'specs/login.sanmaime'), 'utf8')).toBe(expected.sanmaime);
+    const written = fs.readFileSync(path.join(dir, 'specs/login.sanmaime'), 'utf8');
+    expect(written).toBe(`# status: draft\n${expected.sanmaime}`);
+    expect(written.split('\n').slice(0, 2)).toEqual(['# status: draft', '# language: ja']);
     expect(fs.readFileSync(path.join(dir, 'defs/login.ts'), 'utf8')).toBe(expected.definitions);
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'copy.json'), 'utf8'))).toEqual(LOGIN);
     expect(result.err).toContain('Wrote the Sanmaime draft to specs/login.sanmaime\n');
@@ -212,7 +217,9 @@ export default async function adapter(request) {
     );
     const result = await run(['draft', 'login.json', '-s', 'Login', '--llm', './llm.mjs'], dir);
     expect(result.code).toBe(0);
-    expect(result.out).toBe('Screen: Login\n\n  Element: Login Form\n    Show: Password\n');
+    expect(result.out).toBe(
+      '# status: draft\nScreen: Login\n\n  Element: Login Form\n    Show: Password\n',
+    );
     expect(result.err).toContain('warning: LLM answer 1 rejected:\n  1:1: error SANMAIME_E001');
     expect(result.err).toContain('1 element, 1 target (llm)');
   });

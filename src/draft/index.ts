@@ -29,9 +29,27 @@ export {
   runDraft,
   resolveSource,
   loadLlmAdapter,
+  observeSource,
+  observeUrl,
   DraftUsageError,
   DEFINITIONS_SEPARATOR,
 } from './run';
+export { setStatusDirective, statusDirectiveLine } from './status';
+export { approveSource, runApprove } from './approve';
+export { diffDocuments, diffSummary, formatDiff } from './diff';
+export type {
+  DiffCounts,
+  ElementDiff,
+  ExpectationChange,
+  ExpectationDiff,
+  ExpectationKind,
+  FormatDiffOptions,
+  NodeChange,
+  NotCompared,
+  SanmaimeDiff,
+  ScreenDiff,
+} from './diff';
+export { runDiff } from './diff-run';
 export type { DraftIO, DraftExitCode, DraftSource } from './run';
 export { OBSERVATION_FORMAT, OBSERVATION_VERSION } from './types';
 export type {

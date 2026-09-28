@@ -1,11 +1,25 @@
 /**
  * `nimaime` without process globals, so that it can be tested in-process.
  */
+import { runApprove } from '../draft/approve';
+import { runDiff } from '../draft/diff-run';
 import { runDraft, type DraftExitCode, type DraftIO } from '../draft/run';
 import { VERSION } from '../version';
-import { COMMANDS, DRAFT_HELP, HELP, NimaimeUsageError, parseNimaimeArgs } from './nimaime-args';
+import {
+  APPROVE_HELP,
+  COMMANDS,
+  DIFF_HELP,
+  DRAFT_HELP,
+  HELP,
+  NimaimeUsageError,
+  parseNimaimeArgs,
+} from './nimaime-args';
 
-const COMMAND_HELP: Readonly<Record<string, string>> = { draft: DRAFT_HELP };
+const COMMAND_HELP: Readonly<Record<string, string>> = {
+  draft: DRAFT_HELP,
+  diff: DIFF_HELP,
+  approve: APPROVE_HELP,
+};
 
 /** Runs `nimaime` with `argv` (without `node` and the script path); returns the exit code. */
 export async function nimaimeMain(argv: readonly string[], io: DraftIO): Promise<DraftExitCode> {
@@ -36,5 +50,9 @@ export async function nimaimeMain(argv: readonly string[], io: DraftIO): Promise
     }
     case 'draft':
       return runDraft(args, io);
+    case 'diff':
+      return runDiff(args, io);
+    case 'approve':
+      return runApprove(args, io);
   }
 }

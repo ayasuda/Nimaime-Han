@@ -231,8 +231,8 @@ describe('probes', () => {
       isChecked: () => read(state.checked),
       isEditable: () => read(state.editable),
       textContent: () => read(state.text),
-      evaluate: (fn: string) =>
-        fn.includes('activeElement') ? read(state.focused) : read(state.value),
+      evaluate: (fn: unknown) =>
+        String(fn).includes('activeElement') ? read(state.focused) : read(state.value),
     } as unknown as Locator;
   }
 

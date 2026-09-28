@@ -1,0 +1,35 @@
+# Every keyword of the expectation vocabulary v1 (Sanmaime v0.3) against a real page. Everything
+# holds except the Text: of the greeting, which fails on purpose to lock the failure phrasing.
+Screen: Settings
+
+  Element: Header
+    Text: Title = "Settings"
+    Contain: Greeting = "Hello"
+    Count: Tabs = 3
+
+  Element: Remember Me Checkbox
+    Enable
+    Check
+
+  Element: Account Form
+    Uncheck: Newsletter
+    ReadOnly: Account ID
+    Editable: Nickname
+    Empty: Notes
+
+    When: Nothing was touched
+    Disable: Save button
+
+    When: The nickname is focused
+    Focus: Nickname
+    Enable: Save button
+
+  Element: Nickname Field
+    Empty
+
+    When: The nickname is focused
+    Focus
+    Editable
+
+  Element: Welcome
+    Text: Greeting = "Hello, Bob"

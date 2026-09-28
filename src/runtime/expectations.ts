@@ -197,8 +197,30 @@ async function probeOne(
   }
 }
 
-const EMPTY_VALUE =
-  '(el) => (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) ? el.value : (el.textContent ?? "")';
+/**
+ * What the probes below read from a DOM element in the page. (The package is compiled without the
+ * DOM library; these functions run in the browser, serialized by Playwright.)
+ */
+interface PageElement {
+  tagName: string;
+  value?: unknown;
+  textContent: string | null;
+  ownerDocument: { activeElement: unknown };
+}
+
+/** In the page: whether the element has the focus. */
+function isFocusedInPage(el: unknown): boolean {
+  return el === (el as PageElement).ownerDocument.activeElement;
+}
+
+/** In the page: what `toBeEmpty()` looks at: the value of an input / textarea, else the text. */
+function contentInPage(el: unknown): string {
+  const e = el as PageElement;
+  if ((e.tagName === 'INPUT' || e.tagName === 'TEXTAREA') && typeof e.value === 'string') {
+    return e.value;
+  }
+  return e.textContent ?? '';
+}
 
 // ---------------------------------------------------------------------------------------------
 // Entry builders
@@ -279,15 +301,11 @@ const editableProbe = (locator: Locator): Promise<string | undefined> =>
   probeOne(locator, async () => ((await locator.isEditable(PROBE)) ? 'editable' : 'read-only'));
 const focusedProbe = (locator: Locator): Promise<string | undefined> =>
   probeOne(locator, async () =>
-    (await locator.evaluate('(el) => el === el.ownerDocument.activeElement', undefined, PROBE)) ===
-    true
-      ? 'focused'
-      : 'not focused',
+    (await locator.evaluate(isFocusedInPage, undefined, PROBE)) ? 'focused' : 'not focused',
   );
 const emptyProbe = (locator: Locator): Promise<string | undefined> =>
   probeOne(locator, async () => {
-    const value = await locator.evaluate(EMPTY_VALUE, undefined, PROBE);
-    const text = typeof value === 'string' ? value : '';
+    const text = await locator.evaluate(contentInPage, undefined, PROBE);
     return text.trim() === '' ? 'empty' : actualText(text);
   });
 const textProbe = (locator: Locator): Promise<string | undefined> =>

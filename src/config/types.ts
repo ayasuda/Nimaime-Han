@@ -37,6 +37,11 @@ export interface SanmaimeConfig {
    */
   tags?: string;
   /**
+   * Also generate specifications whose header says `# status: draft` (docs/review-workflow.md).
+   * The `nimaime-gen --include-drafts` option does the same. Default: `false` (drafts are skipped).
+   */
+  includeDrafts?: boolean;
+  /**
    * File exporting a custom Playwright `test` (e.g. created with `test.extend()`), used by generated
    * specs instead of `@playwright/test`. A string is shorthand for `{ file, varName: 'test' }`.
    */
@@ -78,6 +83,8 @@ export interface ResolvedSanmaimeConfig {
   language: string;
   /** Tag expression, if any. */
   tags?: string;
+  /** Whether `# status: draft` specifications are generated too. */
+  includeDrafts: boolean;
   /** Custom `test` import, if any. */
   importTestFrom?: ResolvedImportTestFrom;
   /** Quote style for generated code. */

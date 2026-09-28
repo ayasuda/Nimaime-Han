@@ -157,6 +157,8 @@ After approval:
 
 From then on, Nimaime-Han can continuously verify that the implementation still conforms to the approved specification.
 
+Nimaime-Han supports this transition with tools: `nimaime draft` proposes a draft marked `# status: draft`, `nimaime-gen` generates tests only from approved specifications, `nimaime approve` marks a reviewed draft as approved, and `nimaime diff` shows how a screen has drifted from its approved specification. See [docs/review-workflow.md](docs/review-workflow.md).
+
 Sanmaime is therefore intended to be both:
 
 - a human-readable screen specification language

@@ -10,7 +10,7 @@
  *
  * The module has no Node-specific dependencies: callers read files themselves and pass the text.
  */
-export { CONDITION_SEPARATOR, joinConditions, parse } from './parser';
+export { CONDITION_SEPARATOR, joinConditions, parse, SPEC_STATUSES } from './parser';
 export { DEFAULT_LANGUAGE, LANGUAGES, SUPPORTED_LANGUAGES, getLanguage } from './languages';
 export type { LanguageDefinition, LanguageKeywords } from './languages';
 export type { ParseOptions, ParseResult } from './parser';
@@ -26,7 +26,9 @@ export type {
   Location,
   SanmaimeDocument,
   Screen,
+  SpecStatus,
   StateExpectation,
+  StatusDirective,
   Tag,
   VisibilityExpectation,
 } from './ast';

@@ -13,7 +13,13 @@ const lines = (...ls: string[]): string => ls.join('\n');
 describe('parse: structure', () => {
   it('returns an empty document for an empty source', () => {
     expect(parse('')).toEqual({
-      document: { uri: undefined, language: 'en', languageDirective: undefined, screens: [] },
+      document: {
+        uri: undefined,
+        language: 'en',
+        languageDirective: undefined,
+        status: 'approved',
+        screens: [],
+      },
       diagnostics: [],
     });
   });

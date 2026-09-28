@@ -13,6 +13,7 @@ import type {
   Location,
   SanmaimeDocument,
   Screen,
+  SpecStatus,
   StateExpectation,
   Tag,
 } from './ast';
@@ -31,6 +32,12 @@ import {
 } from './tokens';
 
 export { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from './languages';
+
+/** The values of the `# status:` directive (§3.4). */
+export const SPEC_STATUSES: readonly SpecStatus[] = ['draft', 'approved'];
+
+/** A status directive, on a trimmed comment line (`\s` = the whitespace of §3.1). */
+export const STATUS_DIRECTIVE = /^#\s*status\s*:\s*(.*)$/;
 
 /** What joins the condition names of a block in its title (`When: A and B`, §5.10). */
 export const CONDITION_SEPARATOR = ' and ';
@@ -142,6 +149,7 @@ class Parser {
       uri: options.uri,
       language,
       languageDirective: undefined,
+      status: 'approved',
       screens: [],
     };
     this.table = keywordTable(language);
@@ -176,6 +184,11 @@ class Parser {
   // --- header -----------------------------------------------------------------------------------
 
   private directive(token: CommentToken): void {
+    const status = STATUS_DIRECTIVE.exec(token.text);
+    if (status) {
+      this.statusDirective(status[1]?.trim() ?? '', token.location);
+      return;
+    }
     if (token.directive === undefined) return;
     const first = this.document.languageDirective;
     if (first !== undefined) {
@@ -199,6 +212,25 @@ class Parser {
         this.messages.unsupportedLanguage(directive.value, SUPPORTED_LANGUAGES),
         token.location,
       );
+    }
+  }
+
+  /** `# status: draft | approved` (§3.4); E024 keeps the default (`approved`), like E017. */
+  private statusDirective(value: string, location: Location): void {
+    const first = this.document.statusDirective;
+    if (first !== undefined) {
+      this.report(
+        DiagnosticCode.InvalidStatus,
+        this.messages.duplicateStatus(first.location.line),
+        location,
+      );
+      return;
+    }
+    this.document.statusDirective = { value, location: { ...location } };
+    if ((SPEC_STATUSES as readonly string[]).includes(value)) {
+      this.document.status = value as SpecStatus;
+    } else {
+      this.report(DiagnosticCode.InvalidStatus, this.messages.unknownStatus(value), location);
     }
   }
 

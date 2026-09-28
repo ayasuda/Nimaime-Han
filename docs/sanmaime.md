@@ -143,12 +143,21 @@ ignored everywhere and never end a block.
 ### 3.3 Comments
 
 A line whose first non-whitespace character is `#` is a **comment line** and
-is ignored (apart from the language directive, §3.4).
+is ignored (apart from the header directives, §3.4).
 
 There are **no trailing comments**: a `#` anywhere else is an ordinary
 character. `Show: Order #1234` names the target `Order #1234`.
 
-### 3.4 Language directive
+### 3.4 Header directives
+
+The _header_ of a file is the part **before the first significant line**:
+only blank and comment lines may precede it. Two kinds of comment lines in
+the header are **directives**: `# language:` (the keyword language) and
+`# status:` (the review status, [below](#status-directive)). Their order
+does not matter, and each may appear at most once. After the header, both
+are ordinary comments.
+
+#### Language directive
 
 A comment line of the form
 
@@ -177,7 +186,7 @@ line is a directive when it matches:
 - A language changes **only the keyword spellings**, never the structure,
   the semantics or the diagnostics codes. Names are never translated.
 
-**Default language.** A file without a directive uses the _default
+**Default language.** A file without a language directive uses the _default
 language_. It is `en`, unless the tool that parses the file is configured
 otherwise: the `language` option of `defineSanmaimeConfig()`
 ([config.md](./config.md)) sets the default language of every file of that
@@ -198,6 +207,44 @@ their language when it is not `en`. When the directive is invalid
 An unsupported value of the `language` **option** is not a diagnostic of any
 file: the reference parser throws a `TypeError` from `parse()` (it is a
 configuration error, reported once by the tool, not once per file).
+
+#### Status directive
+
+A comment line in the header that, after trimming, matches
+
+```text
+^#[ws]*status[ws]*:[ws]*(.*)$          (the captured value is trimmed)
+```
+
+is a **status directive**. It records where the specification is in the
+review workflow of the README's
+[Sanmaime as an Intermediate Representation](../README.md#sanmaime-as-an-intermediate-representation)
+([review-workflow.md](./review-workflow.md)):
+
+| Value      | Meaning                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| `draft`    | _This is what the application currently does._ Proposed (e.g. by `nimaime draft`), not reviewed.      |
+| `approved` | _This is what the application is supposed to do._ Reviewed; the requirement tests are generated from. |
+
+```text
+# status: draft
+# Draft proposed by nimaime draft from http://localhost:3000/login. Review it before committing.
+
+Screen: Login
+```
+
+- A file **without** a status directive is `approved`, so files written by
+  hand, and every file written before the directive existed, are
+  specifications.
+- Values are case-sensitive (`draft`, not `Draft`). Another (or an empty)
+  value is error `SANMAIME_E024`; the file is then treated as `approved`
+  (like `E017`, parsing continues with the default).
+- A second status directive in the header is error `SANMAIME_E024`; the
+  first one stays in effect.
+- The status never changes the meaning of the file (its screens, elements
+  and expectations); it tells tools what to do with it: `nimaime-gen` skips
+  drafts unless asked to include them, `nimaime approve` rewrites
+  `draft` to `approved` ([review-workflow.md](./review-workflow.md)).
 
 ### 3.5 Keywords
 
@@ -300,7 +347,7 @@ matching rule:
 | #   | Condition on `t`                                                                          | Class / result                         |
 | --- | ----------------------------------------------------------------------------------------- | -------------------------------------- |
 | 1   | empty                                                                                     | blank line                             |
-| 2   | starts with `#`                                                                           | comment (or language directive, §3.4)  |
+| 2   | starts with `#`                                                                           | comment (or header directive, §3.4)    |
 | 3   | starts with `@`                                                                           | tag line (§3.7), or `E020`             |
 | 4   | starts with `Screen:` `Background:` `Element:` `When:` `And when:` `Show:` `Hide:` `And:` | name keyword line; empty name → `E002` |
 | 5   | equals `Enable` or `Disable`                                                              | bare keyword line                      |
@@ -338,6 +385,8 @@ comment            = "#" , { char } ;
 language-directive = "#" , { ws } , "language" , { ws } , ":" , { ws } ,
                      language-code , { ws } ;
 language-code      = "en" | "ja" ;
+status-directive   = "#" , { ws } , "status" , { ws } , ":" , { ws } ,
+                     ( "draft" | "approved" ) , { ws } ;
 
 tag-line           = tag , { ws , { ws } , tag } ;
 tag                = "@" , tag-char , { tag-char } ;
@@ -367,7 +416,7 @@ ws                 = ? whitespace as defined in §3.1, excluding line breaks ? ;
 
 ### 4.2 Syntactic grammar (sequence of significant lines)
 
-Blank lines and comment lines are removed first; the language directive is
+Blank lines and comment lines are removed first; the header directives are
 consumed from the header. The remaining lines are matched by:
 
 ```ebnf
@@ -696,7 +745,7 @@ stands for the line itself (`E002`, `E003`, `E006`, `E015`, `E016`, `E021`,
 
 | Code            | Condition                                                                                                                                                                                                                                         | Location                                                | Suggested message                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SANMAIME_E001` | Unrecognised line (§3.8 rule 8): unknown keyword, wrong case, missing colon, free text.                                                                                                                                                           | the line                                                | `Unrecognised line '{text}'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).` Parsers SHOULD add a hint when the line is a case-insensitive match (`Did you mean 'Show:'?`), lacks the colon (`Did you mean 'Show: Username'?`) or is a keyword of another language (`'Show:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '表示:'?`). |
+| `SANMAIME_E001` | Unrecognised line (§3.8 rule 7): unknown keyword, wrong case, missing colon, free text.                                                                                                                                                           | the line                                                | `Unrecognised line '{text}'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).` Parsers SHOULD add a hint when the line is a case-insensitive match (`Did you mean 'Show:'?`), lacks the colon (`Did you mean 'Show: Username'?`) or is a keyword of another language (`'Show:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '表示:'?`). |
 | `SANMAIME_E002` | A name keyword has an empty name.                                                                                                                                                                                                                 | the line                                                | `'{Keyword}:' requires a name.`                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `SANMAIME_E003` | `Enable`/`Disable` followed by a colon or an argument.                                                                                                                                                                                            | the line                                                | `'{Keyword}' takes no argument. Write '{Keyword}' on its own line.`                                                                                                                                                                                                                                                                                                                                                                                        |
 | `SANMAIME_E004` | `Element:` before any `Screen:`.                                                                                                                                                                                                                  | the line                                                | `'Element:' must appear inside a 'Screen:'.`                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -713,6 +762,7 @@ stands for the line itself (`E002`, `E003`, `E006`, `E015`, `E016`, `E021`,
 | `SANMAIME_E015` | More than one `Enable`/`Disable` in the same block (§6 rule 2).                                                                                                                                                                                   | the second line                                         | `This block already declares '{Keyword}' (line {n}).`                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `SANMAIME_E016` | A condition block re-asserts a target or state already asserted by the element's unconditional block (§6 rule 3).                                                                                                                                 | the line in the condition block                         | `'{target}' is already asserted unconditionally for element '{element}' (line {n}). Unconditional expectations hold in every state.`                                                                                                                                                                                                                                                                                                                       |
 | `SANMAIME_E017` | Invalid language directive: unsupported or empty language, or a second directive in the header.                                                                                                                                                   | the directive line                                      | `Unsupported language '{code}'. Supported languages: en, ja.` / `Duplicate language directive (first on line {n}).`                                                                                                                                                                                                                                                                                                                                        |
+| `SANMAIME_E024` | Invalid status directive (§3.4): a value other than `draft` or `approved` (or empty), or a second one in the header.                                                                                                                              | the directive line                                      | `Unknown status '{value}'. Use 'draft' or 'approved'.` / `Duplicate status directive (first on line {n}).`                                                                                                                                                                                                                                                                                                                                                 |
 | `SANMAIME_E018` | Tag lines not followed by `Screen:`, `Element:` or `When:` (followed by another keyword or by end of file).                                                                                                                                       | the first tag line of the group                         | `Tags must be followed by 'Screen:', 'Element:' or 'When:'.`                                                                                                                                                                                                                                                                                                                                                                                               |
 | `SANMAIME_E019` | _Retired in v0.2._ Was: use of the reserved keyword `Background:` (v0, v0.1). No longer reported.                                                                                                                                                 | —                                                       | —                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `SANMAIME_E020` | Malformed tag line.                                                                                                                                                                                                                               | the line                                                | `Invalid tag '{token}'. A tag is '@' followed by characters other than whitespace, '@' and '#'.`                                                                                                                                                                                                                                                                                                                                                           |
@@ -739,6 +789,7 @@ continues after an error SHOULD recover as follows:
 | `E023`, `E025`         | ignore the line.                                                |
 | `E007`                 | ignore the line.                                                |
 | `E017`                 | continue with the default language (§3.4: configured, or `en`). |
+| `E024`                 | continue with the default status (`approved`).                  |
 | `E018`                 | discard the tags.                                               |
 | others                 | keep the offending construct in the AST and continue.           |
 
@@ -827,7 +878,8 @@ Screen: Login
 The parser API is defined by its own issue. This shape is a suggestion
 that captures everything the language defines. The implemented AST
 (`src/parser/ast.ts`, exported by `nimaime-han/parser`) follows it and adds
-`uri` and `languageDirective` to the document, `viaAnd` to `Show:`/`Hide:`
+`uri`, `languageDirective`, `status` (`'draft' | 'approved'`) and
+`statusDirective` to the document, `viaAnd` to `Show:`/`Hide:`
 expectations and `severity` to diagnostics. Expectation keywords in the AST
 are always the canonical (English) keywords, whatever the file's language,
 so that generators and runtimes do not depend on the language:
@@ -1030,9 +1082,10 @@ Fixtures are parsed without a `language` option.
 | D18 | The file's directive beats the configured default language; an unsupported configured language throws instead of producing per-file diagnostics.                                                     | A file that declares its language must mean the same in every project. A bad config value is one mistake, not one per file.                                                                                  |
 | D19 | Messages stay in English; quoted keywords follow the file's language. The AST keeps canonical English keywords.                                                                                      | Diagnostic codes are the stable interface; quoting the author's own keywords makes messages actionable. Downstream tools stay language-independent.                                                          |
 | D20 | Tags (v0.1) go before `Screen:`, `Element:` and `When:`; a test's tags are the union of its screen's, element's and block's tags; selection uses Cucumber tag expressions.                           | Same model and expression syntax as Gherkin / playwright-bdd, so users and CI setups carry over. Allowing tags only before header lines keeps them unambiguous (the unconditional block inherits).           |
-| D21 | `Background:` (v0.2) goes directly under `Screen:` and lists condition names only; its conditions run after `open`, before each block's conditions, for every block including the unconditional one. | Same role as Gherkin's `Background:`. Naming conditions (not steps or expectations) keeps backgrounds reusable as ordinary `defineCondition()`s, and keeps expectations in exactly one place (`E021`).       |
-| D22 | Conditions are combined with `And when:` lines (v0.2), not by nesting `When:` blocks; the block title joins the names with `" and "` in every language.                                              | Indentation is not significant (D2), so nesting could not be expressed without changing that rule. A flat list is unambiguous, keeps the execution order visible, and gives each test one readable title.    |
-| D23 | A condition is established at most once per test: repeating it (in the background, in a block, or both) is `E022`; the runtime also skips a condition already established in the test.               | One place for every fact (D12); prevents a background from silently running twice.                                                                                                                           |
+| D21 | The review status is a header directive, `# status: draft` / `# status: approved`; a file without it is approved.                                                                                    | The status travels with the file and shows up in code review (a PR that approves a spec changes that line); no directory convention or Git metadata is needed, and existing files keep their meaning.        |
+| D22 | `Background:` (v0.2) goes directly under `Screen:` and lists condition names only; its conditions run after `open`, before each block's conditions, for every block including the unconditional one. | Same role as Gherkin's `Background:`. Naming conditions (not steps or expectations) keeps backgrounds reusable as ordinary `defineCondition()`s, and keeps expectations in exactly one place (`E021`).       |
+| D23 | Conditions are combined with `And when:` lines (v0.2), not by nesting `When:` blocks; the block title joins the names with `" and "` in every language.                                              | Indentation is not significant (D2), so nesting could not be expressed without changing that rule. A flat list is unambiguous, keeps the execution order visible, and gives each test one readable title.    |
+| D24 | A condition is established at most once per test: repeating it (in the background, in a block, or both) is `E022`; the runtime also skips a condition already established in the test.               | One place for every fact (D12); prevents a background from silently running twice.                                                                                                                           |
 
 ---
 
@@ -1050,7 +1103,8 @@ Fixtures are parsed without a `language` option.
 - 重複(画面名・要素名・条件名・同一ブロック内の対象)や、無条件ブロックで宣言済みの対象を条件ブロックで再宣言することはエラー。空の画面・要素・条件ブロックもエラー。空ファイルは有効。
 - **背景**(v0.2, §5.9): `Screen:` の直下(最初の `Element:` より前)に `Background: <条件名>` を書くと、その画面のすべての要素のすべてのブロック(無条件ブロックを含む)で、画面を開いた後・各ブロックの条件の前に、その条件が順に適用される(Gherkin の Background に相当)。期待は書けない(E021)。複数行可、同名の重複は E022。
 - **条件の組み合わせ**(v0.2, §5.10): `When: A` の直後に `And when: B`(日本語 `かつ条件: B`)を書くと、A → B の順に条件を適用した状態での期待になる。テスト名は `When: A and B`(言語によらず `and` で連結)。`When:` の直後以外の `And when:` は E023。インデントに意味がないため `When:` の入れ子はサポートしない。
-- **診断**は `SANMAIME_E001`〜`SANMAIME_E025` の安定したコードと行・桁を持つ(§7。E019 は v0.2 で廃止)。
+- **診断**は `SANMAIME_E001`〜`SANMAIME_E025` の安定したコードと行・桁を持つ(§7。E019 は v0.2 で廃止、E024 は `# status:`)。
+- **ステータス**: ヘッダに `# status: draft` と書いたファイルは下書き(「今アプリがしていること」)、`# status: approved` またはディレクティブなしは承認済み(「アプリがすべきこと」)。`nimaime-gen` は既定で下書きを生成しない(`--include-drafts` で含める)。`nimaime approve` で承認済みに書き換え、`nimaime diff` で承認済み仕様と現在の画面の差分を見る([review-workflow.md](./review-workflow.md))。値の誤りや重複は E024。
 - **タグ**(v0.1): `@smoke @wip` のような `@tag` 行を `Screen:` / `Element:` / `When:` の直前に書く。テスト(要素の各ブロック)のタグは画面・要素・`When:` ブロックのタグの和集合。`nimaime-gen --tags "@smoke and not @wip"`(または設定の `tags`)で生成するテストを絞り込める。生成コードは Playwright の `tag` を持つので `npx playwright test --grep @smoke` でも絞れ、定義からは `$tags` フィクスチャで参照できる。タグは言語に依存しない。
 - **将来拡張の予約**: `# language: xx`(v0 は `en` と `ja`。言語は辞書の追加で増やせる)、自由記述の Description(v0 ではエラー)。`Background:` は v0.1 まで予約語(E019)で、v0.2 で導入された。
 - **テストフィクスチャ**は `examples/sanmaime/valid/` と `examples/sanmaime/invalid/`。無効例は先頭に `# expect: SANMAIME_Ennn` と `# at: 行:桁` を書く。

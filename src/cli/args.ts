@@ -30,6 +30,7 @@ Options:
                        or compact (one file:line:column: severity: message line per problem)
       --tags <expr>    Generate only the tests whose tags match, e.g. "@smoke and not @wip"
                        (and, or, not, parentheses; overrides the config's tags option)
+      --include-drafts Also generate the specs marked "# status: draft" (skipped by default)
       --verbose        Print more details (unused definitions, generated files, stack traces)
   -h, --help           Print this help
   -v, --version        Print the version
@@ -48,6 +49,8 @@ export interface CliArgs {
   format: ReportFormat;
   /** `--tags` expression, if given (syntax already checked). */
   tags: string | undefined;
+  /** `--include-drafts`. */
+  includeDrafts: boolean;
   help: boolean;
   version: boolean;
 }
@@ -79,6 +82,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
         'allow-missing': { type: 'boolean' },
         format: { type: 'string' },
         tags: { type: 'string' },
+        'include-drafts': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
       },
@@ -116,6 +120,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
     allowMissing: values['allow-missing'] === true,
     format,
     tags,
+    includeDrafts: values['include-drafts'] === true,
     help: values.help === true,
     version: values.version === true,
   };

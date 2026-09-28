@@ -24,6 +24,7 @@ describe('resolveSanmaimeConfig', () => {
       definitions: ['definitions/**/*.ts'],
       outputDir: path.join(base, '.sanmaime-gen'),
       language: 'en',
+      includeDrafts: false,
       quotes: 'single',
       verbose: false,
     });
@@ -38,6 +39,7 @@ describe('resolveSanmaimeConfig', () => {
           outputDir: 'out/gen',
           language: 'ja',
           tags: '@smoke and not @slow',
+          includeDrafts: true,
           importTestFrom: { file: './fixtures.ts', varName: 'myTest' },
           quotes: 'double',
           verbose: true,
@@ -52,6 +54,7 @@ describe('resolveSanmaimeConfig', () => {
       outputDir: path.join(base, 'e2e', 'out', 'gen'),
       language: 'ja',
       tags: '@smoke and not @slow',
+      includeDrafts: true,
       importTestFrom: { file: path.join(base, 'e2e', 'fixtures.ts'), varName: 'myTest' },
       quotes: 'double',
       verbose: true,
@@ -125,6 +128,10 @@ describe('resolveSanmaimeConfig', () => {
     [
       { ...minimal, quotes: 'backtick' },
       /option "quotes" must be "single" or "double"\. Received: "backtick" \(string\)\./,
+    ],
+    [
+      { ...minimal, includeDrafts: 'yes' },
+      /option "includeDrafts" must be a boolean\. Received: "yes" \(string\)\./,
     ],
     [
       { ...minimal, verbose: 'yes' },

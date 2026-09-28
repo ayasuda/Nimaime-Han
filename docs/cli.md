@@ -20,7 +20,13 @@ It reads the Playwright config, and for every configuration registered with
 
 With [`--allow-missing`](#--allow-missing), missing definitions are warnings: the tests that use
 them are left out and the others are generated. With [`--tags`](#tags), only the tests whose tags
-match an expression are generated.
+match an expression are generated. Specifications marked `# status: draft` are
+[skipped](#drafts) unless `--include-drafts` is given.
+
+`nimaime-gen` only generates. Working with live screens is the job of the second command,
+`nimaime`: `nimaime draft` proposes a specification from a running screen ([draft.md](./draft.md)),
+`nimaime approve` marks reviewed drafts as approved and `nimaime diff` compares an approved
+specification with the screen as it is now ([review-workflow.md](./review-workflow.md)).
 
 ## Commands
 
@@ -48,6 +54,7 @@ specs/login.sanmaime
 | `-c, --config <path>` | The Playwright config file, or a directory containing one, relative to the current directory. Default: `playwright.config.{ts,js,mts,mjs,cts,cjs}` in the current directory (the same lookup as `playwright test -c`).                                  |
 | `--allow-missing`     | Reports missing definitions as warnings instead of errors and generates every test that does not use one; see [below](#--allow-missing).                                                                                                                |
 | `--tags <expr>`       | Generates only the tests whose tags match the tag expression, e.g. `--tags "@smoke and not @wip"`; overrides the config's `tags` option. See [Tags](#tags).                                                                                             |
+| `--include-drafts`    | Also generates the specifications marked `# status: draft` (skipped by default); see [Drafts](#drafts). The config option `includeDrafts` does the same.                                                                                                |
 | `--format <name>`     | How problems are printed: `pretty` (default: counted blocks and definition snippets) or `compact` (one `file:line:column: severity: message` line per problem, for editors and problem matchers).                                                       |
 | `--verbose`           | Also prints: the number of spec and definition files, screens without `defineScreen`, unused definitions, every generated file, files kept in `outputDir`, and stack traces of errors. The `verbose` config option does the same for one configuration. |
 | `-h, --help`          | Prints the help.                                                                                                                                                                                                                                        |
@@ -125,15 +132,16 @@ nimaime-gen: nothing was generated into .sanmaime-gen (4 errors).
 
 What is an error, a warning or information:
 
-| Problem                                                                     | Severity                                         |
-| --------------------------------------------------------------------------- | ------------------------------------------------ |
-| parser diagnostic (`SANMAIME_Ennn`)                                         | error                                            |
-| missing element, target, `self` locator (for `Enable`/`Disable`), condition | error (warning with `--allow-missing`)           |
-| definition file that throws while loading (incl. duplicate definitions)     | error (message only; the stack with `--verbose`) |
-| no `.sanmaime` file matches `specs`                                         | warning (an empty `outputDir` is still produced) |
-| a callback whose fixtures cannot be determined (see below)                  | warning                                          |
-| a `Screen:` without `defineScreen` (it is simply not opened)                | info, shown with `--verbose`                     |
-| unused definitions                                                          | warning, shown with `--verbose`                  |
+| Problem                                                                     | Severity                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------ |
+| parser diagnostic (`SANMAIME_Ennn`)                                         | error                                                  |
+| missing element, target, `self` locator (for `Enable`/`Disable`), condition | error (warning with `--allow-missing`)                 |
+| definition file that throws while loading (incl. duplicate definitions)     | error (message only; the stack with `--verbose`)       |
+| no `.sanmaime` file matches `specs`                                         | warning (an empty `outputDir` is still produced)       |
+| draft specifications skipped (`# status: draft`)                            | a count line; info per file with `check` / `--verbose` |
+| a callback whose fixtures cannot be determined (see below)                  | warning                                                |
+| a `Screen:` without `defineScreen` (it is simply not opened)                | info, shown with `--verbose`                           |
+| unused definitions                                                          | warning, shown with `--verbose`                        |
 
 With several configurations (Playwright projects), each one is processed independently: one with
 errors writes nothing, the others are still generated, and the exit code is 1.
@@ -189,6 +197,28 @@ without `--allow-missing` generates once the definitions exist. Parser errors (`
 and definition files that fail to load are still errors: nothing is written and the exit code is
 still 1. `--allow-missing` works with every command (`export` lists only the tests that would be
 generated; `check` succeeds).
+
+## Drafts
+
+A specification whose header says `# status: draft` ([sanmaime.md §3.4](./sanmaime.md#34-header-directives))
+describes what a screen currently does, not what it must do: `nimaime draft` writes it, a human
+reviews it and `nimaime approve` marks it approved ([review-workflow.md](./review-workflow.md)).
+Until then `nimaime-gen` leaves it out — before anything is reported about it, so a draft's parser
+errors or missing definitions do not fail the run — and says so on stderr:
+
+```text
+nimaime-gen: 2 draft specs skipped (use --include-drafts).
+```
+
+`check` (and `--verbose`) also print one line per draft:
+
+```text
+specs/sign-up.sanmaime: info: draft (# status: draft), not generated; approve it with "nimaime approve" when reviewed.
+```
+
+With `--include-drafts` (or `includeDrafts: true` in the config) drafts are processed like approved
+specifications, and `export` marks their files with `[draft]`. A file without a `# status:` line is
+approved.
 
 ## Tags
 
@@ -432,7 +462,7 @@ end-to-end test of the generator (`npm run test:e2e:gen` does it).
 ## Programmatic use (internal)
 
 The CLI is a thin wrapper around
-`runGeneration({ cli, cwd, mode, verbose, allowMissing, format, stdout, stderr })` in
+`runGeneration({ cli, cwd, mode, verbose, allowMissing, format, tags, includeDrafts, stdout, stderr })` in
 `src/gen/run.ts`, which returns `{ exitCode, results }`. The reports are built by `src/gen/report.ts`
 (`formatDiagnostics`, `formatMissing`, `formatUnused`) and the snippets by `generateSnippets()` in
 `src/gen/snippets.ts`. It loads each Playwright config file at

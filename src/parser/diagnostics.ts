@@ -62,6 +62,8 @@ export const DiagnosticCode = {
   DuplicateConditionInChain: 'SANMAIME_E022',
   /** `And when:` that does not directly follow `When:` or `And when:` (v0.2). */
   MisplacedAndWhen: 'SANMAIME_E023',
+  /** Invalid status directive (unknown / empty value / duplicate). */
+  InvalidStatus: 'SANMAIME_E024',
   /** `Background:` outside a screen or after the screen's first `Element:` (v0.2). */
   MisplacedBackground: 'SANMAIME_E025',
 } as const;
@@ -137,6 +139,10 @@ export function createMessages(k: KeywordSpellings) {
       `Unsupported language '${code}'. Supported languages: ${supported.join(', ')}.`,
     duplicateLanguage: (firstLine: number): string =>
       `Duplicate language directive (first on line ${String(firstLine)}).`,
+    unknownStatus: (value: string): string =>
+      `Unknown status '${value}'. Use 'draft' or 'approved'.`,
+    duplicateStatus: (firstLine: number): string =>
+      `Duplicate status directive (first on line ${String(firstLine)}).`,
     misplacedTags: (): string =>
       `Tags must be followed by '${k.Screen}:', '${k.Element}:' or '${k.When}:'.`,
     invalidTag: (token: string): string =>

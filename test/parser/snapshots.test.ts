@@ -134,6 +134,7 @@ describe('AST snapshots of the README fixtures', () => {
             "tags": [],
           },
         ],
+        "status": "approved",
         "uri": "examples/sanmaime/valid/readme-login.sanmaime",
       }
     `);
@@ -273,6 +274,7 @@ describe('AST snapshots of the README fixtures', () => {
             "tags": [],
           },
         ],
+        "status": "approved",
         "uri": "examples/sanmaime/valid/readme-user-details.sanmaime",
       }
     `);

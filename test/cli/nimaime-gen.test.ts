@@ -145,6 +145,7 @@ describe('parseCliArgs', () => {
       allowMissing: false,
       format: 'pretty',
       tags: undefined,
+      includeDrafts: false,
       help: false,
       version: false,
     });

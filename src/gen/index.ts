@@ -1,8 +1,7 @@
 /**
  * Code generator internals used by the `nimaime-gen` CLI: resolving spec and definition files,
- * loading definitions, parsing specs and matching Sanmaime names to definitions.
- *
- * TODO(#9): implement code generation (Sanmaime AST -> Playwright `.spec.ts` in `.sanmaime-gen/`).
+ * loading definitions, parsing specs, matching Sanmaime names to definitions, generating
+ * Playwright `.spec.ts` files and the orchestration of a run (docs/cli.md).
  */
 export {
   resolveDefinitionFiles,
@@ -37,3 +36,31 @@ export {
   type UnusedDefinition,
   type UnusedDefinitionKind,
 } from './match';
+export {
+  FALLBACK_FIXTURE,
+  generatedSpecPath,
+  GENERATED_HEADER_PREFIX,
+  generateSpecFile,
+  importSpecifier,
+  listTests,
+  quote,
+  RUNTIME_MODULE,
+  textWidth,
+  UNCONDITIONAL_TEST_TITLE,
+  type GeneratedSpecFile,
+  type GeneratedTest,
+  type GenerateOptions,
+  type UnknownFixtures,
+} from './generate';
+export { cleanOutputDir, writeGeneratedFiles, type CleanResult } from './output';
+export { displayPath, formatMissing, formatUnused, type ReportOptions } from './report';
+export {
+  processConfig,
+  runGeneration,
+  type ConfigGenerationResult,
+  type ExitCode,
+  type GenerationMode,
+  type RunGenerationOptions,
+  type RunGenerationResult,
+  type TextOutput,
+} from './run';

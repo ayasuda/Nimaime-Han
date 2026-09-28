@@ -18,7 +18,7 @@ export default defineConfig({ testDir });
 
 Workflow: `npx nimaime-gen && npx playwright test`. `nimaime-gen` loads the Playwright config, reads
 every config registered by `defineSanmaimeConfig()` and generates `.spec.ts` files into each
-`outputDir`; Playwright then runs them from `testDir`.
+`outputDir`; Playwright then runs them from `testDir`. See [cli.md](./cli.md) for the CLI.
 
 ## Options
 
@@ -27,7 +27,7 @@ every config registered by `defineSanmaimeConfig()` and generates `.spec.ts` fil
 | `specs`          | `string \| string[]`                           | — (required)      | Glob pattern(s) of `.sanmaime` files. Relative patterns are relative to `configDir`. Negated patterns (`!…`) are passed through to the glob engine.                                                                              |
 | `definitions`    | `string \| string[]`                           | — (required)      | Glob pattern(s) of the TypeScript/JavaScript files with element and condition definitions (`createNimaime(test)`). Relative to `configDir`.                                                                                      |
 | `outputDir`      | `string`                                       | `'.sanmaime-gen'` | Directory for generated spec files; returned (absolute) by `defineSanmaimeConfig()`. Must be a dedicated directory: not `configDir` itself nor one of its parents, because generated files in it may be deleted and regenerated. |
-| `language`       | `string`                                       | `'en'`            | Keyword language of `.sanmaime` files that have no `# language:` directive (see [sanmaime.md §3.4](./sanmaime.md)). Only the format is checked here; the parser reports unsupported languages.                                   |
+| `language`       | `string`                                       | `'en'`            | Keyword language of `.sanmaime` files that have no `# language:` directive (see [sanmaime.md §3.4](./sanmaime.md) and [i18n.md](./i18n.md)). Must be a supported language code (`'en'`, `'ja'`); others are rejected.            |
 | `tags`           | `string`                                       | —                 | Tag expression selecting which specifications are generated (reserved; implemented by issue #15).                                                                                                                                |
 | `importTestFrom` | `string \| { file: string; varName?: string }` | —                 | File that exports a custom Playwright `test` (e.g. made with `test.extend()` for custom fixtures). Generated specs import `test` from it instead of `@playwright/test`. A string is shorthand for `{ file, varName: 'test' }`.   |
 | `quotes`         | `'single' \| 'double'`                         | `'single'`        | Quote style of string literals in generated code.                                                                                                                                                                                |
@@ -97,6 +97,7 @@ expected and what was received, for example:
 
 ```text
 Invalid Sanmaime config: option "quotes" must be "single" or "double". Received: "backtick" (string).
+Invalid Sanmaime config: option "language" must be one of the supported languages ("en", "ja"). Received: "fr" (string).
 Invalid Sanmaime config: option "specs" is required and must be a non-empty glob pattern string or a non-empty array of glob pattern strings.
 Invalid Sanmaime config: unknown option "output". Known options: "specs", "definitions", "outputDir", ...
 ```

@@ -1,0 +1,7 @@
+# Fails on purpose: the button is enabled once the input is valid. run.js expects exactly this
+# test to fail, with a Sanmaime failure message pointing at line 7.
+Screen: Login
+
+  Element: Login Button
+    When: Input is valid
+    Disable

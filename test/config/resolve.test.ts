@@ -107,6 +107,10 @@ describe('resolveSanmaimeConfig', () => {
       /option "language" must be a language code such as "en"\. Received: "e n" \(string\)\./,
     ],
     [
+      { ...minimal, language: 'fr' },
+      /option "language" must be one of the supported languages \("en", "ja"\)\. Received: "fr" \(string\)\./,
+    ],
+    [
       { ...minimal, language: 1 },
       /option "language" must be a non-empty string\. Received: 1 \(number\)\./,
     ],

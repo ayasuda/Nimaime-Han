@@ -1,0 +1,5 @@
+Screen: Search
+
+  Element: Search Box
+    Show: Input
+    And: Button

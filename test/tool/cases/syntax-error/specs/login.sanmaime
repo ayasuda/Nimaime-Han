@@ -1,0 +1,7 @@
+Screen: Login
+
+  Element: Login Button
+    When: Input is valid
+    Enable
+    # 'And:' continues Show:/Hide: only (SANMAIME_E007).
+    And: Password

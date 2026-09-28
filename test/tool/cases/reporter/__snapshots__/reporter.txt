@@ -1,0 +1,33 @@
+
+✗ Screen: Cart
+
+  ✗ Element: Cart Summary
+    ✓ Title is shown
+
+    When: The cart is empty
+      ✓ Empty message is shown
+
+    When: An item was added
+      ✗ Empty message is hidden
+        Expected: Empty message is hidden
+        Actual: shown
+        Location: specs/cart.sanmaime:11
+
+    ○ When: Coupons are enabled
+
+  ✗ Element: Checkout Button
+    When: An item was added
+      ✓ enabled
+
+    When: The user is signed out
+      ✗ When: The user is signed out
+        Error: TimeoutError: locator.click: Timeout 200ms exceeded.
+        Location: specs/cart.sanmaime:20
+
+✓ Screen: Search
+
+  ✓ Element: Search Box
+    ✓ Input is shown
+    ✓ Button is shown
+
+2 screens, 3 elements, 8 expectations: 5 passed, 2 failed, 1 skipped (<duration>)

@@ -1,0 +1,6 @@
+# English keywords (the default language) next to the Japanese spec.
+Screen: ユーザー詳細
+
+  Element: 編集ボタン
+    When: 自分のプロフィールを閲覧している
+    Enable

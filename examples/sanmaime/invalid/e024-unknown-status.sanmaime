@@ -1,0 +1,7 @@
+# expect: SANMAIME_E024
+# at: 3:1
+# status: reviewed
+# Only "draft" and "approved" are statuses.
+Screen: Login
+  Element: Login Form
+    Show: Email address

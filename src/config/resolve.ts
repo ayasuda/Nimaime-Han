@@ -27,6 +27,7 @@ const KNOWN_OPTIONS: readonly (keyof SanmaimeConfig)[] = [
   'outputDir',
   'language',
   'tags',
+  'includeDrafts',
   'importTestFrom',
   'quotes',
   'verbose',
@@ -187,12 +188,21 @@ export function resolveSanmaimeConfig(
     verbose = input.verbose;
   }
 
+  let includeDrafts = false;
+  if (input.includeDrafts !== undefined) {
+    if (typeof input.includeDrafts !== 'boolean') {
+      fail('includeDrafts', 'a boolean', input.includeDrafts);
+    }
+    includeDrafts = input.includeDrafts;
+  }
+
   const resolved: ResolvedSanmaimeConfig = {
     configDir,
     specs,
     definitions,
     outputDir,
     language,
+    includeDrafts,
     quotes,
     verbose,
   };

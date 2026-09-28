@@ -32,6 +32,7 @@ import {
   type FileDiagnostic,
   type ReportFormat,
 } from './report';
+import { partitionDrafts, skippedDraftsMessage } from './status';
 import { parseTagExpression, TagExpressionError } from './tag-expression';
 import { filterDocumentByTags } from './tags';
 
@@ -67,6 +68,11 @@ export interface RunGenerationOptions {
    * overrides the config's `tags`. A syntax error is a usage error (exit code 2).
    */
   tags?: string | undefined;
+  /**
+   * `--include-drafts`: also generate the specs whose header says `# status: draft` (in addition
+   * to the config's `includeDrafts`). Default: drafts are skipped.
+   */
+  includeDrafts?: boolean | undefined;
   /** Normal output (summary, `export` list). */
   stdout: TextOutput;
   /** Problems (diagnostics, missing definitions, warnings, errors). */
@@ -87,6 +93,8 @@ export interface ConfigGenerationResult {
   tags?: string;
   /** Number of tests left out because their tags do not match `tags`. */
   excludedByTags: number;
+  /** Draft specs (`# status: draft`, absolute paths): left out, or included by `includeDrafts`. */
+  drafts: { skipped: string[]; included: string[] };
   /** The generated files (empty when there were errors). */
   files: GeneratedSpecFile[];
   /** The tests of the generated files. */
@@ -190,6 +198,8 @@ interface ProcessOptions {
   format?: ReportFormat | undefined;
   /** Overrides `config.tags`. */
   tags?: string | undefined;
+  /** `true` includes drafts whatever `config.includeDrafts` says. */
+  includeDrafts?: boolean | undefined;
   stdout: TextOutput;
   stderr: TextOutput;
 }
@@ -207,6 +217,7 @@ export async function processConfig(
     errors: 0,
     skipped: [],
     excludedByTags: 0,
+    drafts: { skipped: [], included: [] },
     files: [],
     tests: [],
     written: false,
@@ -237,7 +248,30 @@ export async function processConfig(
     return result;
   }
 
-  const specs = await loadSpecs(specFiles, config);
+  // Drafts are left out before anything is reported about them (docs/review-workflow.md).
+  const drafts = partitionDrafts(
+    await loadSpecs(specFiles, config),
+    options.includeDrafts === true || config.includeDrafts,
+  );
+  const specs = drafts.selected;
+  result.drafts = {
+    skipped: drafts.skipped.map((spec) => spec.file),
+    included: drafts.included.map((spec) => spec.file),
+  };
+  const skippedDrafts = skippedDraftsMessage(drafts.skipped.length);
+  if (skippedDrafts !== undefined) stderr.write(`${skippedDrafts}\n`);
+  if (mode === 'check' || verbose) {
+    for (const spec of drafts.skipped) {
+      stderr.write(
+        `${displayPath(spec.file, cwd)}: info: draft (# status: draft), not generated; approve it with "nimaime approve" when reviewed.\n`,
+      );
+    }
+    for (const spec of drafts.included) {
+      stderr.write(
+        `${displayPath(spec.file, cwd)}: info: draft (# status: draft), included by --include-drafts / includeDrafts.\n`,
+      );
+    }
+  }
   const diagnostics: FileDiagnostic[] = specs.flatMap((spec) =>
     spec.diagnostics.map((diagnostic) => ({ ...diagnostic, file: spec.file })),
   );
@@ -350,7 +384,8 @@ export async function processConfig(
   switch (mode) {
     case 'export':
       for (const doc of documents) {
-        stdout.write(`${displayPath(doc.file, cwd)}\n`);
+        const marker = result.drafts.included.includes(doc.file) ? '  [draft]' : '';
+        stdout.write(`${displayPath(doc.file, cwd)}${marker}\n`);
         for (const test of listTests(doc)) {
           const tags = test.tags.length > 0 ? `  ${test.tags.join(' ')}` : '';
           stdout.write(`  ${test.titlePath.join(' > ')}${tags}\n`);

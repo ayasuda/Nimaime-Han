@@ -69,6 +69,7 @@ describe('loadPlaywrightConfig', () => {
         definitions: ['definitions/**/*.ts'],
         outputDir: path.join(dir, '.sanmaime-gen'),
         language: 'en',
+        includeDrafts: false,
         importTestFrom: { file: path.join(dir, 'fixtures.ts'), varName: 'test' },
         quotes: 'single',
         verbose: false,

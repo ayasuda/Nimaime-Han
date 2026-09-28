@@ -49,6 +49,8 @@ export const DiagnosticCode = {
   ReservedKeyword: 'SANMAIME_E019',
   /** Malformed tag line. */
   InvalidTag: 'SANMAIME_E020',
+  /** Invalid status directive (unknown / empty value / duplicate). */
+  InvalidStatus: 'SANMAIME_E024',
 } as const;
 
 export type DiagnosticCode = (typeof DiagnosticCode)[keyof typeof DiagnosticCode];
@@ -122,6 +124,10 @@ export function createMessages(k: KeywordSpellings) {
       `Unsupported language '${code}'. Supported languages: ${supported.join(', ')}.`,
     duplicateLanguage: (firstLine: number): string =>
       `Duplicate language directive (first on line ${String(firstLine)}).`,
+    unknownStatus: (value: string): string =>
+      `Unknown status '${value}'. Use 'draft' or 'approved'.`,
+    duplicateStatus: (firstLine: number): string =>
+      `Duplicate status directive (first on line ${String(firstLine)}).`,
     misplacedTags: (): string =>
       `Tags must be followed by '${k.Screen}:', '${k.Element}:' or '${k.When}:'.`,
     reservedKeyword: (keyword: string): string =>

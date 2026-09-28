@@ -53,14 +53,26 @@ export {
   type UnknownFixtures,
 } from './generate';
 export { cleanOutputDir, writeGeneratedFiles, type CleanResult } from './output';
-export { displayPath, formatMissing, formatUnused, type ReportOptions } from './report';
+export {
+  displayPath,
+  formatDiagnostics,
+  formatMissing,
+  formatUnused,
+  type FileDiagnostic,
+  type MissingReportOptions,
+  type ReportFormat,
+  type ReportOptions,
+} from './report';
+export { generateSnippets, type SnippetOptions } from './snippets';
 export {
   processConfig,
   runGeneration,
+  withoutMissingDefinitions,
   type ConfigGenerationResult,
   type ExitCode,
   type GenerationMode,
   type RunGenerationOptions,
   type RunGenerationResult,
+  type SkippedTest,
   type TextOutput,
 } from './run';

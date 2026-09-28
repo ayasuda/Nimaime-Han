@@ -36,6 +36,8 @@ export async function main(argv: readonly string[], io: CliIO): Promise<ExitCode
       cwd: io.cwd,
       mode: args.command,
       verbose: args.verbose,
+      allowMissing: args.allowMissing,
+      format: args.format,
       stdout: io.stdout,
       stderr: io.stderr,
     });

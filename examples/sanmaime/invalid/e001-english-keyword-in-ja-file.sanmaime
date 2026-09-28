@@ -1,0 +1,8 @@
+# expect: SANMAIME_E001
+# at: 8:5
+# language: ja
+# English keywords are not recognised in a "# language: ja" file (and vice versa).
+画面: ユーザー詳細
+  要素: ユーザー情報
+    表示: ユーザー名
+    Show: 氏名

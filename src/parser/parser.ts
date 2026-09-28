@@ -16,27 +16,33 @@ import type {
   StateExpectation,
   Tag,
 } from './ast';
-import { type Diagnostic, DiagnosticCode, messages } from './diagnostics';
+import { type Diagnostic, DiagnosticCode, type Messages, createMessages } from './diagnostics';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, getLanguage } from './languages';
 import {
-  BARE_KEYWORDS,
   type BareKeywordToken,
   type CommentToken,
+  type KeywordTable,
   type LineToken,
-  NAME_KEYWORDS,
   type NameKeywordToken,
+  classifyLine,
   isInsignificant,
-  tokenize,
+  keywordTable,
+  splitLines,
 } from './tokens';
 
-/** Keyword languages accepted by the `# language:` directive in v0. */
-export const SUPPORTED_LANGUAGES: readonly string[] = ['en'];
-
-/** The language used when the file has no (valid) directive. */
-export const DEFAULT_LANGUAGE = 'en';
+export { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from './languages';
 
 export interface ParseOptions {
   /** Identifies the source (file path or URL). Copied to `document.uri`; not read by the parser. */
   uri?: string;
+  /**
+   * Keyword language of a file that has no valid `# language:` directive (default `"en"`). This
+   * is what the config's `language` option feeds in; a directive in the file always wins.
+   *
+   * Unlike problems in the source, an unsupported code here is a programming or configuration
+   * error: `parse()` throws a `TypeError` for it. Check with `getLanguage()` first if needed.
+   */
+  language?: string;
 }
 
 export interface ParseResult {
@@ -46,7 +52,10 @@ export interface ParseResult {
   diagnostics: Diagnostic[];
 }
 
-/** Parse Sanmaime source text. */
+/**
+ * Parse Sanmaime source text. Never throws for malformed source; throws a `TypeError` only when
+ * `options.language` is not a supported language code.
+ */
 export function parse(source: string, options: ParseOptions = {}): ParseResult {
   return new Parser(options).run(source);
 }
@@ -57,6 +66,8 @@ interface Asserted {
 
 interface StateAsserted extends Asserted {
   keyword: StateExpectation['keyword'];
+  /** The keyword as written, for messages. */
+  text: string;
 }
 
 interface BlockState {
@@ -97,20 +108,34 @@ class Parser {
   private screen: ScreenState | undefined;
   private pendingTags: PendingTags | undefined;
   private skip: SkipMode = 'none';
+  /** Keywords of the active language; replaced by a valid header directive. */
+  private table: KeywordTable;
+  private messages: Messages;
 
   constructor(options: ParseOptions) {
+    // `unknown`: JavaScript callers may pass anything.
+    const language: unknown = options.language ?? DEFAULT_LANGUAGE;
+    if (typeof language !== 'string' || getLanguage(language) === undefined) {
+      throw new TypeError(
+        `parse(): unsupported language option '${String(language)}'. Supported languages: ${SUPPORTED_LANGUAGES.join(', ')}.`,
+      );
+    }
     this.document = {
       uri: options.uri,
-      language: DEFAULT_LANGUAGE,
+      language,
       languageDirective: undefined,
       screens: [],
     };
+    this.table = keywordTable(language);
+    this.messages = createMessages(this.table.primary);
   }
 
   run(source: string): ParseResult {
-    const tokens = tokenize(source);
     let inHeader = true;
-    for (const token of tokens) {
+    // Lines are classified one at a time: a directive in the header selects the keyword table
+    // used for every line after it.
+    for (const [index, raw] of splitLines(source).entries()) {
+      const token = classifyLine(raw, index + 1, this.table);
       if (isInsignificant(token)) {
         if (inHeader && token.type === 'comment') this.directive(token);
         continue;
@@ -138,19 +163,22 @@ class Parser {
     if (first !== undefined) {
       this.report(
         DiagnosticCode.InvalidLanguage,
-        messages.duplicateLanguage(first.location.line),
+        this.messages.duplicateLanguage(first.location.line),
         token.location,
       );
       return;
     }
     const directive: LanguageDirective = { value: token.directive, location: token.location };
     this.document.languageDirective = directive;
-    if (SUPPORTED_LANGUAGES.includes(directive.value)) {
+    if (getLanguage(directive.value) !== undefined) {
       this.document.language = directive.value;
+      this.table = keywordTable(directive.value);
+      this.messages = createMessages(this.table.primary);
     } else {
+      // E017: keep the default language (the `language` option, or `en`).
       this.report(
         DiagnosticCode.InvalidLanguage,
-        messages.unsupportedLanguage(directive.value, SUPPORTED_LANGUAGES),
+        this.messages.unsupportedLanguage(directive.value, SUPPORTED_LANGUAGES),
         token.location,
       );
     }
@@ -164,7 +192,7 @@ class Parser {
         // E001: ignore the line.
         this.report(
           DiagnosticCode.UnrecognisedLine,
-          messages.unrecognisedLine(token.text, hintFor(token.text)),
+          this.messages.unrecognisedLine(token.text, this.hintFor(token.text)),
           token.location,
         );
         return;
@@ -172,13 +200,17 @@ class Parser {
         // E019: ignore the line.
         this.report(
           DiagnosticCode.ReservedKeyword,
-          messages.reservedKeyword(token.keyword),
+          this.messages.reservedKeyword(token.text),
           token.location,
         );
         return;
       case 'invalid-tags':
         // E020: ignore the line and discard its tags.
-        this.report(DiagnosticCode.InvalidTag, messages.invalidTag(token.token), token.location);
+        this.report(
+          DiagnosticCode.InvalidTag,
+          this.messages.invalidTag(token.token),
+          token.location,
+        );
         return;
       case 'tags':
         this.skip = 'none';
@@ -190,7 +222,7 @@ class Parser {
           // E002: continue with an empty name.
           this.report(
             DiagnosticCode.MissingName,
-            messages.missingName(token.keyword),
+            this.messages.missingName(token.text),
             token.location,
           );
         }
@@ -201,7 +233,7 @@ class Parser {
           // E003: continue as the bare keyword.
           this.report(
             DiagnosticCode.BareKeywordWithArgument,
-            messages.bareKeywordWithArgument(token.keyword),
+            this.messages.bareKeywordWithArgument(token.text),
             token.location,
           );
         }
@@ -239,7 +271,11 @@ class Parser {
   /** A line other than `Screen:`/`Element:` ends a tag group: E018, discard the tags. */
   private rejectTags(): void {
     if (!this.pendingTags) return;
-    this.report(DiagnosticCode.MisplacedTags, messages.misplacedTags(), this.pendingTags.location);
+    this.report(
+      DiagnosticCode.MisplacedTags,
+      this.messages.misplacedTags(),
+      this.pendingTags.location,
+    );
     this.pendingTags = undefined;
   }
 
@@ -258,7 +294,7 @@ class Parser {
       else
         this.report(
           DiagnosticCode.DuplicateScreen,
-          messages.duplicateScreen(token.name, first),
+          this.messages.duplicateScreen(token.name, first),
           token.location,
         );
     }
@@ -274,7 +310,7 @@ class Parser {
     if (!screen) {
       this.report(
         DiagnosticCode.ElementOutsideScreen,
-        messages.elementOutsideScreen(),
+        this.messages.elementOutsideScreen(),
         token.location,
       );
       this.skip = 'until-screen';
@@ -294,7 +330,7 @@ class Parser {
       else
         this.report(
           DiagnosticCode.DuplicateElement,
-          messages.duplicateElement(token.name, screen.node.name, first),
+          this.messages.duplicateElement(token.name, screen.node.name, first),
           token.location,
         );
     }
@@ -308,7 +344,11 @@ class Parser {
     this.rejectTags();
     const element = this.screen?.element;
     if (!element) {
-      this.report(DiagnosticCode.WhenOutsideElement, messages.whenOutsideElement(), token.location);
+      this.report(
+        DiagnosticCode.WhenOutsideElement,
+        this.messages.whenOutsideElement(),
+        token.location,
+      );
       this.skip = 'until-element';
       return;
     }
@@ -320,7 +360,7 @@ class Parser {
       else
         this.report(
           DiagnosticCode.DuplicateCondition,
-          messages.duplicateCondition(token.name, element.node.name, first),
+          this.messages.duplicateCondition(token.name, element.node.name, first),
           token.location,
         );
     }
@@ -333,10 +373,10 @@ class Parser {
     this.rejectTags();
     const element = this.screen?.element;
     if (!element) {
-      const keyword = token.type === 'name-keyword' ? `${token.keyword}:` : token.keyword;
+      const keyword = token.type === 'name-keyword' ? `${token.text}:` : token.text;
       this.report(
         DiagnosticCode.ExpectationOutsideElement,
-        messages.expectationOutsideElement(keyword),
+        this.messages.expectationOutsideElement(keyword),
         token.location,
       );
       this.skip = 'until-element';
@@ -356,7 +396,7 @@ class Parser {
     if (token.keyword === 'And') {
       if (block.groupKind === undefined) {
         // E007: ignore the line.
-        this.report(DiagnosticCode.DanglingAnd, messages.danglingAnd(), token.location);
+        this.report(DiagnosticCode.DanglingAnd, this.messages.danglingAnd(), token.location);
         return;
       }
       kind = block.groupKind;
@@ -373,7 +413,7 @@ class Parser {
       if (inBlock) {
         this.report(
           DiagnosticCode.DuplicateTarget,
-          messages.duplicateTarget(target, inBlock.line),
+          this.messages.duplicateTarget(target, inBlock.line),
           token.location,
         );
       } else {
@@ -381,7 +421,7 @@ class Parser {
         if (unconditional) {
           this.report(
             DiagnosticCode.ConflictsWithUnconditional,
-            messages.conflictsWithUnconditional(target, element.node.name, unconditional.line),
+            this.messages.conflictsWithUnconditional(target, element.node.name, unconditional.line),
             token.location,
           );
         }
@@ -407,18 +447,18 @@ class Parser {
     if (block.state) {
       this.report(
         DiagnosticCode.DuplicateState,
-        messages.duplicateState(block.state.keyword, block.state.line),
+        this.messages.duplicateState(block.state.text, block.state.line),
         token.location,
       );
     } else {
-      block.state = { keyword, line: token.location.line };
+      block.state = { keyword, text: token.text, line: token.location.line };
       const unconditional = block.condition ? element.unconditional.state : undefined;
       if (unconditional) {
         this.report(
           DiagnosticCode.ConflictsWithUnconditional,
-          messages.stateConflictsWithUnconditional(
-            keyword,
-            unconditional.keyword,
+          this.messages.stateConflictsWithUnconditional(
+            token.text,
+            unconditional.text,
             element.node.name,
             unconditional.line,
           ),
@@ -439,7 +479,7 @@ class Parser {
     if (block.condition && block.expectations.length === 0) {
       this.report(
         DiagnosticCode.EmptyConditionBlock,
-        messages.emptyConditionBlock(block.condition.name),
+        this.messages.emptyConditionBlock(block.condition.name),
         block.condition.location,
       );
     }
@@ -451,7 +491,11 @@ class Parser {
     this.endBlock(element.block);
     const node = element.node;
     if (node.unconditional.length === 0 && node.conditions.length === 0) {
-      this.report(DiagnosticCode.EmptyElement, messages.emptyElement(node.name), node.location);
+      this.report(
+        DiagnosticCode.EmptyElement,
+        this.messages.emptyElement(node.name),
+        node.location,
+      );
     }
     screen.element = undefined;
   }
@@ -463,7 +507,7 @@ class Parser {
     if (screen.node.elements.length === 0) {
       this.report(
         DiagnosticCode.EmptyScreen,
-        messages.emptyScreen(screen.node.name),
+        this.messages.emptyScreen(screen.node.name),
         screen.node.location,
       );
     }
@@ -474,28 +518,72 @@ class Parser {
     this.rejectTags();
     this.endScreen();
   }
+
+  /** Suggest a fix for an unrecognised line (§7.2, E001). */
+  private hintFor(text: string): string | undefined {
+    return (
+      sameLanguageHint(text, this.table) ??
+      otherLanguageHint(text, this.table, this.document.languageDirective !== undefined)
+    );
+  }
 }
 
 function newBlock(expectations: Expectation[], condition: ConditionBlock | undefined): BlockState {
   return { expectations, condition, targets: new Map(), state: undefined, groupKind: undefined };
 }
 
-/** Suggest a fix for an unrecognised line (§7.2, E001). */
-function hintFor(text: string): string | undefined {
-  const lower = text.toLowerCase();
-  for (const keyword of NAME_KEYWORDS) {
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Hints within the active language: wrong case, missing or unaccepted colon (§7.2, E001). */
+function sameLanguageHint(text: string, table: KeywordTable): string | undefined {
+  for (const { text: keyword } of table.name) {
     // Wrong case: "show: X" -> "Show:".
-    if (lower.startsWith(`${keyword.toLowerCase()}:`)) return `Did you mean '${keyword}:'?`;
-    // Missing colon: "Show X" -> "Show: X", "Show : X" -> "Show: X".
-    const missingColon = new RegExp(`^${keyword}\\s+:?\\s*(.*)$`).exec(text);
+    const head = text.slice(0, keyword.length);
+    const rest = text.slice(keyword.length);
+    if (
+      head !== keyword &&
+      head.toLowerCase() === keyword.toLowerCase() &&
+      table.colons.some((colon) => rest.startsWith(colon))
+    ) {
+      return `Did you mean '${keyword}:'?`;
+    }
+    // Missing colon: "Show X" -> "Show: X", "Show : X" -> "Show: X"; a full-width colon in a
+    // language that does not accept it: "Show：X" -> "Show: X".
+    const missingColon = new RegExp(`^${escapeRegExp(keyword)}(?:\\s+[:：]?|[:：])\\s*(.*)$`).exec(
+      text,
+    );
     if (missingColon) {
-      const rest = missingColon[1] ?? '';
-      return rest === '' ? `Did you mean '${keyword}:'?` : `Did you mean '${keyword}: ${rest}'?`;
+      const name = missingColon[1] ?? '';
+      return name === '' ? `Did you mean '${keyword}:'?` : `Did you mean '${keyword}: ${name}'?`;
     }
   }
-  for (const keyword of BARE_KEYWORDS) {
+  for (const { text: keyword } of table.bare) {
     // Wrong case: "enable" -> "Enable".
-    if (lower === keyword.toLowerCase()) return `Did you mean '${keyword}'?`;
+    if (text.toLowerCase() === keyword.toLowerCase()) return `Did you mean '${keyword}'?`;
+  }
+  return undefined;
+}
+
+/** A keyword of another language (e.g. `Show:` in a `# language: ja` file). */
+function otherLanguageHint(
+  text: string,
+  table: KeywordTable,
+  hasDirective: boolean,
+): string | undefined {
+  for (const code of SUPPORTED_LANGUAGES) {
+    if (code === table.language.code) continue;
+    const token = classifyLine(text, 1, keywordTable(code));
+    if (token.type !== 'name-keyword' && token.type !== 'bare-keyword') continue;
+    const colon = token.type === 'name-keyword' ? ':' : '';
+    const other = keywordTable(code).language;
+    const active = table.language;
+    return (
+      `'${token.text}${colon}' is a keyword of ${other.name} (${other.code}), but this file uses ${active.name} (${active.code}) keywords. ` +
+      `Did you mean '${table.primary[token.keyword]}${colon}'?` +
+      (hasDirective ? '' : ` Or add '# language: ${other.code}' to the file header.`)
+    );
   }
   return undefined;
 }

@@ -1,0 +1,7 @@
+# expect: SANMAIME_E001
+# at: 7:5
+# The full-width colon is accepted only after the keywords of languages that allow it (ja).
+Screen: User Details
+  Element: User Information
+    Show: Username
+    Show：Full name

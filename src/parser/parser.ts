@@ -261,14 +261,14 @@ class Parser {
     }
   }
 
-  /** Take the pending tags for a `Screen:`/`Element:` line. */
+  /** Take the pending tags for a `Screen:`/`Element:`/`When:` line. */
   private takeTags(): Tag[] {
     const tags = this.pendingTags?.tags ?? [];
     this.pendingTags = undefined;
     return tags;
   }
 
-  /** A line other than `Screen:`/`Element:` ends a tag group: E018, discard the tags. */
+  /** A line other than `Screen:`/`Element:`/`When:` ends a tag group: E018, discard the tags. */
   private rejectTags(): void {
     if (!this.pendingTags) return;
     this.report(
@@ -341,7 +341,8 @@ class Parser {
 
   private startCondition(token: NameKeywordToken): void {
     if (this.skip !== 'none') return;
-    this.rejectTags();
+    // Tags before `When:` belong to the block (block-level tags); after E005 they are discarded.
+    const tags = this.takeTags();
     const element = this.screen?.element;
     if (!element) {
       this.report(
@@ -353,7 +354,12 @@ class Parser {
       return;
     }
     this.endBlock(element.block);
-    const node: ConditionBlock = { name: token.name, location: token.location, expectations: [] };
+    const node: ConditionBlock = {
+      name: token.name,
+      tags,
+      location: token.location,
+      expectations: [],
+    };
     if (token.name !== '') {
       const first = element.conditionNames.get(token.name);
       if (first === undefined) element.conditionNames.set(token.name, token.location.line);

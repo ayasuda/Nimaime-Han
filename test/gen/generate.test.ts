@@ -478,6 +478,111 @@ describe('generateSpecFile', () => {
   });
 });
 
+describe('generateSpecFile: tags', () => {
+  it('puts tags on the describes and tests that have them, like Prettier', async () => {
+    defineLogin();
+    const { defineCondition } = createNimaime();
+    defineCondition('Offline', async ({ page }: Fixtures) => {
+      await page.context().setOffline(true);
+    });
+    const doc = resolve(
+      `@smoke @login @smoke
+Screen: Login
+
+  Element: Login Form
+    Show: Email address
+
+  @regression @login
+  Element: Login Button
+    When: Input is valid
+    Enable
+
+    @wip @slow @regression
+    When: Input is invalid
+    Disable
+
+    @owner:team-authentication-and-authorization @needs-review-by-the-security-team @flaky-on-ci
+    When: Offline
+    Disable
+`,
+      'specs/login.sanmaime',
+    );
+    for (const quotes of ['single', 'double'] as const) {
+      const result = generateSpecFile(doc, { ...baseOptions, quotes });
+      await expect(result.content).toMatchFileSnapshot(
+        path.join(snapshots, `tags.${quotes}.spec.ts.snap`),
+      );
+      await expectPrettier(result.content, quotes);
+      expect(result.tests.map((t) => [t.titlePath.at(-1), t.tags.join(' ')])).toEqual([
+        ['Always', '@smoke @login'],
+        ['When: Input is valid', '@smoke @login @regression'],
+        ['When: Input is invalid', '@smoke @login @regression @wip @slow'],
+        [
+          'When: Offline',
+          '@smoke @login @regression @owner:team-authentication-and-authorization @needs-review-by-the-security-team @flaky-on-ci',
+        ],
+      ]);
+      expect(listTests(doc)).toEqual(result.tests);
+    }
+    const content = generateSpecFile(doc, baseOptions).content;
+    expect(content).toContain(
+      `test.describe('Screen: Login', { tag: ['@smoke', '@login'] }, () => {`,
+    );
+    expect(content).toContain(`test.describe('Element: Login Form', () => {`);
+    expect(content).toContain(
+      `test.describe('Element: Login Button', { tag: ['@regression'] }, () => {`,
+    );
+    expect(content).toContain(`test('When: Input is valid', async ({ $nimaime, page }) => {`);
+    expect(content).toContain(
+      `test('When: Input is invalid', { tag: ['@wip', '@slow'] }, async ({ $nimaime, page }) => {`,
+    );
+  });
+
+  it('breaks long tagged calls like Prettier', async () => {
+    interface Many {
+      page: Page;
+      alphaFixture: Page;
+      betaFixture: Page;
+      gammaFixture: Page;
+      deltaFixtureWithLongName: Page;
+    }
+    const { defineScreen, defineElement, defineCondition } = definitionsFor<Many>();
+    const longScreen = `Account Settings ${'and Preferences '.repeat(4)}Screen`;
+    defineScreen(longScreen, { open: ({ page }: Many) => page.goto('/') });
+    defineElement(
+      'Notification Preferences Panel',
+      ({ alphaFixture }: Many) => alphaFixture.locator('x'),
+      { Title: ({ page }: Many) => page.locator('h1') },
+    );
+    defineCondition(
+      'The user has verified the email address',
+      async ({ betaFixture, gammaFixture, deltaFixtureWithLongName }: Many) => {
+        await betaFixture.goto(gammaFixture.url() + deltaFixtureWithLongName.url());
+      },
+    );
+    const manyTags = Array.from({ length: 9 }, (_, i) => `@tag-number-${String(i)}`).join(' ');
+    const doc = resolve(
+      `@settings
+Screen: ${longScreen}
+
+  ${manyTags}
+  Element: Notification Preferences Panel
+    Show: Title
+
+    @a-rather-long-tag-name
+    When: The user has verified the email address
+    Disable
+`,
+      'specs/settings.sanmaime',
+    );
+    const result = generateSpecFile(doc, baseOptions);
+    await expect(result.content).toMatchFileSnapshot(
+      path.join(snapshots, 'tags-long.spec.ts.snap'),
+    );
+    await expectPrettier(result.content, 'single');
+  });
+});
+
 describe('helpers', () => {
   it('quote() escapes like JSON.stringify and picks the quote like Prettier', () => {
     expect(quote('Login', 'single')).toBe(`'Login'`);

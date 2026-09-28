@@ -14,7 +14,9 @@
 import path from 'node:path';
 import type { QuoteStyle, ResolvedImportTestFrom } from '../config/types';
 import { fixtureNamesOf } from '../runtime/resolve';
+import type { Tag } from '../parser';
 import type { ElementDefinition } from '../runtime/registry';
+import { tagNames } from './tags';
 import type {
   ResolvedCondition,
   ResolvedDocument,
@@ -54,6 +56,8 @@ export interface GenerateOptions {
 /** One generated test: its title path, e.g. `['Screen: Login', 'Element: Login Form', 'Always']`. */
 export interface GeneratedTest {
   titlePath: string[];
+  /** Its tags: those of its screen, element and `When:` block, deduplicated (sanmaime.md §5.8). */
+  tags: string[];
 }
 
 /** A callback whose fixtures could not be determined (see `collectFixtureNames`). */
@@ -209,6 +213,10 @@ class Writer {
    * `callee('title', <params> => {` … `});`. Prettier formats test calls (`test`, `test.describe`)
    * specially: the title and the callback head always stay on the first line, however long; only
    * a destructured parameter that does not fit is broken, one name per line.
+   *
+   * With `tags`, the call gets a details argument, `callee('title', { tag: [...] }, <params> => {`.
+   * Prettier no longer treats a three-argument call whose last argument is a function as a test
+   * call: the head stays on one line when it fits, else every argument goes on its own line.
    */
   callWithCallback(
     depth: number,
@@ -216,9 +224,28 @@ class Writer {
     title: string,
     params: { async: boolean; names: string[] | undefined },
     body: (depth: number) => void,
+    tags: readonly string[] = [],
   ): void {
     const prefix = params.async ? 'async ' : '';
     const flatParams = params.names === undefined ? '()' : `({ ${params.names.join(', ')} })`;
+    if (tags.length > 0) {
+      const tagList = tags.map((tag) => this.q(tag));
+      const head = `${callee}(${this.q(title)}, { tag: [${tagList.join(', ')}] }, ${prefix}${flatParams} => {`;
+      if (this.fits(depth, head)) {
+        this.line(depth, head);
+        body(depth + 1);
+        this.line(depth, '});');
+        return;
+      }
+      this.line(depth, `${callee}(`);
+      this.line(depth + 1, `${this.q(title)},`);
+      this.tagDetails(depth + 1, tagList);
+      this.callbackHead(depth + 1, prefix, params.names, flatParams);
+      body(depth + 2);
+      this.line(depth + 1, '},');
+      this.line(depth, ');');
+      return;
+    }
     const head = `${callee}(${this.q(title)}, ${prefix}${flatParams} => {`;
     if (params.names === undefined || this.fits(depth, head)) {
       this.line(depth, head);
@@ -229,6 +256,41 @@ class Writer {
     }
     body(depth + 1);
     this.line(depth, '});');
+  }
+
+  /** `async ({ a, b }) => {` as an argument on its own line; a destructuring that does not fit is broken. */
+  private callbackHead(
+    depth: number,
+    prefix: string,
+    names: string[] | undefined,
+    flatParams: string,
+  ): void {
+    const head = `${prefix}${flatParams} => {`;
+    if (names === undefined || this.fits(depth, head)) {
+      this.line(depth, head);
+      return;
+    }
+    this.line(depth, `${prefix}({`);
+    for (const name of names) this.line(depth + 1, `${name},`);
+    this.line(depth, '}) => {');
+  }
+
+  /** `{ tag: ['@a', '@b'] },` as an argument on its own line, broken like Prettier when too long. */
+  private tagDetails(depth: number, tagList: readonly string[]): void {
+    const array = `[${tagList.join(', ')}]`;
+    if (this.fits(depth, `{ tag: ${array} },`)) {
+      this.line(depth, `{ tag: ${array} },`);
+      return;
+    }
+    this.line(depth, '{');
+    if (this.fits(depth + 1, `tag: ${array},`)) {
+      this.line(depth + 1, `tag: ${array},`);
+    } else {
+      this.line(depth + 1, 'tag: [');
+      for (const tag of tagList) this.line(depth + 2, `${tag},`);
+      this.line(depth + 1, '],');
+    }
+    this.line(depth, '},');
   }
 
   /** `{ a, b },` on one line if it fits, else one entry per line. */
@@ -385,9 +447,10 @@ function writeTest(
   condition: ResolvedCondition | undefined,
   expectations: readonly ResolvedExpectation[],
   fixtures: BlockFixtures,
+  tags: readonly string[],
 ): void {
   const { params, args } = fixtureEntries(fixtures.names, w);
-  w.callWithCallback(depth, 'test', title, { async: true, names: params }, (d) => {
+  const body = (d: number): void => {
     w.line(d, 'await $nimaime.run(');
     w.inlineOrBrokenObject(d + 1, '', args);
     w.line(d + 1, '{');
@@ -405,12 +468,22 @@ function writeTest(
     w.inlineOrBrokenObject(p, 'locations: ', locations);
     w.line(d + 1, '},');
     w.line(d, ');');
-  });
+  };
+  w.callWithCallback(depth, 'test', title, { async: true, names: params }, body, tags);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Files
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * The tags to put on a node: its own, without those an enclosing describe already has (Playwright
+ * adds the tags of enclosing describes to a test).
+ */
+function ownTags(tags: readonly Tag[], inherited: readonly (readonly Tag[])[]): string[] {
+  const outer = new Set(tagNames(...inherited));
+  return tagNames(tags).filter((tag) => !outer.has(tag));
+}
 
 /**
  * Generates the Playwright spec file of one resolved document.
@@ -461,7 +534,7 @@ export function generateSpecFile(
   }
 
   for (const screen of doc.screens) {
-    // TODO(#15): tags (screen.tags / element.tags) — `{ tag: [...] }` on the describes and --tags.
+    // Tags go on the node that has them (Playwright adds the tags of enclosing describes).
     const screenTitle = `Screen: ${screen.name}`;
     w.blank();
     w.callWithCallback(
@@ -483,12 +556,14 @@ export function generateSpecFile(
                 title: string;
                 condition: ResolvedCondition | undefined;
                 expectations: readonly ResolvedExpectation[];
+                tags: string[];
               }[] = [];
               if (element.unconditional.length > 0) {
                 blocks.push({
                   title: UNCONDITIONAL_TEST_TITLE,
                   condition: undefined,
                   expectations: element.unconditional,
+                  tags: [],
                 });
               }
               for (const condition of element.conditions) {
@@ -496,6 +571,7 @@ export function generateSpecFile(
                   title: `When: ${condition.name}`,
                   condition,
                   expectations: condition.expectations,
+                  tags: ownTags(condition.tags, [screen.tags, element.tags]),
                 });
               }
               blocks.forEach((block, blockIndex) => {
@@ -509,7 +585,10 @@ export function generateSpecFile(
                 );
                 for (const callback of fixtures.unknown)
                   unknownFixtures.push({ callback, titlePath });
-                tests.push({ titlePath });
+                tests.push({
+                  titlePath,
+                  tags: tagNames(screen.tags, element.tags, block.condition?.tags ?? []),
+                });
                 writeTest(
                   w,
                   d2,
@@ -519,12 +598,15 @@ export function generateSpecFile(
                   block.condition,
                   block.expectations,
                   fixtures,
+                  block.tags,
                 );
               });
             },
+            ownTags(element.tags, [screen.tags]),
           );
         });
       },
+      tagNames(screen.tags),
     );
   }
 
@@ -538,10 +620,16 @@ export function listTests(doc: ResolvedDocument): GeneratedTest[] {
     for (const element of screen.elements) {
       const prefix = [`Screen: ${screen.name}`, `Element: ${element.name}`];
       if (element.unconditional.length > 0) {
-        tests.push({ titlePath: [...prefix, UNCONDITIONAL_TEST_TITLE] });
+        tests.push({
+          titlePath: [...prefix, UNCONDITIONAL_TEST_TITLE],
+          tags: tagNames(screen.tags, element.tags),
+        });
       }
       for (const condition of element.conditions) {
-        tests.push({ titlePath: [...prefix, `When: ${condition.name}`] });
+        tests.push({
+          titlePath: [...prefix, `When: ${condition.name}`],
+          tags: tagNames(screen.tags, element.tags, condition.tags),
+        });
       }
     }
   }

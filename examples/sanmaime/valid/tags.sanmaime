@@ -1,5 +1,5 @@
-# Tags (issue #15) are reserved in v0: they are tokenised and attached to the
-# following Screen: or Element:, but have no effect yet.
+# Tags (§3.7, §5.8) attach to the following Screen:, Element: or When:.
+# A test's tags are the union of its screen's, element's and block's tags.
 @smoke @regression
 @owner:team-profile
 Screen: User Details
@@ -9,6 +9,10 @@ Screen: User Details
 
   Element: User Information
     Show: Username
+
+    @slow
+    When: Viewing another user's profile
+    Hide: Full name
 
   @wip @日本語タグ
   Element: Edit Action

@@ -30,7 +30,11 @@ export interface SanmaimeConfig {
   outputDir?: string;
   /** Default keyword language of `.sanmaime` files without a `# language:` directive. Default: `'en'`. */
   language?: string;
-  /** Tag expression that filters generated specs (reserved; see issue #15). */
+  /**
+   * Tag expression selecting the tests to generate, e.g. `'@smoke and not @wip'` (Cucumber syntax:
+   * `and`, `or`, `not`, parentheses). Tests whose tags do not match are not generated. The
+   * `nimaime-gen --tags` option overrides it. Default: every test is generated.
+   */
   tags?: string;
   /**
    * File exporting a custom Playwright `test` (e.g. created with `test.extend()`), used by generated

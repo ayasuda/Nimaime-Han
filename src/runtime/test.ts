@@ -9,10 +9,11 @@ import {
 import { probeActual } from './failure';
 import { createNimaimeRuntime, type Nimaime, type NimaimeDriver } from './nimaime';
 import type { ExpectationKind } from './plan';
+import { tagsFixtures, type NimaimeTagsTestArgs } from './tags';
 import type { AnyTestType } from './types';
 
-/** The fixtures `nimaime-han/runtime` adds to a Playwright `test`. */
-export interface NimaimeTestArgs {
+/** The fixtures `nimaime-han/runtime` adds to a Playwright `test` (`$nimaime` and `$tags`). */
+export interface NimaimeTestArgs extends NimaimeTagsTestArgs {
   /** Executes Sanmaime (screens, conditions, expectations); one instance per test. */
   $nimaime: Nimaime;
 }
@@ -65,6 +66,7 @@ export const nimaimeFixtures: Fixtures<NimaimeTestArgs> = {
     },
     { scope: 'test', box: true },
   ],
+  ...tagsFixtures,
 };
 
 /**

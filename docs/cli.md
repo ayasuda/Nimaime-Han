@@ -19,7 +19,8 @@ It reads the Playwright config, and for every configuration registered with
 6. otherwise removes the previously generated files from `outputDir` and writes the new ones.
 
 With [`--allow-missing`](#--allow-missing), missing definitions are warnings: the tests that use
-them are left out and the others are generated.
+them are left out and the others are generated. With [`--tags`](#tags), only the tests whose tags
+match an expression are generated.
 
 ## Commands
 
@@ -30,11 +31,11 @@ them are left out and the others are generated.
 | `nimaime-gen export`   | Prints the tests that would be generated (`Screen: X > Element: Y > When: Z`), per spec file. Writes nothing. |
 | `nimaime-gen check`    | Does everything `generate` does except writing: reports problems and exits with 1 if there are any. For CI.   |
 
-`export` output:
+`export` output (a test's [tags](#tags), if any, follow its title):
 
 ```text
 specs/login.sanmaime
-  Screen: Login > Element: Login Form > Always
+  Screen: Login > Element: Login Form > Always  @smoke
   Screen: Login > Element: Login Button > When: Input is valid
   Screen: Login > Element: Login Button > When: Input is invalid
 3 tests in 1 spec file.
@@ -46,6 +47,7 @@ specs/login.sanmaime
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `-c, --config <path>` | The Playwright config file, or a directory containing one, relative to the current directory. Default: `playwright.config.{ts,js,mts,mjs,cts,cjs}` in the current directory (the same lookup as `playwright test -c`).                                  |
 | `--allow-missing`     | Reports missing definitions as warnings instead of errors and generates every test that does not use one; see [below](#--allow-missing).                                                                                                                |
+| `--tags <expr>`       | Generates only the tests whose tags match the tag expression, e.g. `--tags "@smoke and not @wip"`; overrides the config's `tags` option. See [Tags](#tags).                                                                                             |
 | `--format <name>`     | How problems are printed: `pretty` (default: counted blocks and definition snippets) or `compact` (one `file:line:column: severity: message` line per problem, for editors and problem matchers).                                                       |
 | `--verbose`           | Also prints: the number of spec and definition files, screens without `defineScreen`, unused definitions, every generated file, files kept in `outputDir`, and stack traces of errors. The `verbose` config option does the same for one configuration. |
 | `-h, --help`          | Prints the help.                                                                                                                                                                                                                                        |
@@ -187,6 +189,51 @@ without `--allow-missing` generates once the definitions exist. Parser errors (`
 and definition files that fail to load are still errors: nothing is written and the exit code is
 still 1. `--allow-missing` works with every command (`export` lists only the tests that would be
 generated; `check` succeeds).
+
+## Tags
+
+Tags are written in `.sanmaime` files as `@tag` lines before `Screen:`, `Element:` or `When:`
+([sanmaime.md §3.7, §5.8](./sanmaime.md#58-tags)). Every test (element block) has the tags of its
+screen, its element and — for a `When:` block — the block itself. As with playwright-bdd, there
+are two ways to select tests by tag:
+
+- **At generation time** with `--tags "<expression>"` (or the config's
+  [`tags`](./config.md#options) option; `--tags` overrides it): only the tests whose tags match are
+  generated. Screens and elements left without tests are left out, and a spec file left without
+  tests gets no generated file. `export` and `check` apply the same filter. Missing definitions are
+  only reported for the selected tests, so a tagged subset can be generated while other parts of
+  the specification are not defined yet. `--verbose` prints how many tests were filtered out:
+
+  ```text
+  Tags "@smoke and not @wip": 3 tests selected, 6 tests filtered out.
+  ```
+
+- **At run time** with Playwright: generated tests carry their tags
+  (`test.describe('Screen: Login', { tag: ['@smoke'] }, …)`, see [Layout](#layout)), so
+  `npx playwright test --grep @smoke` (or `--grep-invert @wip`, or the `grep` config option) selects
+  them without regenerating. This needs Playwright 1.42 or later (the `details` argument of `test`
+  and `test.describe`).
+
+Tag expressions use the Cucumber syntax:
+
+| Expression                       | Selects tests…                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------- |
+| `@smoke`                         | tagged `@smoke`                                                                  |
+| `not @wip`                       | not tagged `@wip` (including untagged tests)                                     |
+| `@smoke and @login`              | tagged with both                                                                 |
+| `@smoke or @regression`          | tagged with either                                                               |
+| `@smoke and not (@wip or @slow)` | parentheses group; `not` binds tighter than `and`, which binds tighter than `or` |
+
+Operators are lowercase `and`, `or`, `not`; tags are written with their `@` and compared exactly
+(case-sensitive). `(` and `)` need no surrounding spaces, so a tag that contains `(` or `)`
+cannot be used in an expression. A syntax error is a usage error (exit code 2):
+
+```text
+nimaime-gen: --tags: Invalid tag expression '@smoke and' (column 11): expected a tag, 'not' or '(' after 'and', found the end of the expression.
+```
+
+An invalid `tags` config option is reported when the config is loaded (also by
+`playwright test`).
 
 ## Generated files
 
@@ -353,7 +400,11 @@ Details:
   except that, like Prettier, a string containing more of those quotes than of the other kind uses
   the other kind (`"When: Viewing another user's profile"`). Characters are escaped as by
   `JSON.stringify`; non-ASCII text (e.g. Japanese) is written as is.
-- **Tags** (`@tag` lines) are not used yet; see issue #15.
+- **Tags.** The tags of a `Screen:` go on its `test.describe`, those of an `Element:` on its
+  `test.describe` and those of a `When:` block on its `test`, as Playwright's details argument:
+  `test.describe('Screen: Login', { tag: ['@smoke'] }, () => {`. Playwright adds the tags of
+  enclosing describes to each test, so a tag already on an enclosing describe is not repeated.
+  Untagged calls keep the two-argument form.
 
 ## Resolving `nimaime-han` in generated files
 

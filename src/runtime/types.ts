@@ -6,12 +6,17 @@ import type {
   PlaywrightWorkerOptions,
   TestType,
 } from '@playwright/test';
+import type { NimaimeTagsTestArgs } from './tags';
 
-/** Fixtures available to definitions when `createNimaime()` is called without a custom `test`. */
+/**
+ * Fixtures available to definitions when `createNimaime()` is called without a custom `test`.
+ * `$tags` is added by the generated specs' `createNimaimeTest()`.
+ */
 export type DefaultFixtures = PlaywrightTestArgs &
   PlaywrightTestOptions &
   PlaywrightWorkerArgs &
-  PlaywrightWorkerOptions;
+  PlaywrightWorkerOptions &
+  NimaimeTagsTestArgs;
 
 /** The type of `test` exported by `@playwright/test`. */
 export type DefaultTestType = TestType<
@@ -23,9 +28,14 @@ export type DefaultTestType = TestType<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyTestType = TestType<any, any>;
 
-/** Test-scoped and worker-scoped fixtures of a Playwright `test` type. */
+/**
+ * Test-scoped and worker-scoped fixtures of a Playwright `test` type, plus `$tags` (added by the
+ * generated specs' `createNimaimeTest()`, so definitions can always destructure it).
+ */
 export type FixturesOf<T> =
-  T extends TestType<infer TestArgs, infer WorkerArgs> ? TestArgs & WorkerArgs : never;
+  T extends TestType<infer TestArgs, infer WorkerArgs>
+    ? TestArgs & WorkerArgs & NimaimeTagsTestArgs
+    : never;
 
 /**
  * Fixture type used where definitions are stored with their fixture type erased (the registry).

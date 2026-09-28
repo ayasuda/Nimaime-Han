@@ -1,0 +1,52 @@
+{
+  "name": "vscode-sanmaime",
+  "displayName": "Sanmaime",
+  "description": "Syntax highlighting for Sanmaime (.sanmaime), the screen-specification language of Nimaime-Han.",
+  "version": "0.0.1",
+  "publisher": "nimaime-han",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ayasuda/Nimaime-Han.git",
+    "directory": "editors/vscode-sanmaime"
+  },
+  "bugs": {
+    "url": "https://github.com/ayasuda/Nimaime-Han/issues"
+  },
+  "homepage": "https://github.com/ayasuda/Nimaime-Han/blob/main/docs/editors.md",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "sanmaime",
+    "nimaime-han",
+    "playwright",
+    "specification"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "sanmaime",
+        "aliases": [
+          "Sanmaime",
+          "sanmaime"
+        ],
+        "extensions": [
+          ".sanmaime"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sanmaime",
+        "scopeName": "source.sanmaime",
+        "path": "./syntaxes/sanmaime.tmLanguage.json"
+      }
+    ]
+  }
+}

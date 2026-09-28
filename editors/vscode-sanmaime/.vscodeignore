@@ -1,0 +1,5 @@
+# Only the manifest, the grammar, the language configuration and the docs are shipped.
+scripts/**
+**/*.ts
+**/tsconfig*.json
+.gitignore

@@ -1,4 +1,4 @@
-# Sanmaime Language Specification — v0
+# Sanmaime Language Specification — v0.3
 
 > Status: **draft v0.3** (v0 plus tags: §3.7, §5.8 (v0.1), plus `Background:` and
 > `And when:`: §5.9, §5.10 (v0.2), plus the expectation vocabulary v1: value keywords
@@ -1210,7 +1210,7 @@ Fixtures are parsed without a `language` option.
 | D13 | Empty screen / element / condition block is an error; an empty file is valid.                                                                                                                                        | A header with nothing under it is almost always a truncated specification; an empty file is harmless (same as an empty `.feature`).                                                                           |
 | D14 | Unknown lines are errors (no free-text description in v0); `Background:` reserved (until v0.2).                                                                                                                      | Every future extension (description, background, new expectation kinds) can be added without changing the meaning of existing valid files.                                                                    |
 | D15 | Stable diagnostic codes `SANMAIME_Ennn` with line and column; fixtures declare the expected code and location.                                                                                                       | Tests, editors and AI repair loops can match on codes rather than message text.                                                                                                                               |
-| D16 | Japanese keywords `画面` `要素` `条件` `表示` `非表示` `かつ` `有効` `無効` (`背景` reserved); `かつ` as in Gherkin's `ja`.                                                                                          | Short nouns that read naturally as headings; `表示`/`非表示` mirror Show/Hide; `条件` (condition) matches the runtime's "condition" concept better than Gherkin's `もし`.                                     |
+| D16 | Japanese keywords `画面` `要素` `条件` `表示` `非表示` `かつ` `有効` `無効` (`背景` reserved until v0.1); `かつ` as in Gherkin's `ja`.                                                                               | Short nouns that read naturally as headings; `表示`/`非表示` mirror Show/Hide; `条件` (condition) matches the runtime's "condition" concept better than Gherkin's `もし`.                                     |
 | D17 | Japanese keywords accept the full-width colon `：` as well as `:`; English keywords do not.                                                                                                                          | Japanese IMEs type `：` by default, and the two are hard to tell apart visually. English files stay strictly ASCII so nothing changes for them.                                                               |
 | D18 | The file's directive beats the configured default language; an unsupported configured language throws instead of producing per-file diagnostics.                                                                     | A file that declares its language must mean the same in every project. A bad config value is one mistake, not one per file.                                                                                   |
 | D19 | Messages stay in English; quoted keywords follow the file's language. The AST keeps canonical English keywords.                                                                                                      | Diagnostic codes are the stable interface; quoting the author's own keywords makes messages actionable. Downstream tools stay language-independent.                                                           |
@@ -1246,3 +1246,9 @@ Fixtures are parsed without a `language` option.
 - **タグ**(v0.1): `@smoke @wip` のような `@tag` 行を `Screen:` / `Element:` / `When:` の直前に書く。テスト(要素の各ブロック)のタグは画面・要素・`When:` ブロックのタグの和集合。`nimaime-gen --tags "@smoke and not @wip"`(または設定の `tags`)で生成するテストを絞り込める。生成コードは Playwright の `tag` を持つので `npx playwright test --grep @smoke` でも絞れ、定義からは `$tags` フィクスチャで参照できる。タグは言語に依存しない。
 - **将来拡張の予約**: `# language: xx`(v0 は `en` と `ja`。言語は辞書の追加で増やせる)、自由記述の Description(v0 ではエラー)。`Background:` は v0.1 まで予約語(E019)で、v0.2 で導入された。
 - **テストフィクスチャ**は `examples/sanmaime/valid/` と `examples/sanmaime/invalid/`。無効例は先頭に `# expect: SANMAIME_Ennn` と `# at: 行:桁` を書く。
+
+---
+
+See also: [expectations.md](./expectations.md) (the expectation keywords) ·
+[i18n.md](./i18n.md) (keyword languages) · [getting-started.md](./getting-started.md) ·
+[api.md](./api.md#nimaime-hanparser) (the parser API) · [documentation index](./README.md)

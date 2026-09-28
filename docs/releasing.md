@@ -34,7 +34,8 @@ npm's default caret range for 0.x (`^0.4.0`) already stops at the next minor, so
 
 The public surface that counts as "breaking" is: the Sanmaime language ([sanmaime.md](./sanmaime.md),
 [i18n.md](./i18n.md)), the exports of `nimaime-han`, `nimaime-han/parser`, `nimaime-han/runtime`
-and `nimaime-han/reporter`, the `nimaime-gen` CLI ([cli.md](./cli.md)), the configuration
+and `nimaime-han/reporter` ([api.md](./api.md)), the `nimaime-gen` and `nimaime` CLIs
+([cli.md](./cli.md)), the configuration
 ([config.md](./config.md)), the shape of generated spec files and the reporter output format.
 
 ## Writing a changeset
@@ -173,3 +174,8 @@ To preview what the next release would contain without publishing anything:
 ```bash
 npx changeset status --verbose   # needs a local `main` branch to compare against
 ```
+
+---
+
+See also: [CONTRIBUTING.md](../CONTRIBUTING.md) · [CHANGELOG.md](../CHANGELOG.md) ·
+[contributing-tests.md](./contributing-tests.md) · [documentation index](./README.md)

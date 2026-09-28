@@ -91,7 +91,9 @@ Requirements: Node.js 22+.
    `.npmrc` sets `install-links=true`, so `nimaime-han` is installed as a copy of the package
    rather than a symlink to the repository (through a symlink it would load the repository's own
    `@playwright/test`, and Playwright refuses to run with two copies of itself). Run `npm ci` again
-   after rebuilding Nimaime-Han.
+   after rebuilding Nimaime-Han. This is only needed because the example installs Nimaime-Han from
+   this repository (`file:../..`); a project that installs `nimaime-han` from npm needs neither
+   `.npmrc` nor the build step.
 
 3. **Test**: `npm test` runs `bddgen` (features → `.features-gen/`) and `playwright test`.
 
@@ -104,4 +106,5 @@ From the repository root, `npm run test:example:bdd` does all of the above (exce
 browser) and type-checks the example; CI runs it. To use an already installed Chromium, set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable.
 
-See [docs/with-gherkin.md](../../docs/with-gherkin.md) for the details of `verify()`.
+See [docs/with-gherkin.md](../../docs/with-gherkin.md) for the details of `verify()`, and the
+[documentation index](../../docs/README.md) for everything else.

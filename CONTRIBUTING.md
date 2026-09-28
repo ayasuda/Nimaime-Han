@@ -23,8 +23,11 @@ not to:
 | `createBdd(test)` → `Given` / `When` / `Then` | `createNimaime(test)` → `defineScreen` / `defineElement` / `defineCondition` |
 | step definitions                              | element definitions (locators) and condition definitions (state setup)       |
 | missing step snippets                         | missing element / condition snippets                                         |
+| Hooks `BeforeAll` / `Before` / `After` / …    | Hooks `beforeScreen` / `beforeElement` / `afterElement` / `afterScreen`      |
+| Tags / `--tags`                               | Tags / `--tags`                                                              |
 | Gherkin i18n keywords                         | Sanmaime i18n keywords                                                       |
 | Cucumber reporter                             | Sanmaime reporter (✓/✗ tree)                                                 |
+| `bddgen export`                               | `nimaime-gen export`                                                         |
 
 Two rules follow from the README's philosophy:
 
@@ -34,7 +37,8 @@ Two rules follow from the README's philosophy:
   fixtures, retries, traces and parallelism are Playwright's.
 
 The language is specified normatively in [docs/sanmaime.md](docs/sanmaime.md). A change to the
-syntax or semantics changes that document first, in the same pull request.
+syntax or semantics changes that document first, in the same pull request. The rest of the
+documentation is indexed in [docs/README.md](docs/README.md).
 
 ## Development setup
 
@@ -69,11 +73,16 @@ npm run build          # tsup → dist/ (ESM + CJS + .d.ts)
 | Unit               | `npm test`                   | Parser, config, generator, runtime, reporter and editor grammar as functions (`test/**/*.test.ts`, vitest).        |
 | End-to-end runtime | `npm run test:e2e`           | The runtime and reporter inside real Playwright runs against a small app (`test/e2e/`).                            |
 | End-to-end gen     | `npm run test:e2e:gen`       | Builds, runs the `nimaime-gen` CLI from `dist/` on `test/e2e/gen`, then Playwright on the generated specs.         |
+| End-to-end draft   | `npm run test:e2e:draft`     | Builds, runs `nimaime draft` / `diff` / `approve` from `dist/` against static pages in Chromium.                   |
+| Tool cases         | `npm run test:tool`          | Builds, then runs many small user projects through `nimaime-gen` and `playwright test` (`test/tool/`).             |
 | Examples           | `npm run test:example:basic` | Installs `examples/basic` against a packed copy of this package and runs its specs and typecheck, as a user would. |
+| Examples           | `npm run test:example:bdd`   | The same for `examples/with-playwright-bdd` (playwright-bdd + `$nimaime.verify()`).                                |
 | Package            | `npm pack --dry-run`         | What would be published ([docs/releasing.md](docs/releasing.md#checking-the-package-locally)).                     |
 
 Every new module gets unit tests. Changes to generated code or runtime behaviour also need an
-end-to-end test; changes a user would see belong in an example as well.
+end-to-end test; changes a user would see belong in an example as well. How the layers fit
+together, and how to add a tool case, is described in
+[docs/contributing-tests.md](docs/contributing-tests.md).
 
 The examples under `examples/` are self-contained projects (their own `package.json` and
 `tsconfig.json`, depending on `"nimaime-han": "file:../.."`); the root lint, typecheck and unit
@@ -88,8 +97,8 @@ If you change the keywords in `src/parser/languages.ts`, regenerate the TextMate
 - Commit messages: a short imperative subject line (`Add --format compact to nimaime-gen`),
   optionally followed by a blank line and a body explaining why. When a commit implements an issue,
   end the subject with the issue number, e.g. `Report missing definitions with snippets (#11)`.
-- Keep the public API documented: user-facing behaviour is described in `docs/` and changes there
-  in the same pull request.
+- Keep the public API documented: user-facing behaviour is described in `docs/` (exports in
+  [docs/api.md](docs/api.md)) and changes there in the same pull request.
 - Add a changeset if the change affects users of the package (see below).
 
 ## Changesets

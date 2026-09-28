@@ -1,4 +1,4 @@
-# CLI — `nimaime-gen`
+# CLI — `nimaime-gen` and `nimaime`
 
 `nimaime-gen` turns `.sanmaime` specifications into Playwright test files, the way playwright-bdd's
 `bddgen` turns `.feature` files into `.spec.js` files. Playwright then runs the generated files:
@@ -24,11 +24,12 @@ match an expression are generated. Specifications marked `# status: draft` are
 [skipped](#drafts) unless `--include-drafts` is given.
 
 `nimaime-gen` only generates. Working with live screens is the job of the second command,
-`nimaime`: `nimaime draft` proposes a specification from a running screen ([draft.md](./draft.md)),
-`nimaime approve` marks reviewed drafts as approved and `nimaime diff` compares an approved
-specification with the screen as it is now ([review-workflow.md](./review-workflow.md)).
+[`nimaime`](#nimaime--draft-approve-diff): `nimaime draft` proposes a specification from a running
+screen ([draft.md](./draft.md)), `nimaime approve` marks reviewed drafts as approved and
+`nimaime diff` compares an approved specification with the screen as it is now
+([review-workflow.md](./review-workflow.md)).
 
-## Commands
+## `nimaime-gen` commands
 
 | Command                | What it does                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -132,16 +133,16 @@ nimaime-gen: nothing was generated into .sanmaime-gen (4 errors).
 
 What is an error, a warning or information:
 
-| Problem                                                                     | Severity                                               |
-| --------------------------------------------------------------------------- | ------------------------------------------------------ |
-| parser diagnostic (`SANMAIME_Ennn`)                                         | error                                                  |
-| missing element, target, `self` locator (for `Enable`/`Disable`), condition | error (warning with `--allow-missing`)                 |
-| definition file that throws while loading (incl. duplicate definitions)     | error (message only; the stack with `--verbose`)       |
-| no `.sanmaime` file matches `specs`                                         | warning (an empty `outputDir` is still produced)       |
-| draft specifications skipped (`# status: draft`)                            | a count line; info per file with `check` / `--verbose` |
-| a callback whose fixtures cannot be determined (see below)                  | warning                                                |
-| a `Screen:` without `defineScreen` (it is simply not opened)                | info, shown with `--verbose`                           |
-| unused definitions                                                          | warning, shown with `--verbose`                        |
+| Problem                                                                      | Severity                                               |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ |
+| parser diagnostic (`SANMAIME_Ennn`)                                          | error                                                  |
+| missing element, target, `self` locator (for bare state keywords), condition | error (warning with `--allow-missing`)                 |
+| definition file that throws while loading (incl. duplicate definitions)      | error (message only; the stack with `--verbose`)       |
+| no `.sanmaime` file matches `specs`                                          | warning (an empty `outputDir` is still produced)       |
+| draft specifications skipped (`# status: draft`)                             | a count line; info per file with `check` / `--verbose` |
+| a callback whose fixtures cannot be determined (see below)                   | warning                                                |
+| a `Screen:` without `defineScreen` (it is simply not opened)                 | info, shown with `--verbose`                           |
+| unused definitions                                                           | warning, shown with `--verbose`                        |
 
 With several configurations (Playwright projects), each one is processed independently: one with
 errors writes nothing, the others are still generated, and the exit code is 1.
@@ -153,7 +154,8 @@ paste into a [definition file](./definitions.md) (in the configuration's `quotes
 are `page.getByTestId('TODO')` placeholders; replace them with real locators.
 
 - **An element that is not defined** gets a whole `defineElement()` with every target the specs
-  use with it (in all spec files). If the specs use `Enable` / `Disable` on it, the snippet has a
+  use with it (in all spec files). If the specs use a bare state keyword on it (`Enable`, `Check`,
+  …), the snippet has a
   `self` locator: `defineElement('X', ({ page }) => …, { … })`, or `defineElement('X', ({ page }) => …)`
   when there are no targets.
 - **An element that is defined but lacks targets** gets a comment
@@ -180,7 +182,7 @@ what is already defined:
 - missing definitions are reported (with snippets) as warnings, and the exit code is 0;
 - every **test** (block) that uses a missing definition is left out; the other tests are
   generated. A block uses a definition when it is the element, its condition (`When:`), one of its
-  targets, or the element's `self` locator for `Enable` / `Disable`. An element or screen left
+  targets, or the element's `self` locator for a bare state keyword. An element or screen left
   without tests is left out, and a spec file left without tests gets no generated file;
 - the left-out tests are listed on stderr:
 
@@ -303,7 +305,7 @@ becomes one `test`:
 | `When: C` and its expectations                                      | `test('When: C')`             |
 
 The unconditional block is titled `Always` because its expectations are invariants that hold in
-every state of the screen ([sanmaime.md §5.4](./sanmaime.md)); v0 checks them in the base state
+every state of the screen ([sanmaime.md §5.4](./sanmaime.md)); they are checked in the base state
 (the screen as opened by `defineScreen`, no condition applied). Every test starts from a fresh
 page: the screen is opened, the condition (if any) is applied, then the expectations are checked
 in order, each as a `test.step` (`Show: Username`, `Disable`, …), by the
@@ -452,6 +454,45 @@ Details:
   enclosing describes to each test, so a tag already on an enclosing describe is not repeated.
   Untagged calls keep the two-argument form.
 
+## `nimaime` — draft, approve, diff
+
+`nimaime-gen` only generates. The second command, `nimaime`, works with **live screens** and with
+the review status of specifications — the tools of the
+[AI workflow](./ai-workflow.md) (draft → review → approve → regression tests → drift):
+
+```bash
+npx nimaime <command> [options]
+```
+
+| Command                                                                                 | What it does                                                                                                                                                   | Reference                                                              |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `nimaime draft <url \| file.html \| observation.json>`                                  | Opens the screen, observes it and proposes a Sanmaime draft (`# status: draft`), and optionally a definitions draft. Rule-based, or refined by an LLM adapter. | [draft.md](./draft.md)                                                 |
+| `nimaime approve <file.sanmaime...>`                                                    | Rewrites `# status: draft` to `# status: approved` (nothing else changes); refuses files with Sanmaime errors unless `--force`.                                | [review-workflow.md](./review-workflow.md#3-approve)                   |
+| `nimaime diff <spec.sanmaime> <url \| file.html \| observation.json \| other.sanmaime>` | Observes the screen again and compares it with the specification in Sanmaime terms (`=`, `-`, `+`, `!`), or compares two `.sanmaime` files.                    | [review-workflow.md](./review-workflow.md#5-detect-drift-nimaime-diff) |
+
+```bash
+npx nimaime draft http://localhost:3000/login --screen Login --out specs/login.sanmaime --definitions drafts/login.ts
+npx nimaime approve specs/login.sanmaime
+npx nimaime diff specs/login.sanmaime http://localhost:3000/login
+```
+
+- `draft` and `diff` open the screen with Playwright: `--storage-state <file>` (a signed-in user),
+  `--wait <ms|selector>`, `--timeout <ms>`, `--test-id-attribute <name>`, `--group-by <region|flat>`,
+  `--browser <chromium|firefox|webkit>` and `--headed` work the same for both. An observation saved
+  with `--observation <file>` can be passed instead of a URL; no browser is started then.
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` selects the Chromium binary.
+- `-l, --language <en|ja>` is the keyword language of the draft (`draft`), or of `.sanmaime` files
+  without `# language:` (`approve`, `diff`).
+- `nimaime --help`, `nimaime <command> --help` and `nimaime --version` print help and the version.
+
+| Exit code | `draft`                         | `approve`                         | `diff`                                            |
+| --------- | ------------------------------- | --------------------------------- | ------------------------------------------------- |
+| `0`       | draft written                   | files approved (or already so)    | no differences                                    |
+| `1`       | the screen could not be drafted | a file has Sanmaime errors        | differences                                       |
+| `2`       | usage errors                    | usage errors (e.g. missing files) | usage errors, or the comparison could not be made |
+
+An unknown or missing command is a usage error (exit code 2).
+
 ## Resolving `nimaime-han` in generated files
 
 Generated files import `nimaime-han/runtime` by package name, so `nimaime-han` must be installed
@@ -478,3 +519,9 @@ most once per process, so call it once per process.
   every test passes except `specs/failing/broken-on-purpose.sanmaime`, which must fail with a
   Sanmaime failure message. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to use an already installed
   Chromium whose revision differs from the one Playwright expects.
+
+---
+
+See also: [getting-started.md](./getting-started.md) · [config.md](./config.md) ·
+[definitions.md](./definitions.md) · [ai-workflow.md](./ai-workflow.md) ·
+[documentation index](./README.md)

@@ -138,6 +138,7 @@ interface ResolvedSanmaimeConfig {
   outputDir: string; // absolute
   language: string;
   tags?: string;
+  includeDrafts: boolean;
   importTestFrom?: { file: string /* absolute */; varName: string };
   quotes: 'single' | 'double';
   verbose: boolean;
@@ -147,3 +148,9 @@ interface ResolvedSanmaimeConfig {
 Glob patterns are kept as written (not joined with `configDir`) so that characters with a special
 meaning in globs (`[`, `(`, `*`, …) in the project path cannot change their meaning; tools should glob
 them with `cwd: configDir`.
+
+---
+
+See also: [getting-started.md](./getting-started.md) · [cli.md](./cli.md) ·
+[definitions.md](./definitions.md) · [api.md](./api.md#definesanmaimeconfigconfig) ·
+[documentation index](./README.md)

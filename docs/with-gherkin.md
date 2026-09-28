@@ -120,8 +120,8 @@ clear the registry.
 ### 3. Define the elements
 
 `verify()` needs the [element definitions](./definitions.md) of the screen (the locators of every
-target, and the element's own locator for `Enable` / `Disable`), imported through the `steps`
-option. It does not need `defineScreen` or `defineCondition`.
+target, and the element's own `self` locator for bare state keywords such as `Enable` or `Check`),
+imported through the `steps` option. It does not need `defineScreen` or `defineCondition`.
 
 ```ts
 // definitions/user-details.ts
@@ -240,3 +240,10 @@ Both can be used on the same specs and definitions:
 | Checks            | one element × one block per test               | the whole screen (selected blocks) per step |
 | Specs loaded      | at generation time (baked into the spec files) | at run time (`loadSanmaimeSpecs`)           |
 | Needs             | screen, element and condition definitions      | element definitions only                    |
+
+---
+
+See also: [examples/with-playwright-bdd](../examples/with-playwright-bdd) ·
+[runtime.md](./runtime.md#verifyfixtures-screen-options) · [definitions.md](./definitions.md) ·
+[api.md](./api.md#specs-at-run-time-loadsanmaimespecs-registerscreenspec) ·
+[documentation index](./README.md)

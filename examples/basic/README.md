@@ -3,7 +3,8 @@
 A small, runnable Nimaime-Han project — the counterpart of playwright-bdd's `examples/`. It tests
 a static two-page app (a login page and a user details page) with the **Login** and **User
 Details** specifications of the [main README](../../README.md), and shows what the Sanmaime
-reporter prints when a specification is not met.
+reporter prints when a specification is not met. [docs/getting-started.md](../../docs/getting-started.md)
+builds the Login part of it step by step.
 
 ```text
 specs/*.sanmaime ──► nimaime-gen ──► .sanmaime-gen/*.spec.ts ──► playwright test ──► ✓/✗ tree
@@ -34,7 +35,9 @@ Requirements: Node.js 22+.
    `.npmrc` sets `install-links=true`, so `nimaime-han` is installed as a copy of the package, the
    way it is installed from a registry, rather than as a symlink to the repository (through a
    symlink it would load the repository's own copy of `@playwright/test`, and Playwright refuses
-   to run with two copies of itself). Run `npm ci` again after rebuilding Nimaime-Han.
+   to run with two copies of itself). Run `npm ci` again after rebuilding Nimaime-Han. This is only
+   needed because the example installs Nimaime-Han from this repository (`file:../..`); a project
+   that installs `nimaime-han` from npm needs neither `.npmrc` nor the build step.
 
 3. **Generate** the Playwright specs from the `.sanmaime` files:
 
@@ -196,4 +199,5 @@ and the Sanmaime reporter prints the tree of the README's "Example" section:
 ```
 
 Durations vary. See [docs/reporter.md](../../docs/reporter.md) for the reporter's layout and
-options, and [docs/cli.md](../../docs/cli.md) for `nimaime-gen`.
+options, [docs/cli.md](../../docs/cli.md) for `nimaime-gen`, and the
+[documentation index](../../docs/README.md) for everything else.

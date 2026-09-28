@@ -13,30 +13,30 @@ playwright-bdd's special fixtures (`$bddContext`, `$test`, …).
 
 ## Exports
 
-| Export                                                                     | What it is                                                                                          |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `test`                                                                     | `@playwright/test`'s `test` extended with `$nimaime`                                                |
-| `expect`                                                                   | re-export of `@playwright/test`'s `expect`                                                          |
-| `nimaimeFixtures`                                                          | `{ $nimaime, $tags }` fixtures (test-scoped, boxed) — for `anyTest.extend(…)`                       |
-| `tagsFixtures`, `tagsOf(testInfo)`, `NimaimeTagsTestArgs`                  | the [`$tags`](#tags) fixture alone, and how it reads `testInfo.tags`                                |
-| `createNimaimeTest(base)`                                                  | `base.extend(nimaimeFixtures)`, typed: keeps `base`'s custom fixtures                               |
-| `Nimaime`, `NimaimeTestArgs`                                               | the fixture's type; `{ $nimaime: Nimaime }`                                                         |
-| `NimaimePlan`, `NimaimeExpectation`, `SanmaimePosition`, `ExpectationKind` | the plan emitted by the generator                                                                   |
-| `collectFixtureNames(plan)`                                                | the fixtures a plan's definitions destructure (for the generator)                                   |
-| `fixtureNamesOf(fn)`                                                       | the fixtures one callback destructures (`undefined` if it cannot be known)                          |
-| `validatePlan(plan)`                                                       | throws `NimaimeRuntimeError` if a name of the plan does not resolve                                 |
-| `NimaimeRuntimeError`                                                      | unresolvable name / fixture not provided                                                            |
-| `NimaimeExpectationError`                                                  | a failed expectation (`.sanmaime`: structured context, `.original`: Playwright error, `toJSON()`)   |
-| `formatExpectationFailure(ctx, err)`                                       | builds the failure message (see [Failures](#failures))                                              |
-| `parseExpectationFailure(message)`                                         | recovers the structured failure from a message (for reporters)                                      |
-| registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see definitions.md)             |
-| `runHooks(kind, fixtures, info)`                                           | runs the `beforeScreen` / … hooks that apply (called by generated code, see [hooks.md](./hooks.md)) |
-| `createHookRunner(driver)`, `HOOK_TITLES`                                  | `runHooks` with another step driver (unit tests); the hooks' step titles                            |
-| `findHooks`, `hooksFor`, `HookDefinition`, `HookSet`                       | hook lookups in the registry (execution order)                                                      |
-| `NimaimeHookError`                                                         | a hook threw (`BeforeElement hook for Element "X" failed: …`, `cause`: the original error)          |
-| `loadSanmaimeSpecs(files, { cwd?, language? })`                            | reads `.sanmaime` files at run time and registers their screens (for `verify`)                      |
-| `registerScreenSpec(spec)`, `findScreenSpec`, `listScreenSpecs`, …         | the spec registry used by `verify` (see [with-gherkin.md](./with-gherkin.md))                       |
-| `planVerify(screen, options)`                                              | what a `verify` call checks, resolved from the spec registry (throws on unknown names)              |
+| Export                                                                     | What it is                                                                                                  |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `test`                                                                     | `@playwright/test`'s `test` extended with `$nimaime`                                                        |
+| `expect`                                                                   | re-export of `@playwright/test`'s `expect`                                                                  |
+| `nimaimeFixtures`                                                          | `{ $nimaime, $tags }` fixtures (test-scoped, boxed) — for `anyTest.extend(…)`                               |
+| `tagsFixtures`, `tagsOf(testInfo)`, `NimaimeTagsTestArgs`                  | the [`$tags`](#tags) fixture alone, and how it reads `testInfo.tags`                                        |
+| `createNimaimeTest(base)`                                                  | `base.extend(nimaimeFixtures)`, typed: keeps `base`'s custom fixtures                                       |
+| `Nimaime`, `NimaimeTestArgs`                                               | the fixture's type; `{ $nimaime: Nimaime }`                                                                 |
+| `NimaimePlan`, `NimaimeExpectation`, `SanmaimePosition`, `ExpectationKind` | the plan emitted by the generator                                                                           |
+| `collectFixtureNames(plan)`                                                | the fixtures a plan's definitions destructure (for the generator)                                           |
+| `fixtureNamesOf(fn)`                                                       | the fixtures one callback destructures (`undefined` if it cannot be known)                                  |
+| `validatePlan(plan)`                                                       | throws `NimaimeRuntimeError` if a name of the plan does not resolve                                         |
+| `NimaimeRuntimeError`                                                      | unresolvable name / fixture not provided                                                                    |
+| `NimaimeExpectationError`                                                  | a failed expectation (`.sanmaime`: structured context, `.original`: Playwright error, `toJSON()`)           |
+| `formatExpectationFailure(ctx, err)`                                       | builds the failure message (see [Failures](#failures))                                                      |
+| `parseExpectationFailure(message)`                                         | recovers the structured failure from a message (for reporters)                                              |
+| registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see [definitions.md](./definitions.md)) |
+| `runHooks(kind, fixtures, info)`                                           | runs the `beforeScreen` / … hooks that apply (called by generated code, see [hooks.md](./hooks.md))         |
+| `createHookRunner(driver)`, `HOOK_TITLES`                                  | `runHooks` with another step driver (unit tests); the hooks' step titles                                    |
+| `findHooks`, `hooksFor`, `HookDefinition`, `HookSet`                       | hook lookups in the registry (execution order)                                                              |
+| `NimaimeHookError`                                                         | a hook threw (`BeforeElement hook for Element "X" failed: …`, `cause`: the original error)                  |
+| `loadSanmaimeSpecs(files, { cwd?, language? })`                            | reads `.sanmaime` files at run time and registers their screens (for `verify`)                              |
+| `registerScreenSpec(spec)`, `findScreenSpec`, `listScreenSpecs`, …         | the spec registry used by `verify` (see [with-gherkin.md](./with-gherkin.md))                               |
+| `planVerify(screen, options)`                                              | what a `verify` call checks, resolved from the spec registry (throws on unknown names)                      |
 
 ## `$tags`
 
@@ -223,8 +223,8 @@ await $nimaime.verify({ page }, 'User Details', { when: 'Viewing your own profil
 - Every name is resolved first (`planVerify`, then the element definitions); an unknown screen,
   element or `when` name, or a selection with nothing to check, throws a `NimaimeRuntimeError`
   listing the known names.
-- Steps: `Screen: X` > `Element: Y` > (`When: C` >) `Show: T` / `Hide: T` / `Enable` / `Disable`,
-  located at the `.sanmaime` lines. Failures are `NimaimeExpectationError`s with the usual header.
+- Steps: `Screen: X` > `Element: Y` > (`When: C` >) one step per expectation (`Show: T`, `Enable`,
+  `Text: T = "x"`, …), located at the `.sanmaime` lines. Failures are `NimaimeExpectationError`s with the usual header.
 
 ### Step locations
 
@@ -413,7 +413,7 @@ Without `importTestFrom`, the generated file extends `@playwright/test`'s `test`
 (which is what the `test` exported by `nimaime-han/runtime` is). `test/e2e/runtime/` contains
 hand-written specs of this shape; `test/e2e/gen/` generates them with `nimaime-gen`.
 
-## Not in v0
+## Not supported yet
 
 - Options (e.g. a Sanmaime-specific expect timeout): the default `expect` timeout of the Playwright
   config applies.
@@ -429,3 +429,9 @@ hand-written specs of this shape; `test/e2e/gen/` generates them with `nimaime-g
   in `test/e2e/` (config: `test/e2e/playwright.config.ts`). CI installs Chromium with
   `npx playwright install --with-deps chromium`. To use an already installed Chromium whose
   revision differs from the one Playwright expects, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+
+---
+
+See also: [definitions.md](./definitions.md) · [expectations.md](./expectations.md) ·
+[reporter.md](./reporter.md) · [with-gherkin.md](./with-gherkin.md) ·
+[api.md](./api.md#nimaime-hanruntime) · [documentation index](./README.md)

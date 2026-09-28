@@ -100,7 +100,8 @@ later if screen-specific elements with the same name turn out to be needed.
 
 ## `defineCondition(name, fn, { screen? })`
 
-Binds `When: <name>`. `fn(fixtures)` establishes the state named by the condition (log in as
+Binds `When: <name>` — and the same name in `And when:` and `Background:` lines. `fn(fixtures)`
+establishes the state named by the condition (log in as
 another user, fill in invalid input, …), starting from the base state reached by the screen's `open`.
 Like `open`, its type is `(fixtures) => unknown`: a returned promise is awaited, its value ignored.
 
@@ -183,8 +184,8 @@ definitions. Internally (`src/gen/`), for each config registered with `defineSan
    (case-sensitive; no fuzzy matching): `Screen:` against `defineScreen`, `Element:` against
    `defineElement`, the targets of every expectation (`Show:`, `Text:`, `Check: T`, …) against the
    element's target names, bare state keywords (`Enable`, `Check`, …) against the element's `self`
-   locator, and `When:` against
-   `defineCondition` (scoped to the screen first, then global).
+   locator, and `When:`, `And when:` and `Background:` names against `defineCondition` (scoped to
+   the screen first, then global).
 
 Missing definitions are collected rather than failing on the first one:
 
@@ -194,7 +195,7 @@ Missing definitions are collected rather than failing on the first one:
 | `element`   | no `defineElement` for an `Element:` name                                | error    |
 | `target`    | the element is defined but has no locator for a target of an expectation | error    |
 | `self`      | the element is defined without `self` but uses a bare state keyword      | error    |
-| `condition` | no screen-scoped or global `defineCondition` for a `When:` name          | error    |
+| `condition` | no screen-scoped or global `defineCondition` for a condition name        | error    |
 
 A missing screen definition is only informational: a screen without `open` is allowed (a hook or
 the conditions may navigate). Targets and `self` are not reported for an element that is itself
@@ -212,3 +213,9 @@ not call `resetRegistry()` between loads: it would not re-evaluate cached files.
 that was already loaded are not seen by the same process, so a watch mode must regenerate in a fresh
 process. Definitions made in a helper module imported by several definition files are attributed to
 the first definition file that imported it.
+
+---
+
+See also: [getting-started.md](./getting-started.md) · [hooks.md](./hooks.md) ·
+[runtime.md](./runtime.md) · [cli.md](./cli.md#missing-definitions-and-snippets) (snippets) ·
+[api.md](./api.md#createnimaimetest) · [documentation index](./README.md)

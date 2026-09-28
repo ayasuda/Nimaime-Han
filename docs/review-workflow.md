@@ -7,7 +7,8 @@ describes one transition:
 > **Before approval:** This is what the application currently does.
 > **After approval:** This is what the application is supposed to do.
 
-Nimaime-Han supports it with a status line in each `.sanmaime` file and three commands:
+Nimaime-Han supports it with a status line in each `.sanmaime` file and three commands. This page
+is their reference; [ai-workflow.md](./ai-workflow.md) is the operational guide.
 
 ```text
                  nimaime draft <url>                  "what the application currently does"
@@ -74,7 +75,7 @@ draft (before the `# language:` line and the header comment):
 
 ```bash
 npx nimaime draft http://localhost:3000/login --screen Login --out specs/login.sanmaime \
-  --definitions definitions/login.ts
+  --definitions drafts/login.ts
 ```
 
 `--status approved` writes `# status: approved` instead, for teams that trust the output of a
@@ -298,3 +299,9 @@ The functions behind the commands are in `src/draft/` (internal; not a package e
 and `diffSummary(counts)` (`diff.ts`), `runDiff(args, io)` (`diff-run.ts`). The parser reports the
 status as `document.status` (`'draft' | 'approved'`) and `document.statusDirective`; the generator's
 handling is in `src/gen/status.ts`.
+
+---
+
+See also: [ai-workflow.md](./ai-workflow.md) · [draft.md](./draft.md) ·
+[sanmaime.md §3.4](./sanmaime.md#34-header-directives) · [cli.md](./cli.md#drafts) ·
+[documentation index](./README.md)

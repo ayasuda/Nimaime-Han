@@ -185,8 +185,14 @@ objects or on hand-built ones: `buildReport(tests, cwd)` → `RunReport`, `count
   npx playwright test -c test/e2e/reporter/project/playwright.config.ts --reporter=./src/reporter/index.ts
   ```
 
-## Not yet
+## Not supported yet
 
 - Markdown / JSON output (the issue leaves them for later; `buildReport` gives the data).
 - Printing per screen as tests complete (streaming); the tree is printed at the end.
 - Marking flaky blocks; showing retried attempts.
+
+---
+
+See also: [runtime.md](./runtime.md#failures) (failure messages) ·
+[getting-started.md](./getting-started.md#9-add-the-sanmaime-reporter) ·
+[api.md](./api.md#nimaime-hanreporter) · [documentation index](./README.md)

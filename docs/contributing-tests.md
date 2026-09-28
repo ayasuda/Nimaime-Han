@@ -4,17 +4,19 @@ Nimaime-Han is tested in layers, from fast unit tests of pure functions to whole
 run through `nimaime-gen` and `playwright test`. Like playwright-bdd's `test/` directory, the tool
 test cases (`test/tool/`) exercise the package the way users run it.
 
-| Layer            | Where                                        | Command                             | What it covers                                                                                                                                                                                                        |
-| ---------------- | -------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unit             | `test/**` (except `e2e/`, `tool/`), `src/**` | `npm test`                          | Parser, config, generator (with file snapshots in `test/gen/__snapshots__/`), CLI in-process on throw-away projects (`test/cli/`), runtime and reporter with fakes, editor grammar. Fast, no build, no browser.       |
-| Runtime e2e      | `test/e2e/runtime/`, `test/e2e/reporter/`    | `npm run test:e2e`                  | `nimaime-han/runtime` and the reporter in a real browser, with hand-written specs (no generator).                                                                                                                     |
-| Generator e2e    | `test/e2e/gen/`                              | `npm run test:e2e:gen`              | One project through the built `nimaime-gen` and `playwright test` (a script with fixed expectations). Kept as a smoke test; new scenarios go into tool cases.                                                         |
-| Tool cases       | `test/tool/cases/<case>/`                    | `npm run test:tool`                 | Many small user projects: `nimaime-gen` exit codes and output, generated files (file snapshots), `playwright test` pass/fail/skip counts, failure messages and the Sanmaime reporter's tree. Built package, Chromium. |
-| Version matrix   | `test/tool/cases/basic/` in CI               | `playwright-matrix` job (see below) | The `basic` case against several `@playwright/test` versions of the peerDependency range.                                                                                                                             |
-| Example projects | `examples/<name>/`                           | `npm run test:example:basic`        | A self-contained project installing the packed package, as documentation that runs.                                                                                                                                   |
+| Layer            | Where                                        | Command                                                  | What it covers                                                                                                                                                                                                        |
+| ---------------- | -------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit             | `test/**` (except `e2e/`, `tool/`), `src/**` | `npm test`                                               | Parser, config, generator (with file snapshots in `test/gen/__snapshots__/`), CLI in-process on throw-away projects (`test/cli/`), runtime and reporter with fakes, editor grammar. Fast, no build, no browser.       |
+| Runtime e2e      | `test/e2e/runtime/`, `test/e2e/reporter/`    | `npm run test:e2e`                                       | `nimaime-han/runtime` and the reporter in a real browser, with hand-written specs (no generator).                                                                                                                     |
+| Generator e2e    | `test/e2e/gen/`                              | `npm run test:e2e:gen`                                   | One project through the built `nimaime-gen` and `playwright test` (a script with fixed expectations). Kept as a smoke test; new scenarios go into tool cases.                                                         |
+| Tool cases       | `test/tool/cases/<case>/`                    | `npm run test:tool`                                      | Many small user projects: `nimaime-gen` exit codes and output, generated files (file snapshots), `playwright test` pass/fail/skip counts, failure messages and the Sanmaime reporter's tree. Built package, Chromium. |
+| Version matrix   | `test/tool/cases/basic/` in CI               | `playwright-matrix` job (see below)                      | The `basic` case against several `@playwright/test` versions of the peerDependency range.                                                                                                                             |
+| Draft e2e        | `test/e2e/draft/`                            | `npm run test:e2e:draft`                                 | The built `nimaime draft`, `diff` and `approve` against static pages in a real browser.                                                                                                                               |
+| Example projects | `examples/<name>/`                           | `npm run test:example:basic`, `npm run test:example:bdd` | Self-contained projects installing the packed package, as documentation that runs.                                                                                                                                    |
 
 All of `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, `npm run build`,
-`npm run test:e2e`, `npm run test:e2e:gen` and `npm run test:tool` run in CI (`.github/workflows/ci.yml`).
+`npm run test:e2e`, `npm run test:e2e:gen`, `npm run test:e2e:draft`, `npm run test:tool`,
+`npm run test:example:basic` and `npm run test:example:bdd` run in CI (`.github/workflows/ci.yml`).
 
 ## Browsers
 
@@ -56,9 +58,11 @@ test/tool/cases/failure-message/
 | `reporter`            | The Sanmaime reporter's tree for a run with passes, an expectation failure, a condition failure and a skip (snapshot), and its `quiet` option.                                                                 |
 | `multi-project`       | Two `defineSanmaimeConfig()` calls / Playwright projects with their own `outputDir`; one configuration with errors does not stop the other.                                                                    |
 | `export-and-check`    | `export` output, `check` (success, `--verbose` information, missing definitions), `--allow-missing` with both, usage errors (exit 2), version.                                                                 |
+| `background-and-when` | `Background:` conditions before every block and `And when:` combinations: generation, the runs (one failing on purpose) and the reporter tree (snapshot).                                                      |
 | `vocabulary-v1`       | Every keyword of the expectation vocabulary v1 (`Text:`, `Count:`, `Check`, `Focus: T`, …) against a real page, and a failing `Text:` whose `Expected:` / `Actual:` lines are locked by the reporter snapshot. |
 
-A `tags` case is to be added with issue #15 (tags / `--tags`).
+There is no tool case for tags (`--tags`, `$tags`) yet; they are covered by unit tests
+(`test/gen/`, `test/runtime/tags.test.ts`).
 
 ### The harness (`test/tool/harness.ts`)
 
@@ -172,3 +176,8 @@ fail with `Cannot find module`, and with some versions (e.g. 1.58) the config it
 (`….esm.preflight`). Older Playwright versions register their ES module loader only in the
 processes they start themselves, which `nimaime-gen` does not do yet. CommonJS projects work across
 the whole range.
+
+---
+
+See also: [CONTRIBUTING.md](../CONTRIBUTING.md) · [releasing.md](./releasing.md) ·
+[documentation index](./README.md)

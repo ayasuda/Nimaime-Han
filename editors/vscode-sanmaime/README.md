@@ -46,7 +46,9 @@ code --install-extension vscode-sanmaime-*.vsix
 ```
 
 See [docs/editors.md](https://github.com/ayasuda/Nimaime-Han/blob/main/docs/editors.md) for a
-symlink-based setup, the list of scopes and how the grammar is generated.
+symlink-based setup, the list of scopes and how the grammar is generated, and
+[Getting started](https://github.com/ayasuda/Nimaime-Han/blob/main/docs/getting-started.md) to
+write and run a first `.sanmaime` specification.
 
 ## Development
 

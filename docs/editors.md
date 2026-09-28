@@ -128,3 +128,8 @@ never throws and returns positions for every node and diagnostic.
   and back.
 - **Completion** of keywords (in the file's language) and of names known from the definitions.
 - **Formatting** that normalises indentation (sanmaime.md §9).
+
+---
+
+See also: [i18n.md](./i18n.md) (the keyword dictionaries the grammar is built from) ·
+[sanmaime.md](./sanmaime.md) · [documentation index](./README.md)

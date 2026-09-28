@@ -90,7 +90,7 @@ A test of an element therefore runs:
 
 ```text
 beforeScreen hooks (once per screen and worker)
-  beforeElement hooks → Screen: open → When: condition → expectations → afterElement hooks
+  beforeElement hooks → Screen: open → Background: / When: / And when: conditions → expectations → afterElement hooks
   … the next test of the screen …
 afterScreen hooks (once per screen and worker)
 ```
@@ -218,3 +218,9 @@ playwright-bdd's `Before({ tags }, fn)`). It is validated as a string and stored
 Applying it (matching the expression against the tags of the screen for screen hooks and of the
 running test for element hooks, with the tag expressions of `--tags`, [sanmaime.md
 §5.8](./sanmaime.md#58-tags)) is left to a follow-up.
+
+---
+
+See also: [definitions.md](./definitions.md) · [runtime.md](./runtime.md) ·
+[cli.md](./cli.md#generated-files) · [api.md](./api.md#createnimaimetest) ·
+[documentation index](./README.md)

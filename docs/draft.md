@@ -27,7 +27,8 @@ Approved Sanmaime          "This is what the application is supposed to do."   (
 A draft is never the specification. It describes what the screen shows _now_; only a human
 decides what it _must_ show. The draft is deliberately plain so that the review is quick, and its
 first line, `# status: draft`, keeps it out of `nimaime-gen` until a reviewer approves it with
-`nimaime approve` ([review-workflow.md](./review-workflow.md)).
+`nimaime approve` ([review-workflow.md](./review-workflow.md)). How the steps fit together in pull
+requests and CI is described in [ai-workflow.md](./ai-workflow.md).
 
 ## Usage
 
@@ -36,7 +37,7 @@ npx nimaime draft http://localhost:3000/users/me --screen "User Details" > specs
 
 # Also write the definitions draft, and keep the observation for offline re-runs:
 npx nimaime draft http://localhost:3000/users/me --screen "User Details" \
-  --out specs/user-details.sanmaime --definitions definitions/user-details.ts \
+  --out specs/user-details.sanmaime --definitions drafts/user-details.ts \
   --observation .drafts/user-details.json
 
 # A screen that needs a signed-in user (a Playwright storage state, e.g. saved by a setup project):
@@ -48,6 +49,11 @@ npx nimaime draft .drafts/user-details.json --screen "ユーザー詳細" --lang
 
 The source is a URL (`http:`, `https:`, `file:`), a local HTML file (opened as a `file:` URL), or
 an observation saved with `--observation` (a `.json` file).
+
+Write the definitions draft **outside** the `definitions` glob of your config (here `drafts/`) and
+move it into place during the review. Definition files are loaded whatever the status of the
+specs, and element names are global, so a drafted `defineElement()` whose name already exists would
+make `nimaime-gen` fail with a duplicate definition.
 
 | Option                             | Description                                                                                                                                                                                  |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -292,15 +298,17 @@ the screen's content to.
 ## Recommended review flow
 
 1. **Draft** from a running build, ideally with realistic but non-personal data:
-   `npx nimaime draft <url> --screen "<Screen>" --out specs/<screen>.sanmaime --definitions definitions/<screen>.ts`.
+   `npx nimaime draft <url> --screen "<Screen>" --out specs/<screen>.sanmaime --definitions drafts/<screen>.ts`.
 2. **Edit the Sanmaime draft.** Delete what is incidental (decoration, marketing text,
    duplicated headings); rename elements and targets to the words your team uses; move
    `Enable` / `Disable` and state-dependent `Show:` lines into `When:` blocks; add `Hide:` for what
    must not be shown. Draft other states of the screen (`--storage-state` for another user,
    `?query` parameters) to see what changes between them.
-3. **Edit the definitions draft.** Rename keys to match the edited Sanmaime, check each locator,
+3. **Edit the definitions draft** and move it into `definitions/`. Rename keys to match the edited
+   Sanmaime, check each locator,
    replace the `goto` URL with a path relative to `baseURL`, and add `defineCondition()` for each
-   `When:` (run `npx nimaime-gen check` — it prints snippets for everything still missing).
+   `When:` (run `npx nimaime-gen check --include-drafts` — it prints snippets for everything still
+   missing).
 4. **Approve and commit** the specification: `npx nimaime approve specs/<screen>.sanmaime` turns
    `# status: draft` into `# status: approved`. From now on it is the requirement, not a
    description (until then `nimaime-gen` skips it).
@@ -318,6 +326,9 @@ the screen's content to.
   `.first()`.
 - `Hide:`, `When:` blocks and conditions are never proposed by the rules: one observation is one
   state of the screen.
+- Drafts use the v0 expectations only (`Show:`, `And:`, `Enable`, `Disable`; the LLM prompt
+  summarizes the same subset). The value and state keywords of the vocabulary v1 (`Text:`,
+  `Count:`, `Check`, …, [expectations.md](./expectations.md)) are added by the reviewer.
 - At most 500 elements are observed; beyond that the observation is `truncated` and a warning is
   printed.
 - The draft's header comment and the `defineScreen` URL contain the observed URL; `file:` URLs
@@ -331,3 +342,8 @@ The functions behind the CLI are in `src/draft/` (internal; not a package entry 
 `{ sanmaime, definitions, elements, dropped }`, `proposeWithLlm(observation, options, adapter)`,
 `runDraft(args, io)`. The main entry `nimaime-han` exports the types `LlmAdapter`, `LlmRequest`,
 `ScreenObservation`, `ObservedElement` and `ObservedRegion`.
+
+---
+
+See also: [ai-workflow.md](./ai-workflow.md) · [review-workflow.md](./review-workflow.md) ·
+[cli.md](./cli.md#nimaime--draft-approve-diff) · [documentation index](./README.md)

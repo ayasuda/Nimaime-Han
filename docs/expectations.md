@@ -180,3 +180,9 @@ again with a use case that satisfies the policy.
 - 同じブロックで同じ対象・同じ系統(表示/有効/チェック/編集/…)の事実は 1 回だけ(E014)。要素自身の状態は系統ごとに 1 回(E015)。
 - キーワードとマッチャの対応は `src/runtime/expectations.ts` の `EXPECTATIONS` 1 か所に集約している。
 - 語彙を増やす条件: 仕様として読めること、Playwright のマッチャに 1 対 1 で対応すること、実装の詳細(属性名・CSS など)を含まないこと。
+
+---
+
+See also: [sanmaime.md](./sanmaime.md) · [runtime.md](./runtime.md) (how expectations run and
+fail) · [reporter.md](./reporter.md) · [api.md](./api.md#the-vocabulary-expectations) ·
+[documentation index](./README.md)

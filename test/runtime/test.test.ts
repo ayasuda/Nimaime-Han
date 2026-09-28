@@ -44,6 +44,7 @@ describe('nimaimeFixtures', () => {
     );
     expect(Object.keys(provided ?? {}).sort()).toEqual(
       [
+        'background',
         'check',
         'condition',
         'expectDisable',

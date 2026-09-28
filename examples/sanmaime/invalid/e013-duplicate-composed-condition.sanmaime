@@ -1,0 +1,12 @@
+# expect: SANMAIME_E013
+# at: 10:5
+# Two blocks with the same When: / And when: conditions (in the same order) are duplicates.
+Screen: Cart
+  Element: Checkout Button
+    When: The cart has items
+    And when: The user is logged in
+    Enable
+
+    When: The cart has items
+    And when: The user is logged in
+    Show: Checkout label

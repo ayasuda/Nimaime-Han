@@ -1,0 +1,9 @@
+# expect: SANMAIME_E022
+# at: 6:3
+# A Background: condition is established once per test.
+Screen: Cart
+  Background: The user is logged in
+  Background: The user is logged in
+
+  Element: Item List
+    Show: Items

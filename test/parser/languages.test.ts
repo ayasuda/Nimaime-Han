@@ -10,7 +10,6 @@ import {
   BARE_KEYWORDS,
   KEYWORD_SLOTS,
   NAME_KEYWORDS,
-  RESERVED_KEYWORDS,
   classifyLine,
   compileKeywordTable,
   keywordTable,
@@ -37,7 +36,7 @@ describe('LANGUAGES', () => {
     expect(DEFAULT_LANGUAGE).toBe('en');
   });
 
-  it('keeps the English keywords exactly as in v0', () => {
+  it('keeps the English keywords of v0 and adds those of v0.2', () => {
     expect(LANGUAGES.en).toEqual({
       code: 'en',
       name: 'English',
@@ -47,6 +46,7 @@ describe('LANGUAGES', () => {
         screen: ['Screen'],
         element: ['Element'],
         when: ['When'],
+        andWhen: ['And when'],
         show: ['Show'],
         hide: ['Hide'],
         and: ['And'],
@@ -67,6 +67,7 @@ describe('LANGUAGES', () => {
         screen: ['画面'],
         element: ['要素'],
         when: ['条件'],
+        andWhen: ['かつ条件'],
         show: ['表示'],
         hide: ['非表示'],
         and: ['かつ'],
@@ -122,9 +123,7 @@ describe('getLanguage', () => {
 
 describe('keyword tables', () => {
   it('maps every canonical keyword to a dictionary slot', () => {
-    expect(Object.keys(KEYWORD_SLOTS).sort()).toEqual(
-      [...NAME_KEYWORDS, ...BARE_KEYWORDS, ...RESERVED_KEYWORDS].sort(),
-    );
+    expect(Object.keys(KEYWORD_SLOTS).sort()).toEqual([...NAME_KEYWORDS, ...BARE_KEYWORDS].sort());
   });
 
   it('exposes the primary spelling of every keyword', () => {
@@ -132,6 +131,7 @@ describe('keyword tables', () => {
       Screen: '画面',
       Element: '要素',
       When: '条件',
+      AndWhen: 'かつ条件',
       Show: '表示',
       Hide: '非表示',
       And: 'かつ',
@@ -165,6 +165,7 @@ describe('keyword tables', () => {
         screen: ['Page', 'Screen'],
         element: ['Part'],
         when: ['If', 'If not'],
+        andWhen: ['And if'],
         show: ['Show'],
         hide: ['Hide'],
         and: ['And', 'Also'],
@@ -187,7 +188,8 @@ describe('keyword tables', () => {
     });
     expect(classifyLine('If: C', 1, table)).toMatchObject({ keyword: 'When', text: 'If' });
     expect(classifyLine('Off', 1, table)).toMatchObject({ keyword: 'Disable', text: 'Off' });
-    expect(classifyLine('Setup: x', 1, table)).toMatchObject({ type: 'reserved', text: 'Setup' });
+    expect(classifyLine('Setup: x', 1, table)).toMatchObject({ keyword: 'Background', name: 'x' });
+    expect(classifyLine('And if: y', 1, table)).toMatchObject({ keyword: 'AndWhen', name: 'y' });
     expect(classifyLine('Show: A', 1, table)).toMatchObject({ keyword: 'Show' });
   });
 });
@@ -246,15 +248,19 @@ describe('classifyLine with the Japanese keywords', () => {
     expect(classifyLine('有効期限', 1, ja).type).toBe('unknown');
   });
 
-  it('classifies 背景: as reserved', () => {
+  it('classifies 背景: and かつ条件: as name keywords (v0.2)', () => {
     for (const text of ['背景: A', '背景：A']) {
       expect(classifyLine(text, 1, ja)).toMatchObject({
-        type: 'reserved',
+        type: 'name-keyword',
         keyword: 'Background',
         text: '背景',
+        name: 'A',
       });
     }
     expect(classifyLine('背景', 1, ja).type).toBe('unknown');
+    // The longest spelling wins: かつ条件 is not かつ followed by a name.
+    expect(classifyLine('かつ条件：B', 1, ja)).toMatchObject({ keyword: 'AndWhen', name: 'B' });
+    expect(classifyLine('かつ: 条件', 1, ja)).toMatchObject({ keyword: 'And', name: '条件' });
   });
 
   it('does not recognise English keywords, and English does not recognise Japanese ones', () => {

@@ -11,6 +11,7 @@ created with `createBdd(test)`.
 | `Show:` / `Hide:` targets of X | `defineElement('X', { name: locator })`         | step definitions                |
 | `Enable` / `Disable` of X      | `defineElement('X', self, { name: locator }?)`  | step definitions                |
 | `When: X`                      | `defineCondition('X', async ({ page }) => {…})` | `Given` steps                   |
+| `Background: X`, `And when: X` | `defineCondition('X', …)` (the same conditions) | `Background:` / `And` steps     |
 
 Definition files are the files matched by the `definitions` option of
 [`defineSanmaimeConfig()`](./config.md). They may also register **hooks** —

@@ -1,0 +1,7 @@
+# expect: SANMAIME_E023
+# at: 6:5
+# And when: cannot start a block: the unconditional block has no conditions.
+Screen: Cart
+  Element: Checkout Button
+    And when: The user is logged in
+    Show: Checkout

@@ -35,8 +35,9 @@ test.describe("Screen: ユーザー詳細", () => {
           screen: "ユーザー詳細",
           element:
             "ユーザー情報パネル（プロフィールの見出し、氏名、メールアドレスをまとめて表示する領域）",
-          condition:
+          conditions: [
             "自分のプロフィールを閲覧している場合で、なおかつ編集権限を持っていて、さらに \"引用符\" と 'アポストロフィ' を含む",
+          ],
           expectations: [
             { kind: "enable", location: { line: 9, column: 5 } },
             { kind: "show", target: "メールアドレス", location: { line: 10, column: 5 } },
@@ -51,7 +52,7 @@ test.describe("Screen: ユーザー詳細", () => {
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 4, column: 3 },
-            condition: { line: 8, column: 5 },
+            conditions: [{ line: 8, column: 5 }],
           },
         },
       );

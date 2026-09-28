@@ -1,0 +1,11 @@
+# expect: SANMAIME_E025
+# at: 8:3
+# Background: goes directly under Screen:, before the first Element:.
+Screen: Cart
+  Element: Item List
+    Show: Items
+
+  Background: The user is logged in
+
+  Element: Checkout Button
+    Enable

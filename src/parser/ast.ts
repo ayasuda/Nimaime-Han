@@ -64,7 +64,20 @@ export interface Screen {
   name: string;
   tags: Tag[];
   location: Location;
+  /**
+   * The screen's `Background:` conditions in source order (v0.2, §5.9): established after the
+   * screen is opened and before the condition(s) of every block of every element. Empty when the
+   * screen has no `Background:` line.
+   */
+  background: BackgroundEntry[];
   elements: Element[];
+}
+
+/** `Background: <condition name>` directly under a `Screen:` (v0.2, §5.9). */
+export interface BackgroundEntry {
+  /** The condition name (the text after `Background:`). */
+  name: string;
+  location: Location;
 }
 
 /** `Element: <name>` */
@@ -78,14 +91,34 @@ export interface Element {
   conditions: ConditionBlock[];
 }
 
-/** `When: <name>` and the expectations that follow it. */
+/** `When: <name>` (plus any `And when:` lines) and the expectations that follow it. */
 export interface ConditionBlock {
-  /** The condition name (the text after `When:`). */
+  /** The primary condition name (the text after `When:`); the same as `conditions[0].name`. */
   name: string;
+  /**
+   * Every condition of the block in execution order: the `When:` condition, then each
+   * `And when:` condition (v0.2, §5.10). Always has at least one entry.
+   */
+  conditions: ConditionRef[];
+  /**
+   * The block's display name: the condition names joined with `" and "` (`"A and B"`), in every
+   * keyword language. Equal to `name` for a block without `And when:`. Test titles are
+   * `When: <title>`.
+   */
+  title: string;
   /** Tags written before `When:` (block-level tags). */
   tags: Tag[];
+  /** Location of the `When:` line. */
   location: Location;
   expectations: Expectation[];
+}
+
+/** One condition of a block: its `When:` line or one of its `And when:` lines. */
+export interface ConditionRef {
+  name: string;
+  /** Canonical keyword: `When` for the first condition, `AndWhen` for the others. */
+  keyword: 'When' | 'AndWhen';
+  location: Location;
 }
 
 /**

@@ -23,6 +23,10 @@ export {
 export {
   EXPECTATION_KEYWORDS,
   expectationTitle,
+  planConditionLocation,
+  planConditions,
+  planConditionTitle,
+  type ConditionStepKeyword,
   type ExpectationContext,
   type ExpectationKind,
   type NimaimeExpectation,

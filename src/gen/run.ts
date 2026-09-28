@@ -426,18 +426,23 @@ function expectationDefined(expectation: ResolvedExpectation): boolean {
 }
 
 /**
- * `doc` without the blocks (tests) that use a missing definition (`--allow-missing`): an element
- * without a definition loses all its blocks, the unconditional block goes when one of its targets
- * or its `self` locator is missing, a `When:` block when its condition, one of its targets or the
- * `self` locator is missing. Elements left without blocks and screens left without elements are
- * dropped. A screen without `defineScreen` is allowed and kept.
+ * `doc` without the blocks (tests) that use a missing definition (`--allow-missing`): a screen
+ * with a missing `Background:` condition loses all its blocks, an element without a definition
+ * loses all its blocks, the unconditional block goes when one of its targets or its `self`
+ * locator is missing, a `When:` block when one of its conditions (`When:` / `And when:`), one of
+ * its targets or the `self` locator is missing. Elements left without blocks and screens left
+ * without elements are dropped. A screen without `defineScreen` is allowed and kept.
  */
 export function withoutMissingDefinitions(doc: ResolvedDocument): ResolvedDocument {
   const screens = doc.screens
     .map((screen) => ({
       ...screen,
       elements: screen.elements
-        .filter((element) => element.definition !== undefined)
+        .filter(
+          (element) =>
+            element.definition !== undefined &&
+            screen.background.every((ref) => ref.definition !== undefined),
+        )
         .map((element): ResolvedElement => ({
           ...element,
           unconditional: element.unconditional.every(expectationDefined)
@@ -445,7 +450,7 @@ export function withoutMissingDefinitions(doc: ResolvedDocument): ResolvedDocume
             : [],
           conditions: element.conditions.filter(
             (condition) =>
-              condition.definition !== undefined &&
+              condition.conditions.every((ref) => ref.definition !== undefined) &&
               condition.expectations.every(expectationDefined),
           ),
         }))

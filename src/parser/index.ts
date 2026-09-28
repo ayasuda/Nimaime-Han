@@ -10,14 +10,16 @@
  *
  * The module has no Node-specific dependencies: callers read files themselves and pass the text.
  */
-export { parse, SPEC_STATUSES } from './parser';
+export { CONDITION_SEPARATOR, joinConditions, parse, SPEC_STATUSES } from './parser';
 export { DEFAULT_LANGUAGE, LANGUAGES, SUPPORTED_LANGUAGES, getLanguage } from './languages';
 export type { LanguageDefinition, LanguageKeywords } from './languages';
 export type { ParseOptions, ParseResult } from './parser';
 export { DiagnosticCode, formatDiagnostic } from './diagnostics';
 export type { Diagnostic, DiagnosticSeverity } from './diagnostics';
 export type {
+  BackgroundEntry,
   ConditionBlock,
+  ConditionRef,
   Element,
   Expectation,
   LanguageDirective,

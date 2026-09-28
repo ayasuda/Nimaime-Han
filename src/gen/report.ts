@@ -121,10 +121,10 @@ function describeMissingCompact(entry: MissingDefinition): string {
         'need (defineElement(name, self, targets)).'
       );
     case 'condition':
-      return (
-        `Condition "When: ${entry.name}" (Screen "${entry.screen}", Element ` +
-        `"${entry.element ?? ''}") has no definition (defineCondition).`
-      );
+      return entry.element === undefined
+        ? `Condition "Background: ${entry.name}" (Screen "${entry.screen}") has no definition (defineCondition).`
+        : `Condition "When: ${entry.name}" (Screen "${entry.screen}", Element ` +
+            `"${entry.element}") has no definition (defineCondition).`;
   }
 }
 

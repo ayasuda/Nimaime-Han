@@ -30,7 +30,7 @@ test.describe('Screen: Login', () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is invalid',
+          conditions: ['Input is invalid'],
           expectations: [
             { kind: 'show', target: 'Warning icon', location: { line: 8, column: 5 } },
           ],
@@ -38,7 +38,7 @@ test.describe('Screen: Login', () => {
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 3, column: 3 },
-            condition: { line: 7, column: 5 },
+            conditions: [{ line: 7, column: 5 }],
           },
         },
       );

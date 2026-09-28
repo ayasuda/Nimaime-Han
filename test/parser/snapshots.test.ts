@@ -13,6 +13,7 @@ describe('AST snapshots of the README fixtures', () => {
         "languageDirective": undefined,
         "screens": [
           {
+            "background": [],
             "elements": [
               {
                 "conditions": [],
@@ -58,6 +59,16 @@ describe('AST snapshots of the README fixtures', () => {
               {
                 "conditions": [
                   {
+                    "conditions": [
+                      {
+                        "keyword": "When",
+                        "location": {
+                          "column": 5,
+                          "line": 11,
+                        },
+                        "name": "Input is valid",
+                      },
+                    ],
                     "expectations": [
                       {
                         "keyword": "Enable",
@@ -74,8 +85,19 @@ describe('AST snapshots of the README fixtures', () => {
                     },
                     "name": "Input is valid",
                     "tags": [],
+                    "title": "Input is valid",
                   },
                   {
+                    "conditions": [
+                      {
+                        "keyword": "When",
+                        "location": {
+                          "column": 5,
+                          "line": 14,
+                        },
+                        "name": "Input is invalid",
+                      },
+                    ],
                     "expectations": [
                       {
                         "keyword": "Disable",
@@ -92,6 +114,7 @@ describe('AST snapshots of the README fixtures', () => {
                     },
                     "name": "Input is invalid",
                     "tags": [],
+                    "title": "Input is invalid",
                   },
                 ],
                 "location": {
@@ -127,10 +150,21 @@ describe('AST snapshots of the README fixtures', () => {
         "languageDirective": undefined,
         "screens": [
           {
+            "background": [],
             "elements": [
               {
                 "conditions": [
                   {
+                    "conditions": [
+                      {
+                        "keyword": "When",
+                        "location": {
+                          "column": 5,
+                          "line": 8,
+                        },
+                        "name": "Viewing your own profile",
+                      },
+                    ],
                     "expectations": [
                       {
                         "keyword": "Show",
@@ -169,8 +203,19 @@ describe('AST snapshots of the README fixtures', () => {
                     },
                     "name": "Viewing your own profile",
                     "tags": [],
+                    "title": "Viewing your own profile",
                   },
                   {
+                    "conditions": [
+                      {
+                        "keyword": "When",
+                        "location": {
+                          "column": 5,
+                          "line": 13,
+                        },
+                        "name": "Viewing another user's profile",
+                      },
+                    ],
                     "expectations": [
                       {
                         "keyword": "Show",
@@ -209,6 +254,7 @@ describe('AST snapshots of the README fixtures', () => {
                     },
                     "name": "Viewing another user's profile",
                     "tags": [],
+                    "title": "Viewing another user's profile",
                   },
                 ],
                 "location": {

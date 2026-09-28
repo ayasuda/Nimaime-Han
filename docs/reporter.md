@@ -64,8 +64,10 @@ The reporter reads what the generated specs and the [runtime](./runtime.md) put 
   A test title starting with `When: ` is a conditional block; any other title is the element's
   unconditional block. Other describes around them (a project, a wrapper) are ignored.
 - **Steps** (`TestResult.steps`, category `test.step`, also when nested in user steps): `Screen: X`
-  (opening the screen), `When: C` (establishing the condition — its name is taken from this step,
-  falling back to the test title), and one step per expectation, printed as:
+  (opening the screen), `Background: B` (a background condition, v0.2), `When: C` and
+  `And when: D` (establishing the block's conditions — the block is named after these steps,
+  `C and D`, falling back to the test title `When: C and D` when not all of them ran), and one
+  step per expectation, printed as:
 
   | Step      | Printed as    |
   | --------- | ------------- |
@@ -83,7 +85,10 @@ The reporter reads what the generated specs and the [runtime](./runtime.md) put 
   `Location:` — and `When:` if the block's `When:` line was not printed already. Without a
   `Location:` line, the step's location is used.
 
-Layout: unconditional expectations are indented 4 spaces; a `When:` line is at 4 spaces with its
+Layout: the `Background:` conditions of a screen (from the `Background: B` steps of its tests,
+in order of first appearance) are printed once, dimmed, under the `Screen:` line at 2 spaces —
+nothing is printed for a screen without background; unconditional expectations are indented 4
+spaces; a `When:` line is at 4 spaces with its
 expectations at 6; failure details are 2 spaces deeper than the ✗ line. Blocks of one element are
 separated by a blank line.
 
@@ -98,9 +103,9 @@ once per project, labelled `✓ Screen: Login [chromium]`.
   an interrupted run). An element or screen is ✗ if any block under it failed, ○ if all were skipped.
 - **Retries**: the final attempt counts; a flaky test that passed on retry is ✓.
 - The runtime stops a block at its first failure, so the expectations after it are not printed.
-- A block that failed outside an expectation — opening the screen, the `When:` condition, a timeout,
-  a missing definition — is printed as `✗ <step title>` (`✗ When: Logged in`, `✗ Timed out`,
-  `✗ Failed`) followed by `Error: <first line of the message>` and `Location:`.
+- A block that failed outside an expectation — opening the screen, a `Background:` / `When:` /
+  `And when:` condition, a timeout, a missing definition — is printed as `✗ <step title>`
+  (`✗ When: Logged in`, `✗ Timed out`, `✗ Failed`) followed by `Error: <first line of the message>` and `Location:`.
 
 ### Summary
 

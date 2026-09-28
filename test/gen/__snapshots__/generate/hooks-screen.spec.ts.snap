@@ -39,13 +39,13 @@ test.describe('Screen: Login', () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is valid',
+          conditions: ['Input is valid'],
           expectations: [{ kind: 'enable', location: { line: 8, column: 5 } }],
           file,
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 6, column: 3 },
-            condition: { line: 7, column: 5 },
+            conditions: [{ line: 7, column: 5 }],
           },
         },
       );

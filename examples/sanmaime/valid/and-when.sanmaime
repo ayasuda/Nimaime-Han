@@ -1,0 +1,23 @@
+# And when: (v0.2) composes conditions: the block's state is established by its When:
+# condition, then by each And when: condition, in order. Its title is "When: A and B".
+Screen: Cart
+  Background: The user is logged in
+
+  Element: Checkout Button
+    When: The cart is empty
+    Disable
+
+    When: The cart has items
+    And when: The shipping address is set
+    And when: A payment method is set
+    Enable
+
+    When: The cart has items
+    Disable
+
+  Element: Coupon Field
+    @wip
+    When: The cart has items
+    And when: A coupon is applied
+    Hide: Coupon input
+    Show: Applied coupon

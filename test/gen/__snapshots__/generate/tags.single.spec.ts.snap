@@ -31,13 +31,13 @@ test.describe('Screen: Login', { tag: ['@smoke', '@login'] }, () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is valid',
+          conditions: ['Input is valid'],
           expectations: [{ kind: 'enable', location: { line: 10, column: 5 } }],
           file,
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 8, column: 3 },
-            condition: { line: 9, column: 5 },
+            conditions: [{ line: 9, column: 5 }],
           },
         },
       );
@@ -49,13 +49,13 @@ test.describe('Screen: Login', { tag: ['@smoke', '@login'] }, () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is invalid',
+          conditions: ['Input is invalid'],
           expectations: [{ kind: 'disable', location: { line: 14, column: 5 } }],
           file,
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 8, column: 3 },
-            condition: { line: 13, column: 5 },
+            conditions: [{ line: 13, column: 5 }],
           },
         },
       );
@@ -76,13 +76,13 @@ test.describe('Screen: Login', { tag: ['@smoke', '@login'] }, () => {
           {
             screen: 'Login',
             element: 'Login Button',
-            condition: 'Offline',
+            conditions: ['Offline'],
             expectations: [{ kind: 'disable', location: { line: 18, column: 5 } }],
             file,
             locations: {
               screen: { line: 2, column: 1 },
               element: { line: 8, column: 3 },
-              condition: { line: 17, column: 5 },
+              conditions: [{ line: 17, column: 5 }],
             },
           },
         );

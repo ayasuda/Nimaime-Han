@@ -69,8 +69,8 @@ test('…', async ({ $nimaime, page, login }) => {
 ```
 
 The generator finds those names with `collectFixtureNames(plan)` after loading the definition
-files. It reads the first parameter of each callback the plan runs (screen `open`, condition `fn`,
-the element's `self` / target locators) the same way Playwright does. A callback whose first
+files. It reads the first parameter of each callback the plan runs (screen `open`, the `fn` of
+every background and block condition, the element's `self` / target locators) the same way Playwright does. A callback whose first
 parameter is not destructured (`(fixtures) => fixtures.page…`) is listed in `unknown`; the
 generator should then warn and request a safe default (at least `page`).
 
@@ -90,6 +90,7 @@ interface Nimaime {
   ): Promise<void>;
   screen(fixtures: object, screen: string, ctx?: ExpectationContext): Promise<void>;
   condition(fixtures: object, condition: string, ctx?: ExpectationContext): Promise<void>;
+  background(fixtures: object, condition: string, ctx?: ExpectationContext): Promise<void>;
   expectShow(
     fixtures: object,
     element: string,
@@ -114,7 +115,7 @@ interface Nimaime {
 
 interface ExpectationContext {
   screen?: string; // resolves screen-scoped conditions; shown in failures
-  condition?: string; // shown in failures
+  condition?: string; // shown in failures (`A and B` for a block with And when:)
   file?: string; // the .sanmaime file
   location?: SanmaimePosition; // the line of this action
 }
@@ -125,14 +126,16 @@ flows, e.g. checking several elements after one condition). `verify` checks the 
 against a screen's Sanmaime spec loaded at run time, without opening the screen or establishing
 conditions — for Gherkin `Then` steps (see [`verify`](#verifyfixtures-screen-options) below).
 
-| Sanmaime             | Runtime                                                    | Step title  |
-| -------------------- | ---------------------------------------------------------- | ----------- |
-| `Screen: X`          | `open(fixtures)` of `defineScreen('X')`, once per test     | `Screen: X` |
-| `When: C`            | `fn(fixtures)` of `defineCondition('C')`, once per test    | `When: C`   |
-| `Show: T` / `And: T` | `expect(target locator).toBeVisible()`                     | `Show: T`   |
-| `Hide: T` / `And: T` | `expect(target locator).toBeHidden()`                      | `Hide: T`   |
-| `Enable`             | `expect(self locator).toBeEnabled()` — the Element itself  | `Enable`    |
-| `Disable`            | `expect(self locator).toBeDisabled()` — the Element itself | `Disable`   |
+| Sanmaime             | Runtime                                                    | Step title      |
+| -------------------- | ---------------------------------------------------------- | --------------- |
+| `Screen: X`          | `open(fixtures)` of `defineScreen('X')`, once per test     | `Screen: X`     |
+| `Background: B`      | `fn(fixtures)` of `defineCondition('B')`, once per test    | `Background: B` |
+| `When: C`            | `fn(fixtures)` of `defineCondition('C')`, once per test    | `When: C`       |
+| `And when: D`        | `fn(fixtures)` of `defineCondition('D')`, once per test    | `And when: D`   |
+| `Show: T` / `And: T` | `expect(target locator).toBeVisible()`                     | `Show: T`       |
+| `Hide: T` / `And: T` | `expect(target locator).toBeHidden()`                      | `Hide: T`       |
+| `Enable`             | `expect(self locator).toBeEnabled()` — the Element itself  | `Enable`        |
+| `Disable`            | `expect(self locator).toBeDisabled()` — the Element itself | `Disable`       |
 
 Step titles use the canonical English keywords (the AST keeps them canonical; `And:` is already
 resolved to `Show` / `Hide` by the parser).
@@ -143,13 +146,18 @@ resolved to `Show` / `Hide` by the parser).
 interface NimaimePlan {
   screen: string; // Screen: name
   element: string; // Element: name
-  condition?: string; // When: name — omitted for the unconditional block (base state)
+  background?: readonly string[]; // the screen's Background: names (v0.2)
+  conditions?: readonly string[]; // When: name, then each And when: name — omitted for the
+  //                                  unconditional block (base state)
+  condition?: string; // v0.1 form of conditions: [condition]; ignored when conditions is set
   expectations: readonly NimaimeExpectation[]; // in source order
   file?: string; // the .sanmaime file (relative: to the generated spec's directory)
   locations?: {
     screen?: SanmaimePosition;
     element?: SanmaimePosition;
-    condition?: SanmaimePosition;
+    background?: readonly SanmaimePosition[]; // one per background name
+    conditions?: readonly SanmaimePosition[]; // one per conditions name
+    condition?: SanmaimePosition; // with `condition`
   };
 }
 interface NimaimeExpectation {
@@ -168,12 +176,20 @@ Order of execution:
 1. `validatePlan(plan)` — every name must resolve, or a `NimaimeRuntimeError` is thrown before
    the browser is touched. A missing **screen** definition is allowed (nothing is opened).
 2. **Screen** — the screen's `open`, if any, once per test (the base state).
-3. **Condition** — if `plan.condition` is set: the definition scoped to `plan.screen`, else the
-   global one, once per test.
-4. **Expectations** — in order, each in its own `test.step()`. The first failure stops the test.
+3. **Background** — each of `plan.background`, in order (step `Background: B`), for every block
+   of the screen including the unconditional one ([sanmaime.md §5.9](./sanmaime.md)).
+4. **Conditions** — each of `plan.conditions` (or `plan.condition`), in order: step `When: C` for
+   the first, `And when: D` for the others ([sanmaime.md §5.10](./sanmaime.md)).
+5. **Expectations** — in order, each in its own `test.step()`. The first failure stops the test.
+
+Every condition (background or block) resolves to the definition scoped to `plan.screen`, else
+the global one, and runs at most once per test. Failure messages name the whole block:
+`When: C and D`.
 
 One plan is one Sanmaime block: an Element's unconditional block (checked in the base state,
-as required by [sanmaime.md §5.4](./sanmaime.md)) or one of its `When:` blocks.
+as required by [sanmaime.md §5.4](./sanmaime.md)) or one of its `When:` blocks. Generated specs
+(since v0.2) always write `conditions: [...]`; `condition: '…'` is still accepted, so hand-written
+plans keep working.
 
 ### `verify(fixtures, screen, options)`
 
@@ -188,7 +204,11 @@ await $nimaime.verify({ page }, 'User Details', { when: 'Viewing your own profil
   `loadSanmaimeSpecs('specs/**/*.sanmaime', { cwd })` or `registerScreenSpec(spec)`.
 - It checks, for every element of the screen (or of `options.elements`), the unconditional
   expectations and the `When:` blocks named in `options.when` — **without** calling the screen's
-  `open` or any condition definition.
+  `open` or any condition definition. A block with `And when:` lines is checked when **all** its
+  conditions are in `options.when` (its step is titled `When: C and D`).
+- The screen's `Background:` conditions are **not run** by `verify` either: the page is assumed
+  to be in that state already. Their names may be listed in `options.when` (they are known names
+  and select nothing by themselves).
 - Every name is resolved first (`planVerify`, then the element definitions); an unknown screen,
   element or `when` name, or a selection with nothing to check, throws a `NimaimeRuntimeError`
   listing the known names.
@@ -344,7 +364,7 @@ test.describe('Screen: Login', () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is invalid',
+          conditions: ['Input is invalid'],
           expectations: [
             { kind: 'disable', location: { line: 16, column: 5 } },
             { kind: 'show', target: 'Error message', location: { line: 17, column: 5 } },
@@ -353,7 +373,7 @@ test.describe('Screen: Login', () => {
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 8, column: 3 },
-            condition: { line: 15, column: 5 },
+            conditions: [{ line: 15, column: 5 }],
           },
         },
       );

@@ -16,31 +16,40 @@ import {
 // Canonical keywords. The parser and the AST speak only in these (English) identifiers; the
 // spellings of each language come from the dictionaries in `languages.ts`.
 
-/** Keywords that take a name after their colon (`Show: Username`). */
-export const NAME_KEYWORDS = ['Screen', 'Element', 'When', 'Show', 'Hide', 'And'] as const;
+/**
+ * Keywords that take a name after their colon (`Show: Username`). `AndWhen` is `And when:` and
+ * `Background` is `Background:` (both v0.2).
+ */
+export const NAME_KEYWORDS = [
+  'Screen',
+  'Element',
+  'Background',
+  'When',
+  'AndWhen',
+  'Show',
+  'Hide',
+  'And',
+] as const;
 export type NameKeyword = (typeof NAME_KEYWORDS)[number];
 
 /** Keywords that stand alone on their line and take no argument. */
 export const BARE_KEYWORDS = ['Enable', 'Disable'] as const;
 export type BareKeyword = (typeof BARE_KEYWORDS)[number];
 
-/** Keywords reserved for a future version (`SANMAIME_E019`). */
-export const RESERVED_KEYWORDS = ['Background'] as const;
-export type ReservedKeyword = (typeof RESERVED_KEYWORDS)[number];
-
-export type CanonicalKeyword = NameKeyword | BareKeyword | ReservedKeyword;
+export type CanonicalKeyword = NameKeyword | BareKeyword;
 
 /** The dictionary slot of every canonical keyword. */
 export const KEYWORD_SLOTS: Readonly<Record<CanonicalKeyword, keyof LanguageKeywords>> = {
   Screen: 'screen',
   Element: 'element',
+  Background: 'background',
   When: 'when',
+  AndWhen: 'andWhen',
   Show: 'show',
   Hide: 'hide',
   And: 'and',
   Enable: 'enable',
   Disable: 'disable',
-  Background: 'background',
 };
 
 /** One spelling of a keyword in a language. */
@@ -58,7 +67,6 @@ export interface KeywordTable {
   /** All spellings, longest first, so that a synonym never shadows a longer one. */
   name: readonly KeywordSpelling<NameKeyword>[];
   bare: readonly KeywordSpelling<BareKeyword>[];
-  reserved: readonly KeywordSpelling<ReservedKeyword>[];
   /** The primary (first) spelling of every keyword, used in diagnostics. */
   primary: Readonly<Record<CanonicalKeyword, string>>;
 }
@@ -92,7 +100,6 @@ export function compileKeywordTable(language: LanguageDefinition): KeywordTable 
     colons: language.colons,
     name: spellings(language, NAME_KEYWORDS),
     bare: spellings(language, BARE_KEYWORDS),
-    reserved: spellings(language, RESERVED_KEYWORDS),
     primary,
   };
 }
@@ -141,7 +148,10 @@ export interface InvalidTagsToken {
   location: Location;
 }
 
-/** `Screen:`, `Element:`, `When:`, `Show:`, `Hide:` or `And:`; `name` is `""` when missing (E002). */
+/**
+ * `Screen:`, `Element:`, `Background:`, `When:`, `And when:`, `Show:`, `Hide:` or `And:`; `name` is
+ * `""` when missing (E002).
+ */
 export interface NameKeywordToken {
   type: 'name-keyword';
   /** Canonical keyword. */
@@ -163,16 +173,6 @@ export interface BareKeywordToken {
   location: Location;
 }
 
-/** A reserved keyword such as `Background:` (E019). */
-export interface ReservedToken {
-  type: 'reserved';
-  /** Canonical keyword. */
-  keyword: ReservedKeyword;
-  /** The keyword as written, without its colon. */
-  text: string;
-  location: Location;
-}
-
 /** Any other line (E001). */
 export interface UnknownToken {
   type: 'unknown';
@@ -187,7 +187,6 @@ export type LineToken =
   | InvalidTagsToken
   | NameKeywordToken
   | BareKeywordToken
-  | ReservedToken
   | UnknownToken;
 
 /** Tokens that are ignored by the syntactic grammar (§3.8). */
@@ -267,14 +266,7 @@ export function classifyLine(
     }
   }
 
-  // Rule 7: reserved keywords.
-  for (const { text, keyword } of table.reserved) {
-    if (t.startsWith(text) && colonAt(t.slice(text.length), table.colons) > 0) {
-      return { type: 'reserved', keyword, text, location };
-    }
-  }
-
-  // Rule 8: anything else.
+  // Rule 7: anything else.
   return { type: 'unknown', text: t, location };
 }
 

@@ -14,6 +14,11 @@ import type { NimaimeExpectation, SanmaimePosition } from './plan';
 export interface ConditionSpec {
   /** The `When:` name. */
   name: string;
+  /**
+   * Every condition of the block, in order, for a block with `And when:` lines (v0.2):
+   * `[name, ...andWhenNames]`. Absent for a single-condition block (then it is `[name]`).
+   */
+  conditions?: readonly string[];
   /** Position of the `When:` line. */
   location?: SanmaimePosition;
   /** The block's expectations, in source order. */
@@ -43,6 +48,11 @@ export interface ScreenSpec {
   file?: string;
   /** Position of the `Screen:` line. */
   location?: SanmaimePosition;
+  /**
+   * The screen's `Background:` condition names (v0.2). `$nimaime.verify()` never establishes
+   * them; it accepts them in `when` (the page is assumed to be in every background state).
+   */
+  background?: readonly string[];
   /** Elements, in source order. */
   elements: readonly ElementSpec[];
 }
@@ -106,6 +116,9 @@ export function screenSpecsFromDocument(document: SanmaimeDocument, file?: strin
     screen: screen.name.trim(),
     ...(file === undefined ? {} : { file }),
     location: position(screen.location),
+    ...(screen.background.length === 0
+      ? {}
+      : { background: screen.background.map((entry) => entry.name.trim()) }),
     elements: screen.elements.map(elementSpec),
   }));
 }
@@ -122,6 +135,9 @@ function elementSpec(element: Element): ElementSpec {
 function conditionSpec(block: ConditionBlock): ConditionSpec {
   return {
     name: block.name.trim(),
+    ...(block.conditions.length > 1
+      ? { conditions: block.conditions.map((ref) => ref.name.trim()) }
+      : {}),
     location: position(block.location),
     expectations: block.expectations.map(expectationOf),
   };

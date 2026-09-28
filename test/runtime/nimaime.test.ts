@@ -85,6 +85,11 @@ beforeEach(() => {
   defineCondition('Input is invalid', ({ events }) => {
     events.push('condition Input is invalid');
   });
+  for (const name of ['Logged in', 'Cookies accepted', 'Remember me checked']) {
+    defineCondition(name, ({ events }) => {
+      events.push(`condition ${name}`);
+    });
+  }
 });
 
 const plan: NimaimePlan = {
@@ -191,6 +196,122 @@ describe('$nimaime.run', () => {
     await expect(h.nimaime.run({ page: h.fixtures.page }, plan)).rejects.toThrow(
       'Screen "Login" open uses the fixture "events", but the test did not provide it.',
     );
+  });
+});
+
+describe('$nimaime.run with Background: and And when: (v0.2)', () => {
+  const composed: NimaimePlan = {
+    screen: 'Login',
+    element: 'Login Button',
+    background: ['Logged in', 'Cookies accepted'],
+    conditions: ['Input is invalid', 'Remember me checked'],
+    expectations: [{ kind: 'disable', location: { line: 9, column: 5 } }],
+    file: '../../specs/login.sanmaime',
+    locations: {
+      screen: { line: 1, column: 1 },
+      background: [
+        { line: 2, column: 3 },
+        { line: 3, column: 3 },
+      ],
+      conditions: [
+        { line: 6, column: 5 },
+        { line: 7, column: 5 },
+      ],
+    },
+  };
+
+  it('runs open, each background, each condition, then the expectations, in order', async () => {
+    const h = harness();
+    await h.nimaime.run(h.fixtures, composed);
+    expect(h.events).toEqual([
+      'step Screen: Login',
+      'open Login',
+      'step Background: Logged in',
+      'condition Logged in',
+      'step Background: Cookies accepted',
+      'condition Cookies accepted',
+      'step When: Input is invalid',
+      'condition Input is invalid',
+      'step And when: Remember me checked',
+      'condition Remember me checked',
+      'step Disable',
+      'assert disable button',
+    ]);
+    const file = '/app/specs/login.sanmaime';
+    expect(h.steps.map((s) => [s.title, s.location?.line])).toEqual([
+      ['Screen: Login', 1],
+      ['Background: Logged in', 2],
+      ['Background: Cookies accepted', 3],
+      ['When: Input is invalid', 6],
+      ['And when: Remember me checked', 7],
+      ['Disable', 9],
+    ]);
+    expect(h.steps[1]?.location?.file).toBe(file);
+  });
+
+  it('runs the background before an unconditional block too', async () => {
+    const h = harness();
+    await h.nimaime.run(h.fixtures, {
+      screen: 'Login',
+      element: 'User Information',
+      background: ['Logged in'],
+      expectations: [{ kind: 'show', target: 'Username' }],
+    });
+    expect(h.events).toEqual([
+      'step Screen: Login',
+      'open Login',
+      'step Background: Logged in',
+      'condition Logged in',
+      'step Show: Username',
+      'assert show username',
+    ]);
+  });
+
+  it('establishes each condition once per test and prefers conditions over condition', async () => {
+    const h = harness();
+    await h.nimaime.run(h.fixtures, composed);
+    await h.nimaime.run(h.fixtures, {
+      ...composed,
+      condition: 'Ignored',
+      conditions: ['Logged in', 'Input is invalid'],
+    });
+    expect(h.events.filter((e) => e.startsWith('condition'))).toEqual([
+      'condition Logged in',
+      'condition Cookies accepted',
+      'condition Input is invalid',
+      'condition Remember me checked',
+    ]);
+  });
+
+  it('names the whole block in failure messages', async () => {
+    const h = harness();
+    h.failing.add('button');
+    const error = await h.nimaime.run(h.fixtures, composed).catch((e: unknown) => e);
+    expect((error as Error).message).toMatch(
+      /^Screen: Login\nElement: Login Button\nWhen: Input is invalid and Remember me checked\n/,
+    );
+  });
+
+  it('validates every background and condition name before doing anything', async () => {
+    const h = harness();
+    await expect(
+      h.nimaime.run(h.fixtures, { ...composed, background: ['Logged in', 'Nope'] }),
+    ).rejects.toThrow(
+      'No condition definition for "Background: Nope" in Screen "Login". ' +
+        "Define it with defineCondition('Nope', async ({ page }) => { … }).\n" +
+        'Location: ../../specs/login.sanmaime:3',
+    );
+    await expect(
+      h.nimaime.run(h.fixtures, { ...composed, conditions: ['Input is invalid', 'Nope'] }),
+    ).rejects.toThrow(/No condition definition for "And when: Nope"/);
+    expect(h.events).toEqual([]);
+  });
+
+  it('background() establishes a condition in a Background: step', async () => {
+    const h = harness();
+    await h.nimaime.background(h.fixtures, 'Logged in', { screen: 'Login' });
+    await h.nimaime.condition(h.fixtures, 'Logged in', { screen: 'Login' });
+    expect(h.events).toEqual(['step Background: Logged in', 'condition Logged in']);
   });
 });
 

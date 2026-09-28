@@ -4,8 +4,8 @@
  *
  * - Tests: `test.describe('Screen: X') > test.describe('Element: Y') > test('When: C' | other)`.
  *   A test title that does not start with `When: ` is the element's unconditional block.
- * - Steps (category `test.step`, made by the runtime): `Screen: X`, `When: C`, `Show: T`,
- *   `Hide: T`, `Enable`, `Disable`.
+ * - Steps (category `test.step`, made by the runtime): `Screen: X`, `Background: B`, `When: C`,
+ *   `And when: D`, `Show: T`, `Hide: T`, `Enable`, `Disable`.
  */
 import { isAbsolute, relative } from 'node:path';
 import { parseSanmaimeHeader, type SanmaimeHeader } from './header';
@@ -55,6 +55,11 @@ export interface ScreenReport {
   /** Playwright project; only set when the run has several projects. */
   project: string | undefined;
   status: Status;
+  /**
+   * The `Background:` conditions established by the screen's tests (from their `Background: B`
+   * steps), in order of first appearance. Empty when the screen has none.
+   */
+  background: string[];
   elements: ElementReport[];
 }
 
@@ -74,17 +79,22 @@ export interface RunReport {
 const SCREEN_PREFIX = 'Screen: ';
 const ELEMENT_PREFIX = 'Element: ';
 const WHEN_PREFIX = 'When: ';
+const AND_WHEN_PREFIX = 'And when: ';
+const BACKGROUND_PREFIX = 'Background: ';
 
 type ParsedStep =
   | { type: 'expectation'; text: string; step: ReportStep }
-  | { type: 'screen' | 'condition'; name: string; step: ReportStep };
+  | { type: 'screen' | 'background' | 'condition'; name: string; step: ReportStep };
 
-/** Interprets a runtime step title; `undefined` for other steps. */
+/**
+ * Interprets a runtime step title; `undefined` for other steps. `When: C` and `And when: D` are
+ * both `condition` steps.
+ */
 export function parseStepTitle(
   title: string,
 ):
   | { type: 'expectation'; text: string }
-  | { type: 'screen' | 'condition'; name: string }
+  | { type: 'screen' | 'background' | 'condition'; name: string }
   | undefined {
   if (title === 'Enable') return { type: 'expectation', text: 'enabled' };
   if (title === 'Disable') return { type: 'expectation', text: 'disabled' };
@@ -94,6 +104,12 @@ export function parseStepTitle(
     return { type: 'expectation', text: `${title.slice(6)} is hidden` };
   if (title.startsWith(SCREEN_PREFIX)) return { type: 'screen', name: title.slice(8) };
   if (title.startsWith(WHEN_PREFIX)) return { type: 'condition', name: title.slice(6) };
+  if (title.startsWith(AND_WHEN_PREFIX)) {
+    return { type: 'condition', name: title.slice(AND_WHEN_PREFIX.length) };
+  }
+  if (title.startsWith(BACKGROUND_PREFIX)) {
+    return { type: 'background', name: title.slice(BACKGROUND_PREFIX.length) };
+  }
   return undefined;
 }
 
@@ -152,17 +168,27 @@ function combine(statuses: Status[]): Status {
   return 'passed';
 }
 
+/** The `Background:` names of a test's steps, in order. */
+function backgroundSteps(test: ReportTest): string[] {
+  const steps = runtimeSteps(test.results.at(-1)?.steps ?? []);
+  return steps.flatMap((s) => (s.type === 'background' ? [s.name] : []));
+}
+
 function buildBlock(test: ReportTest, blockTitle: string, cwd: string): BlockReport {
   const status = testStatus(test);
   const result = test.results.at(-1);
   const steps = runtimeSteps(result?.steps ?? []);
-  const conditionStep = steps.find((s) => s.type === 'condition');
+  // The condition steps name the block's conditions (`When: A`, `And when: B` -> `A and B`); when
+  // they did not all run (a failed condition), the title (`When: A and B`) names them all.
+  const conditionNames = steps.flatMap((s) => (s.type === 'condition' ? [s.name] : []));
+  const fromSteps = conditionNames.length > 0 ? conditionNames.join(' and ') : undefined;
+  const fromTitle = blockTitle.startsWith(WHEN_PREFIX)
+    ? blockTitle.slice(WHEN_PREFIX.length)
+    : undefined;
   const condition =
-    conditionStep?.type === 'condition'
-      ? conditionStep.name
-      : blockTitle.startsWith(WHEN_PREFIX)
-        ? blockTitle.slice(WHEN_PREFIX.length)
-        : undefined;
+    fromSteps === undefined || fromTitle?.startsWith(`${fromSteps} and `) === true
+      ? fromTitle
+      : fromSteps;
   const block: BlockReport = { title: blockTitle, condition, status, expectations: [] };
   if (status === 'skipped') return block;
 
@@ -265,6 +291,7 @@ export function buildReport(tests: readonly ReportTest[], cwd: string): RunRepor
         name: screenName,
         project: multiProject ? project : undefined,
         status: 'passed',
+        background: [],
         elements: [],
         byElement: new Map(),
       };
@@ -277,6 +304,9 @@ export function buildReport(tests: readonly ReportTest[], cwd: string): RunRepor
       screen.elements.push(elementReport);
     }
     elementReport.blocks.push(buildBlock(test, test.title, cwd));
+    for (const name of backgroundSteps(test)) {
+      if (!screen.background.includes(name)) screen.background.push(name);
+    }
   }
 
   const screenReports: ScreenReport[] = [];

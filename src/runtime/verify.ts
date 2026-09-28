@@ -5,15 +5,22 @@
 import { NimaimeRuntimeError } from './errors';
 import type { NimaimePlan, SanmaimePosition } from './plan';
 import { formatSanmaimeLocation } from './resolve';
-import { findScreenSpec, listScreenSpecs, type ScreenSpec } from './spec-registry';
+import {
+  findScreenSpec,
+  listScreenSpecs,
+  type ConditionSpec,
+  type ScreenSpec,
+} from './spec-registry';
 
 /** Options of `$nimaime.verify()`. */
 export interface VerifyOptions {
   /**
    * The `When:` condition(s) the page is currently in. For each name, the matching `When:` block of
-   * every (selected) element is checked. The condition itself is **not** established: the caller
-   * (e.g. the preceding Gherkin steps) has already put the page in that state. Without `when`,
-   * only the unconditional expectations (the screen's invariants) are checked.
+   * every (selected) element is checked; a block with `And when:` lines is checked when all of its
+   * conditions are listed. The conditions are **not** established (neither are the screen's
+   * `Background:` conditions, which may be listed too): the caller (e.g. the preceding Gherkin
+   * steps) has already put the page in that state. Without `when`, only the unconditional
+   * expectations (the screen's invariants) are checked.
    */
   when?: string | readonly string[];
   /** Restricts the check to these `Element:` names. Default: every element of the screen. */
@@ -26,7 +33,8 @@ export interface VerifyElementPlan {
   location?: SanmaimePosition;
   /**
    * One plan per block, in source order: the unconditional block first (no `condition`), then
-   * the selected `When:` blocks (with `condition` and `locations.condition`). Never empty.
+   * the selected `When:` blocks (with `condition` and `locations.condition`; a block with
+   * `And when:` has `conditions` and `locations.conditions` instead). Never empty.
    */
   blocks: NimaimePlan[];
 }
@@ -47,6 +55,10 @@ const toList = (value: string | readonly string[] | undefined): string[] =>
   value === undefined ? [] : [...new Set((typeof value === 'string' ? [value] : value).map(trim))];
 
 const trim = (name: string): string => name.trim();
+
+/** The condition names of a block: `conditions` (with `And when:`), else `[name]`. */
+const namesOf = (block: ConditionSpec): readonly string[] =>
+  block.conditions !== undefined && block.conditions.length > 0 ? block.conditions : [block.name];
 
 function specError(message: string, spec: ScreenSpec): NimaimeRuntimeError {
   const where = formatSanmaimeLocation(spec.file, spec.location);
@@ -84,7 +96,12 @@ export function planVerify(screen: string, options: VerifyOptions = {}): VerifyP
     wanted.length === 0 ? spec.elements : spec.elements.filter((e) => wanted.includes(e.element));
 
   const when = toList(options.when);
-  const knownConditions = [...new Set(selected.flatMap((e) => e.conditions.map((c) => c.name)))];
+  const knownConditions = [
+    ...new Set([
+      ...selected.flatMap((e) => e.conditions.flatMap(namesOf)),
+      ...(spec.background ?? []),
+    ]),
+  ];
   const unknownConditions = when.filter((name) => !knownConditions.includes(name));
   if (unknownConditions.length > 0) {
     const scope =
@@ -112,13 +129,26 @@ export function planVerify(screen: string, options: VerifyOptions = {}): VerifyP
       blocks.push({ ...base, expectations: element.unconditional, locations });
     }
     for (const block of element.conditions) {
-      if (!when.includes(block.name) || block.expectations.length === 0) continue;
-      blocks.push({
-        ...base,
-        condition: block.name,
-        expectations: block.expectations,
-        locations: { ...locations, condition: block.location },
-      });
+      const names = namesOf(block);
+      if (!names.every((name) => when.includes(name)) || block.expectations.length === 0) continue;
+      blocks.push(
+        names.length === 1
+          ? {
+              ...base,
+              condition: block.name,
+              expectations: block.expectations,
+              locations: { ...locations, condition: block.location },
+            }
+          : {
+              ...base,
+              conditions: names,
+              expectations: block.expectations,
+              locations: {
+                ...locations,
+                ...(block.location === undefined ? {} : { conditions: [block.location] }),
+              },
+            },
+      );
     }
     if (blocks.length > 0) {
       elements.push({ element: element.element, location: element.location, blocks });

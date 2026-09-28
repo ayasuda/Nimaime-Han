@@ -27,7 +27,7 @@ test.describe('Screen: User Details', () => {
         {
           screen: 'User Details',
           element: 'User Information',
-          condition: "Viewing another user's profile",
+          conditions: ["Viewing another user's profile"],
           expectations: [
             { kind: 'hide', target: 'Email address', location: { line: 12, column: 5 } },
           ],
@@ -35,7 +35,7 @@ test.describe('Screen: User Details', () => {
           locations: {
             screen: { line: 3, column: 1 },
             element: { line: 5, column: 3 },
-            condition: { line: 11, column: 5 },
+            conditions: [{ line: 11, column: 5 }],
           },
         },
       );

@@ -1,9 +1,42 @@
 /**
- * nimaime-han/runtime — code imported by generated `.sanmaime-gen/*.spec.ts` files at test time
- * (the definition registry, hooks, assertion helpers built on `@playwright/test`).
- *
- * TODO(#10): export the `test` with the `$nimaime` fixture.
+ * nimaime-han/runtime — code imported by generated `.sanmaime-gen/*.spec.ts` files at test time:
+ * the `test` with the `$nimaime` fixture (the counterpart of playwright-bdd's `$bddContext`),
+ * the definition registry, and the helpers the generator uses to query it.
  */
+export {
+  createNimaimeTest,
+  expect,
+  nimaimeFixtures,
+  playwrightDriver,
+  test,
+  type NimaimeTestArgs,
+  type NimaimeTestType,
+} from './test';
+export {
+  createNimaimeRuntime,
+  type Nimaime,
+  type NimaimeDriver,
+  type NimaimeFixtures,
+  type StepLocation,
+} from './nimaime';
+export {
+  EXPECTATION_KEYWORDS,
+  expectationTitle,
+  type ExpectationContext,
+  type ExpectationKind,
+  type NimaimeExpectation,
+  type NimaimePlan,
+  type SanmaimePosition,
+} from './plan';
+export { collectFixtureNames, fixtureNamesOf, validatePlan, type PlanFixtures } from './resolve';
+export {
+  createExpectationError,
+  describeExpected,
+  formatExpectationFailure,
+  NimaimeExpectationError,
+  probeActual,
+  type ExpectationFailureContext,
+} from './failure';
 export {
   findCondition,
   findElement,
@@ -21,5 +54,5 @@ export type {
   Registry,
   ScreenDefinition,
 } from './registry';
-export { NimaimeDefinitionError } from './errors';
+export { NimaimeDefinitionError, NimaimeRuntimeError } from './errors';
 export type { SourceLocation } from './source';

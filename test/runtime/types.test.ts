@@ -17,6 +17,7 @@ import {
   type FixturesOf,
   type LocatorFn,
   type NimaimeDefinitions,
+  type OpenScreenFn,
 } from '../../src/index';
 import { findCondition, findElement, findScreen, resetRegistry } from '../../src/runtime/index';
 
@@ -118,8 +119,20 @@ describe('createNimaime(test) typing', () => {
 
   it('exports the callback types', () => {
     expectTypeOf<LocatorFn>().toEqualTypeOf<(fixtures: DefaultFixtures) => Locator>();
-    expectTypeOf<ConditionFn<{ a: 1 }>>().toEqualTypeOf<
-      (fixtures: { a: 1 }) => Promise<void> | void
-    >();
+    expectTypeOf<ConditionFn<{ a: 1 }>>().toEqualTypeOf<(fixtures: { a: 1 }) => unknown>();
+    expectTypeOf<OpenScreenFn<{ a: 1 }>>().toEqualTypeOf<(fixtures: { a: 1 }) => unknown>();
+  });
+
+  it('accepts open / condition callbacks that return any promise (e.g. page.goto)', () => {
+    const { defineScreen, defineCondition } = createNimaime();
+    // page.goto() resolves to `Response | null`, page.click() to `void`: both are accepted.
+    defineScreen('User Details', { open: ({ page }) => page.goto('/users/me') });
+    defineCondition('Anywhere', ({ page }) => page.goto('/x'));
+    defineCondition('Clicked', ({ page }) => page.click('#go'));
+    const custom = createNimaime(test);
+    custom.defineScreen('Home', { open: ({ page, tenant }) => page.goto(`/${tenant}`) });
+    custom.defineCondition('Logged in', ({ login }) => login('alice'));
+    expect(findScreen('User Details')?.open).toBeTypeOf('function');
+    expect(findCondition('Anywhere')?.fn).toBeTypeOf('function');
   });
 });

@@ -5,6 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: '.',
   testMatch: '**/*.spec.ts',
+  // gen/ is a separate project with its own config (npm run test:e2e:gen).
+  testIgnore: 'gen/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: 'list',

@@ -46,3 +46,6 @@ jobs:
 
       - name: End-to-end tests
         run: npm run test:e2e
+
+      - name: End-to-end tests of nimaime-gen
+        run: npm run test:e2e:gen

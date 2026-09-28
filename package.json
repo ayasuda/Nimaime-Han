@@ -87,6 +87,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
+    "test:e2e:gen": "npm run build && node test/e2e/gen/run.js",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {

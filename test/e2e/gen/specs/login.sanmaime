@@ -1,0 +1,14 @@
+# The "Example" section of README.md.
+Screen: Login
+
+  Element: Login Form
+    Show: Email address
+    And: Password
+    And: Login button
+
+  Element: Login Button
+    When: Input is valid
+    Enable
+
+    When: Input is invalid
+    Disable

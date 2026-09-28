@@ -2,6 +2,8 @@
  * Pure validation + normalization of user options into a `ResolvedSanmaimeConfig`.
  */
 import path from 'node:path';
+// The language table only (pure data), not the whole parser.
+import { SUPPORTED_LANGUAGES } from '../parser/languages';
 import { describeValue, SanmaimeConfigError } from './errors';
 import type {
   QuoteStyle,
@@ -145,6 +147,13 @@ export function resolveSanmaimeConfig(
   const language = optionalString('language', input.language) ?? DEFAULT_LANGUAGE;
   if (!LANGUAGE_CODE.test(language)) {
     fail('language', 'a language code such as "en"', input.language);
+  }
+  if (!SUPPORTED_LANGUAGES.includes(language)) {
+    fail(
+      'language',
+      `one of the supported languages (${SUPPORTED_LANGUAGES.map((code) => `"${code}"`).join(', ')})`,
+      input.language,
+    );
   }
 
   const tags = optionalString('tags', input.tags);

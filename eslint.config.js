@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'coverage/', '.sanmaime-gen/', 'test-results/', 'playwright-report/'],
+    ignores: ['dist/', 'coverage/', '**/.sanmaime-gen/', 'test-results/', 'playwright-report/'],
   },
   js.configs.recommended,
   {

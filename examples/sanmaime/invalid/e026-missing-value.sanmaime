@@ -1,0 +1,6 @@
+# expect: SANMAIME_E026
+# at: 6:5
+# Text:, Contain: and Count: take a target, " = " and a value.
+Screen: Welcome
+  Element: Header
+    Text: Title

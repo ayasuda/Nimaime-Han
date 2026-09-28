@@ -8,7 +8,7 @@ import {
 } from '@playwright/test';
 import { probeActual } from './failure';
 import { createNimaimeRuntime, type Nimaime, type NimaimeDriver } from './nimaime';
-import type { ExpectationKind } from './plan';
+import { expectationSpec, type ExpectationKind, type ExpectationValue } from './expectations';
 import { tagsFixtures, type NimaimeTagsTestArgs } from './tags';
 import type { AnyTestType } from './types';
 
@@ -24,21 +24,13 @@ export type NimaimeTestType<T extends AnyTestType> =
     ? TestType<TestArgs & NimaimeTestArgs, WorkerArgs>
     : never;
 
-async function assertLocator(kind: ExpectationKind, locator: Locator): Promise<void> {
-  switch (kind) {
-    case 'show':
-      await expect(locator).toBeVisible();
-      return;
-    case 'hide':
-      await expect(locator).toBeHidden();
-      return;
-    case 'enable':
-      await expect(locator).toBeEnabled();
-      return;
-    case 'disable':
-      await expect(locator).toBeDisabled();
-      return;
-  }
+/** Runs the matcher of `kind` from the vocabulary table (`EXPECTATIONS`). */
+async function assertLocator(
+  kind: ExpectationKind,
+  locator: Locator,
+  value?: ExpectationValue,
+): Promise<void> {
+  await expectationSpec(kind).matcher(expect, locator, value);
 }
 
 /** The Playwright driver of the runtime (`test.step` + web-first assertions). */

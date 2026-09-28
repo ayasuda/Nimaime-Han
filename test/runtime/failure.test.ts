@@ -69,6 +69,15 @@ describe('describeExpected', () => {
     expect(describeExpected('enable', undefined)).toBe('enabled');
     expect(describeExpected('disable', undefined)).toBe('disabled');
   });
+
+  it('describes the kinds of vocabulary v1, with a target and a value', () => {
+    expect(describeExpected('check', 'Remember me')).toBe('Remember me is checked');
+    expect(describeExpected('uncheck', undefined)).toBe('not checked');
+    expect(describeExpected('readonly', undefined)).toBe('read-only');
+    expect(describeExpected('text', 'Title', 'Welcome')).toBe('Title has text "Welcome"');
+    expect(describeExpected('contain', 'Title', 'Wel')).toBe('Title contains text "Wel"');
+    expect(describeExpected('count', 'Items', 3)).toBe('Count of Items is 3');
+  });
 });
 
 describe('detectTimeout', () => {
@@ -433,6 +442,40 @@ describe('parseExpectationFailure', () => {
     });
   });
 
+  it('parses the phrasing of every kind of vocabulary v1', () => {
+    const cases = [
+      {
+        kind: 'text',
+        target: 'Title',
+        value: 'Say "hi"',
+        expected: 'Title has text "Say \\"hi\\""',
+      },
+      { kind: 'contain', target: 'Title', value: 'hi', expected: 'Title contains text "hi"' },
+      { kind: 'count', target: 'Items', value: 3, expected: 'Count of Items is 3' },
+      { kind: 'check', target: 'Remember me', expected: 'Remember me is checked' },
+      { kind: 'uncheck', target: undefined, expected: 'not checked' },
+      { kind: 'focus', target: undefined, expected: 'focused' },
+      { kind: 'editable', target: 'Email', expected: 'Email is editable' },
+      { kind: 'readonly', target: undefined, expected: 'read-only' },
+      { kind: 'empty', target: 'Notes', expected: 'Notes is empty' },
+      { kind: 'enable', target: 'Login button', expected: 'Login button is enabled' },
+    ] as const;
+    for (const { expected, ...expectation } of cases) {
+      const error = createExpectationError(
+        { ...ctx, ...expectation, expected, actual: 'text "Hello (world)"' },
+        timeoutError('toHaveText', 500),
+      );
+      const parsed = parseExpectationFailure(error.message);
+      expect(parsed?.expectation, expected).toEqual({
+        kind: expectation.kind,
+        target: expectation.target ?? null,
+        ...('value' in expectation ? { value: expectation.value } : {}),
+      });
+      expect(parsed).toMatchObject({ expected, actual: 'text "Hello (world)"', timeout: 500 });
+      expect(parsed).toEqual({ ...error.toJSON(), column: null, locator: null });
+    }
+  });
+
   it('rejects other messages', () => {
     expect(parseExpectationFailure('expect(locator).toBeVisible() failed')).toBeUndefined();
     expect(
@@ -475,5 +518,10 @@ describe('probeActual', () => {
 
   it('never throws', async () => {
     expect(await probeActual('enable', fakeLocator({ count: 1 }))).toBeUndefined();
+    expect(await probeActual('check', fakeLocator({ count: 1 }))).toBeUndefined();
+  });
+
+  it('observes counts without requiring exactly one element', async () => {
+    expect(await probeActual('count', fakeLocator({ count: 3 }))).toBe('3');
   });
 });

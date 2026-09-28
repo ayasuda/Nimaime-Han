@@ -5,13 +5,13 @@ targets of `Show:` / `Hide:` and the conditions of `When:` — are bound to the 
 TypeScript **definitions**, the same way playwright-bdd binds Gherkin steps to step definitions
 created with `createBdd(test)`.
 
-| Sanmaime                       | Definition API                                  | playwright-bdd counterpart      |
-| ------------------------------ | ----------------------------------------------- | ------------------------------- |
-| `Screen: X`                    | `defineScreen('X', { open })`                   | — (a Feature has no definition) |
-| `Show:` / `Hide:` targets of X | `defineElement('X', { name: locator })`         | step definitions                |
-| `Enable` / `Disable` of X      | `defineElement('X', self, { name: locator }?)`  | step definitions                |
-| `When: X`                      | `defineCondition('X', async ({ page }) => {…})` | `Given` steps                   |
-| `Background: X`, `And when: X` | `defineCondition('X', …)` (the same conditions) | `Background:` / `And` steps     |
+| Sanmaime                                            | Definition API                                  | playwright-bdd counterpart      |
+| --------------------------------------------------- | ----------------------------------------------- | ------------------------------- |
+| `Screen: X`                                         | `defineScreen('X', { open })`                   | — (a Feature has no definition) |
+| targets of X (`Show: T`, `Check: T`, `Text: T = …`) | `defineElement('X', { name: locator })`         | step definitions                |
+| `Enable`, `Check`, … of X itself (bare)             | `defineElement('X', self, { name: locator }?)`  | step definitions                |
+| `When: X`                                           | `defineCondition('X', async ({ page }) => {…})` | `Given` steps                   |
+| `Background: X`, `And when: X`                      | `defineCondition('X', …)` (the same conditions) | `Background:` / `And` steps     |
 
 Definition files are the files matched by the `definitions` option of
 [`defineSanmaimeConfig()`](./config.md). They may also register **hooks** —
@@ -83,10 +83,13 @@ value ignored, so `open: ({ page }) => page.goto('/users/me')` works as is.
 
 Binds `Element: <name>`.
 
-- `targets` maps the target names used in `Show:` / `Hide:` / `And:` to locator functions
-  `(fixtures) => Locator`. Target names are the exact names written in Sanmaime.
-- `self` locates the Element itself. `Enable` and `Disable` apply to the Element itself
-  ([sanmaime.md §5](./sanmaime.md)), so an Element that uses them needs the second form.
+- `targets` maps the target names used in `Show:` / `Hide:` / `And:`, in the value keywords
+  (`Text: T = "…"`, `Count: T = 3`) and in state keywords with a target (`Check: T`) to locator
+  functions `(fixtures) => Locator`. Target names are the exact names written in Sanmaime.
+- `self` locates the Element itself. A state keyword alone on its line (`Enable`, `Disable`,
+  `Check`, `Uncheck`, `Focus`, `Editable`, `ReadOnly`, `Empty`) applies to the Element itself
+  ([sanmaime.md §5](./sanmaime.md), [expectations.md](./expectations.md)), so an Element that
+  uses one needs the second form. For `Count:`, the target's locator may match several elements.
 
 At least one of `self` or a target must be given. Locator functions are synchronous and only build
 a Playwright `Locator`; they must not perform actions.
@@ -178,8 +181,9 @@ definitions. Internally (`src/gen/`), for each config registered with `defineSan
    reported and not matched or generated.
 4. **Matching.** Names are matched **exactly, after trimming surrounding whitespace** on both sides
    (case-sensitive; no fuzzy matching): `Screen:` against `defineScreen`, `Element:` against
-   `defineElement`, `Show:` / `Hide:` / `And:` targets against the element's target names,
-   `Enable` / `Disable` against the element's `self` locator, and `When:` against
+   `defineElement`, the targets of every expectation (`Show:`, `Text:`, `Check: T`, …) against the
+   element's target names, bare state keywords (`Enable`, `Check`, …) against the element's `self`
+   locator, and `When:` against
    `defineCondition` (scoped to the screen first, then global).
 
 Missing definitions are collected rather than failing on the first one:
@@ -188,8 +192,8 @@ Missing definitions are collected rather than failing on the first one:
 | ----------- | ------------------------------------------------------------------------ | -------- |
 | `screen`    | no `defineScreen` for a `Screen:` name                                   | info     |
 | `element`   | no `defineElement` for an `Element:` name                                | error    |
-| `target`    | the element is defined but has no locator for a `Show:` / `Hide:` target | error    |
-| `self`      | the element is defined without `self` but uses `Enable` / `Disable`      | error    |
+| `target`    | the element is defined but has no locator for a target of an expectation | error    |
+| `self`      | the element is defined without `self` but uses a bare state keyword      | error    |
 | `condition` | no screen-scoped or global `defineCondition` for a `When:` name          | error    |
 
 A missing screen definition is only informational: a screen without `open` is allowed (a hook or

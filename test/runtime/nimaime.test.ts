@@ -44,14 +44,25 @@ function harness(): Harness {
       events.push(`step ${title}`);
       await body();
     },
-    assert(kind: ExpectationKind, locator: Locator) {
+    assert(kind: ExpectationKind, locator: Locator, value?: string | number) {
       const { testId } = locator as unknown as FakeLocator;
-      events.push(`assert ${kind} ${testId}`);
+      events.push(
+        `assert ${kind} ${testId}${value === undefined ? '' : ` ${JSON.stringify(value)}`}`,
+      );
       return failing.has(testId)
         ? Promise.reject(new Error(`expect(locator) failed for ${testId}`))
         : Promise.resolve();
     },
-    probe: (kind) => Promise.resolve(kind === 'show' ? 'hidden' : 'enabled'),
+    probe: (kind) =>
+      Promise.resolve(
+        kind === 'show'
+          ? 'hidden'
+          : kind === 'text'
+            ? 'text "Hello"'
+            : kind === 'count'
+              ? '2'
+              : 'enabled',
+      ),
     specFile: '/app/.sanmaime-gen/specs/login.sanmaime.spec.ts',
     cwd: '/app',
   };
@@ -348,5 +359,98 @@ describe('low-level methods', () => {
       /"Hide:" of element "User Information" needs a target name/,
     );
     expect(h.events).toEqual([]);
+  });
+});
+
+describe('$nimaime: expectation vocabulary v1 (v0.3)', () => {
+  it('checks every kind through the table, on a target or on the element itself', async () => {
+    const h = harness();
+    const expectations: NimaimePlan['expectations'] = [
+      { kind: 'check' },
+      { kind: 'uncheck', target: 'Spinner' },
+      { kind: 'text', target: 'Spinner', value: 'Loading "all"' },
+      { kind: 'contain', target: 'Spinner', value: 'Load' },
+      { kind: 'count', target: 'Spinner', value: 0 },
+      { kind: 'readonly' },
+      { kind: 'enable', target: 'Spinner' },
+    ];
+    await h.nimaime.run(h.fixtures, { screen: 'Login', element: 'Login Button', expectations });
+    expect(h.events.filter((e) => e.startsWith('assert'))).toEqual([
+      'assert check button',
+      'assert uncheck spinner',
+      'assert text spinner "Loading \\"all\\""',
+      'assert contain spinner "Load"',
+      'assert count spinner 0',
+      'assert readonly button',
+      'assert enable spinner',
+    ]);
+    expect(h.steps.map((s) => s.title).slice(1)).toEqual([
+      'Check',
+      'Uncheck: Spinner',
+      'Text: Spinner = "Loading \\"all\\""',
+      'Contain: Spinner = "Load"',
+      'Count: Spinner = 0',
+      'ReadOnly',
+      'Enable: Spinner',
+    ]);
+  });
+
+  it('phrases a failed Text: in the Sanmaime header', async () => {
+    const h = harness();
+    h.failing.add('spinner');
+    const error = await h.nimaime
+      .check(
+        h.fixtures,
+        'Login Button',
+        { kind: 'text', target: 'Spinner', value: 'Welcome', location: { line: 7, column: 5 } },
+        { screen: 'Login', file: '../../specs/login.sanmaime' },
+      )
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NimaimeExpectationError);
+    const failure = error as NimaimeExpectationError;
+    expect(failure.message.split('\n').slice(0, 5)).toEqual([
+      'Screen: Login',
+      'Element: Login Button',
+      'Expected: Spinner has text "Welcome"',
+      'Actual: text "Hello"',
+      'Location: specs/login.sanmaime:7',
+    ]);
+    expect(failure.toJSON().expectation).toEqual({
+      kind: 'text',
+      target: 'Spinner',
+      value: 'Welcome',
+    });
+    expect(failure.stack?.split('\n    at ')[1]).toBe(
+      'Text: Spinner = "Welcome" (/app/specs/login.sanmaime:7:5)',
+    );
+  });
+
+  it('rejects expectations without the target or value their kind takes', async () => {
+    const h = harness();
+    const check = (expectation: NimaimePlan['expectations'][number]): Promise<void> =>
+      h.nimaime.check(h.fixtures, 'Login Button', expectation);
+    await expect(check({ kind: 'count', value: 1 })).rejects.toThrow(
+      '"Count:" of element "Login Button" needs a target name.',
+    );
+    await expect(check({ kind: 'count', target: 'Spinner', value: '1' })).rejects.toThrow(
+      '"Count:" of element "Login Button" needs a whole number value.',
+    );
+    await expect(check({ kind: 'text', target: 'Spinner' })).rejects.toThrow(
+      '"Text:" of element "Login Button" needs a text value.',
+    );
+    await expect(check({ kind: 'visible' as ExpectationKind, target: 'Spinner' })).rejects.toThrow(
+      'Unknown expectation kind "visible" for element "Login Button".',
+    );
+    await expect(
+      h.nimaime.run(h.fixtures, {
+        screen: 'Login',
+        element: 'Login Button',
+        expectations: [{ kind: 'contain', target: 'Spinner', location: { line: 3, column: 5 } }],
+        file: 'specs/login.sanmaime',
+      }),
+    ).rejects.toThrow(
+      '"Contain:" of element "Login Button" needs a text value.\nLocation: specs/login.sanmaime:3',
+    );
+    expect(h.events.filter((e) => e.startsWith('assert'))).toEqual([]);
   });
 });

@@ -69,12 +69,22 @@ The reporter reads what the generated specs and the [runtime](./runtime.md) put 
   `C and D`, falling back to the test title `When: C and D` when not all of them ran), and one
   step per expectation, printed as:
 
-  | Step      | Printed as    |
-  | --------- | ------------- |
-  | `Show: T` | `T is shown`  |
-  | `Hide: T` | `T is hidden` |
-  | `Enable`  | `enabled`     |
-  | `Disable` | `disabled`    |
+  | Step               | Printed as            |
+  | ------------------ | --------------------- |
+  | `Show: T`          | `T is shown`          |
+  | `Hide: T`          | `T is hidden`         |
+  | `Enable`           | `enabled`             |
+  | `Disable`          | `disabled`            |
+  | `Check: T` (v0.3)  | `T is checked`        |
+  | `ReadOnly` (v0.3)  | `read-only`           |
+  | `Text: T = "x"`    | `T has text "x"`      |
+  | `Contain: T = "x"` | `T contains text "x"` |
+  | `Count: T = 3`     | `Count of T is 3`     |
+
+  That is, every expectation is printed as the `Expected:` line of its failure would read it
+  (`describeExpected` of the vocabulary table; every kind is listed in
+  [expectations.md](./expectations.md)). Step titles are parsed with `parseExpectationTitle()`
+  from `nimaime-han/runtime`.
 
 - **Failures**: the message of a failed expectation starts with the Sanmaime header
   (`Screen:` / `Element:` / `When:` / `Expected:` / `Actual:` / `Location:`, then `Details:`; see

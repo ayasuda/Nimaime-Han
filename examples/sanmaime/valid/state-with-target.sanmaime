@@ -1,0 +1,19 @@
+# State keywords with a target (v0.3): "Check: Remember me" is about the target "Remember me" of
+# the element, "Check" alone about the element itself. Enable / Disable accept a target too.
+Screen: Login
+
+  Element: Login Form
+    Show: Remember me
+    Editable: Email address
+
+    When: The form is empty
+    Uncheck: Remember me
+    Empty: Email address
+    Disable: Login button
+    Focus: Email address
+
+    When: Input is valid
+    Enable: Login button
+
+    When: Remembered
+    Check: Remember me

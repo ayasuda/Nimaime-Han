@@ -4,6 +4,8 @@
  * Every node carries a 1-based `location` pointing at the first non-whitespace character of the
  * line that introduced it. Columns count Unicode code points; a tab counts as one column.
  */
+import type { StateKind } from '../runtime/expectations';
+import type { StateKeyword } from './tokens';
 
 /** A 1-based source position. */
 export interface Location {
@@ -135,12 +137,40 @@ export interface VisibilityExpectation {
   location: Location;
 }
 
-/** `Enable` / `Disable` — a state expectation about the element itself. */
+/**
+ * A state keyword: `Enable`, `Disable`, `Check`, `Uncheck`, `Focus`, `Editable`, `ReadOnly`,
+ * `Empty` (v0.3 for all but the first two). Alone on its line it is about the element itself;
+ * with a colon (`Check: Remember me`, v0.3) it is about a target of the element.
+ */
 export interface StateExpectation {
-  kind: 'enable' | 'disable';
+  kind: StateKind;
   /** Canonical (English) keyword, whatever the file's language. */
-  keyword: 'Enable' | 'Disable';
+  keyword: StateKeyword;
+  /** The target, for `Check: <target>`; absent for the bare keyword (the element itself). */
+  target?: string;
   location: Location;
 }
 
-export type Expectation = VisibilityExpectation | StateExpectation;
+/**
+ * A value keyword (v0.3): `Text: <target> = "<text>"`, `Contain: <target> = "<text>"` (a string
+ * value) or `Count: <target> = <number>` (a number value).
+ */
+export type ValueExpectation =
+  | {
+      kind: 'text' | 'contain';
+      keyword: 'Text' | 'Contain';
+      target: string;
+      /** The text, unquoted and unescaped. */
+      value: string;
+      location: Location;
+    }
+  | {
+      kind: 'count';
+      keyword: 'Count';
+      target: string;
+      value: number;
+      location: Location;
+    };
+
+/** One expectation line. `kind` identifies the keyword (see `EXPECTATIONS`, docs/expectations.md). */
+export type Expectation = VisibilityExpectation | StateExpectation | ValueExpectation;

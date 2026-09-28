@@ -94,6 +94,48 @@ describe('NimaimeReporter', () => {
     );
   });
 
+  it('phrases the expectations of vocabulary v1 like the Expected: line', () => {
+    const settings = fakeTest({
+      path: ['Screen: Settings', 'Element: Newsletter', 'Always'],
+      status: 'failed',
+      steps: [
+        step('Check'),
+        step('Uncheck: Promotions'),
+        step('Focus: Email'),
+        step('ReadOnly'),
+        step('Empty: Notes'),
+        step('Contain: Summary = "a = b"'),
+        step('Count: Items = 3'),
+        step('Text: Title = "Say \\"hi\\""', {
+          error: sanmaimeError({
+            screen: 'Settings',
+            element: 'Newsletter',
+            expected: 'Title has text "Say \\"hi\\""',
+            actual: 'text "Hello"',
+            location: 'specs/settings.sanmaime:9',
+          }),
+        }),
+      ],
+      errors: [{ message: 'NimaimeExpectationError: …' }],
+    });
+    expect(report([settings])).toContain(
+      [
+        '  ✗ Element: Newsletter',
+        '    ✓ checked',
+        '    ✓ Promotions is not checked',
+        '    ✓ Email is focused',
+        '    ✓ read-only',
+        '    ✓ Notes is empty',
+        '    ✓ Summary contains text "a = b"',
+        '    ✓ Count of Items is 3',
+        '    ✗ Title has text "Say \\"hi\\""',
+        '      Expected: Title has text "Say \\"hi\\""',
+        '      Actual: text "Hello"',
+        '      Location: specs/settings.sanmaime:9',
+      ].join('\n'),
+    );
+  });
+
   it('prints unconditional expectations before When: blocks, Hide / Disable wording', () => {
     const always = fakeTest({
       path: ['Screen: Login', 'Element: Login Button', 'base state'],

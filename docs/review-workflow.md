@@ -205,6 +205,11 @@ What is compared:
   differs (`!`) when the target is visible.
 - **`Enable` / `Disable`** are compared when both sides state one. A draft states the state of an
   element only when the element is a single control, so a missing state is not a difference.
+- **Expectations a draft never proposes** — `Text:`, `Contain:`, `Count:`, `Check` / `Uncheck`,
+  `Focus`, `Editable` / `ReadOnly`, `Empty`, and state keywords with a target (`Enable: X`), see
+  [expectations.md](./expectations.md) — are listed as _not compared_
+  (`Element: Header > Text: Title = "Welcome"`), unless their element exists on one side only
+  (then they are listed with it).
 
 The command is the same as `nimaime draft` for opening the screen: the second argument is a URL, a
 local HTML file, or an observation saved with `--observation` (`.json`), and `--storage-state`,

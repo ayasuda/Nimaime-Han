@@ -14,9 +14,17 @@ import type {
   SanmaimeDocument,
   Screen,
   SpecStatus,
-  StateExpectation,
   Tag,
 } from './ast';
+import {
+  EXPECTATIONS,
+  kindOfKeyword,
+  parseValue,
+  splitTargetValue,
+  type ExpectationKind,
+  type ExpectationSpec,
+  type StateKind,
+} from '../runtime/expectations';
 import { type Diagnostic, DiagnosticCode, type Messages, createMessages } from './diagnostics';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, getLanguage } from './languages';
 import {
@@ -25,6 +33,7 @@ import {
   type KeywordTable,
   type LineToken,
   type NameKeywordToken,
+  type StateKeyword,
   classifyLine,
   isInsignificant,
   keywordTable,
@@ -83,7 +92,6 @@ interface Asserted {
 }
 
 interface StateAsserted extends Asserted {
-  keyword: StateExpectation['keyword'];
   /** The keyword as written, for messages. */
   text: string;
 }
@@ -92,8 +100,10 @@ interface BlockState {
   expectations: Expectation[];
   /** `undefined` for the element's unconditional block. */
   condition: ConditionBlock | undefined;
+  /** Facts about targets (§6 rule 1): `factKey()` -> first line. */
   targets: Map<string, Asserted>;
-  state: StateAsserted | undefined;
+  /** States of the element itself (§6 rule 2), by family (`enabled`, `checked`, …). */
+  states: Map<string, StateAsserted>;
   /** Kind of the open `Show:`/`Hide:` group that an `And:` may continue. */
   groupKind: 'show' | 'hide' | undefined;
   /**
@@ -275,7 +285,7 @@ class Parser {
           // E003: continue as the bare keyword.
           this.report(
             DiagnosticCode.BareKeywordWithArgument,
-            this.messages.bareKeywordWithArgument(token.text),
+            this.messages.bareKeywordWithArgument(token.text, token.argument),
             token.location,
           );
         }
@@ -301,9 +311,8 @@ class Parser {
       case 'AndWhen':
         this.andWhen(token);
         return;
-      case 'Show':
-      case 'Hide':
-      case 'And':
+      default:
+        // `Show:`, `Hide:`, `And:`, value keywords and state keywords with a target.
         this.expectation(token);
         return;
     }
@@ -537,17 +546,69 @@ class Parser {
     }
     this.closeConditions(element);
     const block = element.block;
-    if (token.type === 'bare-keyword') this.stateExpectation(token, element, block);
-    else this.visibilityExpectation(token, element, block);
+    if (token.type === 'bare-keyword') {
+      this.stateExpectation(token, undefined, element, block);
+      return;
+    }
+    if (token.keyword === 'And') {
+      this.visibilityExpectation(token, 'And', element, block);
+      return;
+    }
+    const kind = kindOfKeyword(token.keyword);
+    if (kind === undefined) return; // unreachable: structure keywords are handled elsewhere
+    switch (EXPECTATIONS[kind].arity) {
+      case 'target':
+        this.visibilityExpectation(token, token.keyword as 'Show' | 'Hide', element, block);
+        return;
+      case 'optional-target':
+        this.stateExpectation(token, token.name, element, block);
+        return;
+      case 'target-value':
+        this.valueExpectation(token, kind, element, block);
+        return;
+    }
+  }
+
+  /**
+   * §6 rules 1 and 3 for a fact about `target` (skipped for an empty target, already `E002`):
+   * E014 when the block already states it, else E016 when the unconditional block does.
+   */
+  private checkTargetFact(
+    key: string,
+    target: string,
+    location: Location,
+    element: ElementState,
+    block: BlockState,
+  ): void {
+    if (target === '') return;
+    const inBlock = block.targets.get(key);
+    if (inBlock) {
+      this.report(
+        DiagnosticCode.DuplicateTarget,
+        this.messages.duplicateTarget(target, inBlock.line),
+        location,
+      );
+      return;
+    }
+    block.targets.set(key, { line: location.line });
+    const unconditional = block.condition ? element.unconditional.targets.get(key) : undefined;
+    if (unconditional) {
+      this.report(
+        DiagnosticCode.ConflictsWithUnconditional,
+        this.messages.conflictsWithUnconditional(target, element.node.name, unconditional.line),
+        location,
+      );
+    }
   }
 
   private visibilityExpectation(
     token: NameKeywordToken,
+    keyword: 'Show' | 'Hide' | 'And',
     element: ElementState,
     block: BlockState,
   ): void {
     let kind: 'show' | 'hide';
-    if (token.keyword === 'And') {
+    if (keyword === 'And') {
       if (block.groupKind === undefined) {
         // E007: ignore the line.
         this.report(DiagnosticCode.DanglingAnd, this.messages.danglingAnd(), token.location);
@@ -555,33 +616,11 @@ class Parser {
       }
       kind = block.groupKind;
     } else {
-      kind = token.keyword === 'Show' ? 'show' : 'hide';
+      kind = keyword === 'Show' ? 'show' : 'hide';
       block.groupKind = kind;
     }
-    const keyword = token.keyword as 'Show' | 'Hide' | 'And';
     const target = token.name;
-
-    if (target !== '') {
-      const inBlock = block.targets.get(target);
-      const unconditional = block.condition ? element.unconditional.targets.get(target) : undefined;
-      if (inBlock) {
-        this.report(
-          DiagnosticCode.DuplicateTarget,
-          this.messages.duplicateTarget(target, inBlock.line),
-          token.location,
-        );
-      } else {
-        block.targets.set(target, { line: token.location.line });
-        if (unconditional) {
-          this.report(
-            DiagnosticCode.ConflictsWithUnconditional,
-            this.messages.conflictsWithUnconditional(target, element.node.name, unconditional.line),
-            token.location,
-          );
-        }
-      }
-    }
-
+    this.checkTargetFact(factKey(kind, target), target, token.location, element, block);
     block.expectations.push({
       kind,
       target,
@@ -591,22 +630,35 @@ class Parser {
     });
   }
 
+  /**
+   * A state keyword: bare (`target` undefined: the element itself, §6 rule 2) or with a target
+   * (`Check: X`, a fact about `X`, §6 rule 1).
+   */
   private stateExpectation(
-    token: BareKeywordToken,
+    token: NameKeywordToken | BareKeywordToken,
+    target: string | undefined,
     element: ElementState,
     block: BlockState,
   ): void {
     block.groupKind = undefined;
-    const keyword = token.keyword;
-    if (block.state) {
+    const keyword = token.keyword as StateKeyword;
+    const kind = kindOfKeyword(keyword) as StateKind;
+    if (target !== undefined) {
+      this.checkTargetFact(factKey(kind, target), target, token.location, element, block);
+      block.expectations.push({ kind, keyword, target, location: token.location });
+      return;
+    }
+    const family = EXPECTATIONS[kind].family;
+    const first = block.states.get(family);
+    if (first) {
       this.report(
         DiagnosticCode.DuplicateState,
-        this.messages.duplicateState(block.state.text, block.state.line),
+        this.messages.duplicateState(first.text, first.line),
         token.location,
       );
     } else {
-      block.state = { keyword, text: token.text, line: token.location.line };
-      const unconditional = block.condition ? element.unconditional.state : undefined;
+      block.states.set(family, { text: token.text, line: token.location.line });
+      const unconditional = block.condition ? element.unconditional.states.get(family) : undefined;
       if (unconditional) {
         this.report(
           DiagnosticCode.ConflictsWithUnconditional,
@@ -620,11 +672,68 @@ class Parser {
         );
       }
     }
-    block.expectations.push({
-      kind: keyword === 'Enable' ? 'enable' : 'disable',
-      keyword,
-      location: token.location,
-    });
+    block.expectations.push({ kind, keyword, location: token.location });
+  }
+
+  /** `Text: <target> = "<text>"`, `Contain: …`, `Count: <target> = <number>` (v0.3). */
+  private valueExpectation(
+    token: NameKeywordToken,
+    kind: ExpectationKind,
+    element: ElementState,
+    block: BlockState,
+  ): void {
+    block.groupKind = undefined;
+    const spec: ExpectationSpec = EXPECTATIONS[kind];
+    const type = spec.valueType ?? 'text';
+    const fallback = type === 'int' ? 0 : '';
+    let target = '';
+    let value: string | number = fallback;
+    // Duplicate checks are skipped after E026 / E027, like after E002 (§7.3).
+    let valid = token.name !== '';
+    if (token.name !== '') {
+      const split = splitTargetValue(token.name);
+      if (!split) {
+        // E026: keep the expectation (the whole argument as its target) and continue.
+        target = token.name;
+        valid = false;
+        this.report(
+          DiagnosticCode.MissingValue,
+          this.messages.missingValue(token.text, target, type),
+          token.location,
+        );
+      } else {
+        target = split.target;
+        if (target === '') {
+          this.report(
+            DiagnosticCode.MissingName,
+            this.messages.missingName(token.text),
+            token.location,
+          );
+        }
+        const parsed = parseValue(type, split.value);
+        if (parsed === undefined) {
+          valid = false;
+          this.report(
+            DiagnosticCode.InvalidValue,
+            this.messages.invalidValue(token.text, split.value, type),
+            token.location,
+          );
+        } else {
+          value = parsed;
+        }
+      }
+    }
+    if (valid) {
+      const key = factKey(kind, target, kind === 'contain' ? value : undefined);
+      this.checkTargetFact(key, target, token.location, element, block);
+    }
+    const location = token.location;
+    if (kind === 'count') {
+      block.expectations.push({ kind, keyword: 'Count', target, value: Number(value), location });
+    } else if (kind === 'text' || kind === 'contain') {
+      const keyword = kind === 'text' ? 'Text' : 'Contain';
+      block.expectations.push({ kind, keyword, target, value: String(value), location });
+    }
   }
 
   // --- end of constructs ------------------------------------------------------------------------
@@ -689,10 +798,20 @@ function newBlock(expectations: Expectation[], condition: ConditionBlock | undef
     expectations,
     condition,
     targets: new Map(),
-    state: undefined,
+    states: new Map(),
     groupKind: undefined,
     chainOpen: false,
   };
+}
+
+/**
+ * The identity of a fact about a target (§6): its family and target, plus the value for
+ * `Contain:` (two different texts contained are two facts).
+ */
+function factKey(kind: ExpectationKind, target: string, value?: string | number): string {
+  const parts = [EXPECTATIONS[kind].family, target];
+  if (value !== undefined) parts.push(String(value));
+  return parts.join('\u0000');
 }
 
 function escapeRegExp(text: string): string {

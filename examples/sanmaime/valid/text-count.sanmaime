@@ -1,0 +1,19 @@
+# Value expectations (v0.3): Text:, Contain: and Count: take a target, " = " and a value.
+# A text is written in double quotes (\" for a quote, \\ for a backslash); a count is a whole number.
+# The first " = " separates the target from the value, so a text may contain " = ".
+Screen: Search Results
+
+  Element: Header
+    Show: Title
+    Text: Title = "Search results"
+    Contain: Summary = "results for"
+    Contain: Summary = "Tokyo"
+
+  Element: Result List
+    Count: Results = 0
+    Text: Formula = "a = b"
+    Text: Quote = "She said \"hi\" \\ bye"
+
+    When: Searching for "Tokyo"
+    Count: Result items = 3
+    Contain: First result = "Tokyo"

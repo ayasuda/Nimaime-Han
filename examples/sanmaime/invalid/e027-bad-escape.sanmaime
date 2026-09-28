@@ -1,0 +1,7 @@
+# expect: SANMAIME_E027
+# at: 7:5
+# Inside a text, only \" (a quote) and \\ (a backslash) are escapes; an unescaped quote ends the
+# text too early.
+Screen: Welcome
+  Element: Header
+    Text: Title = "Say "hi""

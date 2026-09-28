@@ -510,6 +510,50 @@ Disable
     await expectPrettier(result.content, 'double');
   });
 
+  it('generates the expectation vocabulary v1: targets, values, bare and targeted states (v0.3)', async () => {
+    const { defineScreen, defineElement, defineCondition } = createNimaime();
+    defineScreen('Settings', { open: ({ page }) => page.goto('/settings') });
+    defineElement('Newsletter', ({ page }) => page.getByRole('checkbox'), {
+      Title: ({ page }) => page.getByRole('heading'),
+      Items: ({ page }) => page.getByRole('listitem'),
+      'Remember me': ({ page }) => page.getByLabel('Remember me'),
+    });
+    defineCondition('The user subscribed', async ({ page }) => {
+      await page.getByRole('checkbox').check();
+    });
+    const long = 'A rather long welcome text that does not fit on one line of the generated plan';
+    const doc = resolve(
+      `Screen: Settings
+  Element: Newsletter
+    Text: Title = "Say \\"hi\\" \\\\ it's me"
+    Enable
+    Check: Remember me
+
+    When: The user subscribed
+    Check
+    Contain: Title = "${long}"
+    Count: Items = 3
+`,
+      'specs/settings.sanmaime',
+    );
+    expect(doc.screens[0]?.elements[0]?.unconditional).toMatchObject([
+      { kind: 'text', target: 'Title', value: `Say "hi" \\ it's me`, targetDefined: true },
+      { kind: 'enable', selfDefined: true },
+      { kind: 'check', target: 'Remember me', targetDefined: true },
+    ]);
+    const result = generateSpecFile(doc, baseOptions);
+    expect(result.content).toContain(
+      `{ kind: 'count', target: 'Items', value: 3, location: { line: 10, column: 5 } },`,
+    );
+    expect(result.content).toContain(`{ kind: 'enable', location: { line: 4, column: 5 } },`);
+    await expect(result.content).toMatchFileSnapshot(
+      path.join(snapshots, 'vocabulary-v1.spec.ts.snap'),
+    );
+    await expectPrettier(result.content, 'single');
+    const double = generateSpecFile(doc, { ...baseOptions, quotes: 'double' });
+    await expectPrettier(double.content, 'double');
+  });
+
   it('uses the defined names in plans (names are matched after trim())', async () => {
     const { defineElement, defineCondition } = createNimaime();
     defineElement(' Login Form ', { ' Password': locator });

@@ -1,0 +1,6 @@
+# expect: SANMAIME_E027
+# at: 6:5
+# The value of Count: is a whole number (0 or more).
+Screen: Cart
+  Element: Cart List
+    Count: Items = three

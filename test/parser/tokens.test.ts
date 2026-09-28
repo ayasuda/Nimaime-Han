@@ -41,6 +41,7 @@ describe('classifyLine', () => {
       keyword: 'Enable',
       text: 'Enable',
       hasArgument: false,
+      argument: '',
       location: { line: 3, column: 2 },
     });
     expect(classifyLine('\t\tShow: X', 1).location).toEqual({ line: 1, column: 3 });
@@ -89,11 +90,51 @@ describe('classifyLine', () => {
 
   it('classifies bare keywords and bare keywords with an argument (E003)', () => {
     expect(classifyLine('Disable', 1)).toMatchObject({ type: 'bare-keyword', hasArgument: false });
-    for (const text of ['Enable:', 'Enable: X', 'Enable X', 'Disable\tX', 'Disable :']) {
-      expect(classifyLine(text, 1)).toMatchObject({ type: 'bare-keyword', hasArgument: true });
+    for (const [text, argument] of [
+      ['Enable X', 'X'],
+      ['Disable\tX', 'X'],
+      ['Disable :', ':'],
+      ['Check  Remember me ', 'Remember me'],
+    ]) {
+      expect(classifyLine(text ?? '', 1)).toMatchObject({
+        type: 'bare-keyword',
+        hasArgument: true,
+        argument,
+      });
     }
     expect(classifyLine('Enabled', 1).type).toBe('unknown');
     expect(classifyLine('enable', 1).type).toBe('unknown');
+    expect(classifyLine('Checkout: X', 1).type).toBe('unknown');
+  });
+
+  it('classifies state keywords with a colon as name keywords (a target, v0.3)', () => {
+    expect(classifyLine('Enable: Login button', 1)).toMatchObject({
+      type: 'name-keyword',
+      keyword: 'Enable',
+      name: 'Login button',
+    });
+    expect(classifyLine('ReadOnly:', 1)).toMatchObject({
+      type: 'name-keyword',
+      keyword: 'ReadOnly',
+      name: '',
+    });
+    for (const keyword of ['Check', 'Uncheck', 'Focus', 'Editable', 'ReadOnly', 'Empty']) {
+      expect(classifyLine(keyword, 1)).toMatchObject({ type: 'bare-keyword', keyword });
+      expect(classifyLine(`${keyword}: X`, 1)).toMatchObject({ type: 'name-keyword', keyword });
+    }
+  });
+
+  it('classifies value keywords as name keywords whose name holds the whole argument', () => {
+    expect(classifyLine('Text: Title = "Welcome"', 1)).toMatchObject({
+      type: 'name-keyword',
+      keyword: 'Text',
+      name: 'Title = "Welcome"',
+    });
+    expect(classifyLine('Count:Items = 3', 1)).toMatchObject({ keyword: 'Count' });
+    expect(classifyLine('Contain: A', 1)).toMatchObject({ keyword: 'Contain', name: 'A' });
+    // No bare form.
+    expect(classifyLine('Text', 1).type).toBe('unknown');
+    expect(classifyLine('Count Items = 3', 1).type).toBe('unknown');
   });
 
   it('is case-sensitive and requires the colon', () => {

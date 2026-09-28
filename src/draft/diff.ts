@@ -4,13 +4,16 @@
  *
  * Only what one observation can tell is compared: the expectations an element states outside
  * `When:` blocks. Screens and elements are matched by name (exactly), targets by name within an
- * element; `Enable` / `Disable` are compared when both sides state one. `When:` blocks cannot be
- * observed; they are listed as "not compared", and a target that one side states only inside a
- * `When:` block is not reported as missing on the other side. A draft only proposes what is
- * visible, so a `Hide:` of the spec agrees with a target the draft does not mention.
+ * element; `Enable` / `Disable` (of the element itself) are compared when both sides state one.
+ * `When:` blocks cannot be observed; they are listed as "not compared", and a target that one side
+ * states only inside a `When:` block is not reported as missing on the other side. A draft only
+ * proposes what is visible, so a `Hide:` of the spec agrees with a target the draft does not
+ * mention. Likewise, expectations a draft never proposes (`Text:`, `Count:`, `Check`, a state
+ * keyword with a target, … — docs/expectations.md) are listed as "not compared".
  */
 import { LANGUAGES } from '../parser';
 import type { Element, Expectation, SanmaimeDocument, Screen } from '../parser';
+import { EXPECTATIONS, formatValue, type ExpectationValue } from '../runtime/expectations';
 
 export type ExpectationKind = Expectation['kind'];
 
@@ -24,8 +27,10 @@ export interface ExpectationDiff {
   change: ExpectationChange;
   /** The kind in the spec (in the other document for `added`). */
   kind: ExpectationKind;
-  /** The target of `show` / `hide`. */
+  /** The target (absent for a state of the element itself: `Enable`). */
   target?: string;
+  /** The value of `text` / `contain` / `count`. */
+  value?: ExpectationValue;
   /** For `changed`: the kind in the other document. */
   otherKind?: ExpectationKind;
 }
@@ -40,12 +45,37 @@ export interface ElementDiff {
   expectations: ExpectationDiff[];
 }
 
-/** A `When:` block (or an element with nothing but `When:` blocks) that was not compared. */
+/**
+ * Something that was not compared: a `When:` block (`condition`), or an expectation outside
+ * `When:` blocks that an observation cannot tell (`expectation`, e.g. `Text: Title = "Welcome"`).
+ */
 export interface NotCompared {
   /** `spec` or `other`: which document it is in. */
   side: 'spec' | 'other';
   element: string;
-  condition: string;
+  /** The block's `When:` name. */
+  condition?: string;
+  /** The expectation (outside `When:` blocks), for kinds a draft never proposes. */
+  expectation?: { kind: ExpectationKind; target?: string; value?: ExpectationValue };
+}
+
+/** Whether an observation can tell `e`: `Show:` / `Hide:`, and bare `Enable` / `Disable`. */
+function comparable(e: Expectation): boolean {
+  if (e.kind === 'show' || e.kind === 'hide') return true;
+  return (e.kind === 'enable' || e.kind === 'disable') && e.target === undefined;
+}
+
+/** `kind`, `target` and `value` of an expectation, without the absent ones. */
+function describe(e: Expectation): {
+  kind: ExpectationKind;
+  target?: string;
+  value?: ExpectationValue;
+} {
+  return {
+    kind: e.kind,
+    ...(e.target === undefined ? {} : { target: e.target.trim() }),
+    ...('value' in e ? { value: e.value } : {}),
+  };
 }
 
 export interface ScreenDiff {
@@ -84,7 +114,9 @@ function sideOf(element: Element | undefined): Side {
   if (!element) return side;
   for (const e of element.unconditional) {
     if (e.kind === 'show' || e.kind === 'hide') side.targets.set(e.target.trim(), e.kind);
-    else side.state = e.kind;
+    else if ((e.kind === 'enable' || e.kind === 'disable') && e.target === undefined) {
+      side.state = e.kind;
+    }
   }
   for (const block of element.conditions) {
     for (const e of block.expectations) {
@@ -95,11 +127,7 @@ function sideOf(element: Element | undefined): Side {
 }
 
 function listed(element: Element, change: 'removed' | 'added'): ExpectationDiff[] {
-  return element.unconditional.map((e) =>
-    e.kind === 'show' || e.kind === 'hide'
-      ? { change, kind: e.kind, target: e.target.trim() }
-      : { change, kind: e.kind },
-  );
+  return element.unconditional.map((e) => ({ change, ...describe(e) }));
 }
 
 function compareElements(spec: Element, other: Element): ExpectationDiff[] {
@@ -132,6 +160,13 @@ function notComparedOf(element: Element, side: 'spec' | 'other'): NotCompared[] 
   return element.conditions.map((c) => ({ side, element: element.name, condition: c.name }));
 }
 
+/** The expectations outside `When:` blocks of a matched element that cannot be compared. */
+function uncomparableOf(element: Element, side: 'spec' | 'other'): NotCompared[] {
+  return element.unconditional
+    .filter((e) => !comparable(e))
+    .map((e) => ({ side, element: element.name, expectation: describe(e) }));
+}
+
 const byName = <T extends { name: string }>(items: readonly T[]): Map<string, T> =>
   new Map(items.map((item) => [item.name.trim(), item] as const));
 
@@ -144,8 +179,9 @@ function diffScreen(spec: Screen, other: Screen): { diff: ScreenDiff; counts: Di
     diff.notCompared.push(...notComparedOf(element, 'spec'));
     const match = others.get(element.name.trim());
     if (match) {
+      diff.notCompared.push(...uncomparableOf(element, 'spec'), ...uncomparableOf(match, 'other'));
       const expectations = compareElements(element, match);
-      if (element.unconditional.length === 0 && expectations.length === 0) continue;
+      if (!element.unconditional.some(comparable) && expectations.length === 0) continue;
       counts.expectations += expectations.filter((e) => e.change !== 'same').length;
       diff.elements.push({ name: element.name, change: 'matched', expectations });
     } else if (element.unconditional.length > 0) {
@@ -268,8 +304,16 @@ export function formatDiff(diff: SanmaimeDiff, options: FormatDiffOptions): stri
     removed: `in spec, ${notInOther}`,
     added: `${inOther}, not in spec`,
   };
-  const expectationText = (kind: ExpectationKind, target: string | undefined): string =>
-    target === undefined ? kw(kind) : `${kw(kind)}: ${target}`;
+  const keyword = (kind: ExpectationKind): string => kw(EXPECTATIONS[kind].slot);
+  const expectationText = (
+    kind: ExpectationKind,
+    target: string | undefined,
+    value?: ExpectationValue,
+  ): string => {
+    if (target === undefined) return keyword(kind);
+    const text = `${keyword(kind)}: ${target}`;
+    return value === undefined ? text : `${text} = ${formatValue(value)}`;
+  };
 
   // Annotations of elements and expectations are aligned in one column; the screen line's is not.
   interface Row {
@@ -298,10 +342,10 @@ export function formatDiff(diff: SanmaimeDiff, options: FormatDiffOptions): stri
             : annotation[element.change],
       });
       for (const e of element.expectations) {
-        const text = `    ${MARKS[e.change]} ${expectationText(e.kind, e.target)}`;
+        const text = `    ${MARKS[e.change]} ${expectationText(e.kind, e.target, e.value)}`;
         let note: string | undefined;
         if (e.change === 'changed' && e.otherKind !== undefined) {
-          note = `in spec; ${word}: ${kw(e.otherKind)}`;
+          note = `in spec; ${word}: ${keyword(e.otherKind)}`;
         } else if (element.change === 'matched' && e.change !== 'same') {
           note = annotation[e.change === 'added' ? 'added' : 'removed'];
         }
@@ -310,12 +354,19 @@ export function formatDiff(diff: SanmaimeDiff, options: FormatDiffOptions): stri
     }
     if (screen.notCompared.length > 0) {
       rows.push({ text: '' });
+      const observable = [kw('show'), kw('hide'), kw('enable'), kw('disable')];
       rows.push({
-        text: `  Not compared (only expectations outside ${kw('when')}: blocks are compared):`,
+        text: screen.notCompared.some((n) => n.expectation !== undefined)
+          ? `  Not compared (only ${observable[0] ?? ''}:, ${observable[1] ?? ''}:, ${observable[2] ?? ''} and ${observable[3] ?? ''} outside ${kw('when')}: blocks are compared):`
+          : `  Not compared (only expectations outside ${kw('when')}: blocks are compared):`,
       });
       for (const n of screen.notCompared) {
+        const what =
+          n.expectation === undefined
+            ? `${kw('when')}: ${n.condition ?? ''}`
+            : expectationText(n.expectation.kind, n.expectation.target, n.expectation.value);
         rows.push({
-          text: `    ${kw('element')}: ${n.element} > ${kw('when')}: ${n.condition}`,
+          text: `    ${kw('element')}: ${n.element} > ${what}`,
           note: n.side === 'spec' ? undefined : inOther,
         });
       }

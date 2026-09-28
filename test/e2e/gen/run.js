@@ -5,7 +5,8 @@
 // definitions/hooks.ts run (they open the page and check their own order). Then checks tags:
 // `nimaime-gen export --tags @smoke` and `playwright test --grep @smoke` select exactly the tests
 // of specs/tagged.sanmaime. specs/background.sanmaime passes only if the Background: and
-// And when: conditions of definitions/background.ts run in order.
+// And when: conditions of definitions/background.ts run in order. specs/vocabulary.sanmaime uses
+// every keyword of the expectation vocabulary v1 (Text:, Count:, Check, Focus, …).
 //
 // Needs `npm run build` first (the npm script does it): the CLI and the `nimaime-han` imports of
 // the generated specs and definitions resolve to dist/.
@@ -40,6 +41,12 @@ const EXPECTED_PASSED = [
   'Screen: Composed Login > Element: Login Form > Always',
   'Screen: Composed Login > Element: Login Button > When: The order is checked',
   'Screen: Composed Login > Element: Login Button > When: The email is cleared and The order is checked',
+  'Screen: Preferences > Element: Preferences Form > Always',
+  'Screen: Preferences > Element: Preferences Form > When: The newsletter is chosen',
+  'Screen: Preferences > Element: Newsletter Checkbox > Always',
+  'Screen: Preferences > Element: Newsletter Checkbox > When: The newsletter is chosen',
+  'Screen: Preferences > Element: Email Field > Always',
+  'Screen: Preferences > Element: Email Field > When: The email field is clicked',
   ...TAGGED,
 ];
 const EXPECTED_FAILED = ['Screen: Login > Element: Login Button > When: Input is valid'];
@@ -75,7 +82,7 @@ process.stdout.write(gen.stdout);
 process.stderr.write(gen.stderr);
 check(gen.status === 0, 'nimaime-gen exits with 0');
 check(
-  /^Generated 6 spec files \(16 tests\) into /.test(gen.stdout),
+  /^Generated 7 spec files \(22 tests\) into /.test(gen.stdout),
   'nimaime-gen prints a summary',
 );
 for (const file of [
@@ -85,6 +92,7 @@ for (const file of [
   'failing/broken-on-purpose.spec.ts',
   'hooks.spec.ts',
   'background.spec.ts',
+  'vocabulary.spec.ts',
 ]) {
   const generated = path.join(outputDir, 'specs', file);
   check(
@@ -109,6 +117,15 @@ check(
   backgroundSpec.includes(`background: ['The order log is started', 'A valid email is typed'],`) &&
     backgroundSpec.includes(`conditions: ['The email is cleared', 'The order is checked'],`),
   'Background: and And when: are generated as background / conditions',
+);
+
+const vocabularySpec = fs.readFileSync(path.join(outputDir, 'specs', 'vocabulary.spec.ts'), 'utf8');
+check(
+  vocabularySpec.includes(`value: 'Preferences',`) &&
+    vocabularySpec.includes(`{ kind: 'count', target: 'Topics', value: 3, location:`) &&
+    vocabularySpec.includes(`{ kind: 'check', target: 'Remember me', location:`) &&
+    vocabularySpec.includes(`{ kind: 'focus', location:`),
+  'the vocabulary v1 is generated as kind / target / value',
 );
 
 console.log(`\nplaywright test -c ${config}`);
@@ -150,7 +167,7 @@ const json = JSON.parse(fs.readFileSync(report, 'utf8'));
 const tests = json.suites.flatMap((suite) => collect(suite));
 const passed = tests.filter((t) => t.status === 'passed');
 const failed = tests.filter((t) => t.status !== 'passed');
-check(tests.length === 16, `16 tests ran (got ${tests.length})`);
+check(tests.length === 22, `22 tests ran (got ${tests.length})`);
 check(
   JSON.stringify(passed.map((t) => t.title).sort()) === JSON.stringify([...EXPECTED_PASSED].sort()),
   `the expected tests passed: ${passed.map((t) => t.title).join(' | ')}`,

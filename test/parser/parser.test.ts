@@ -172,8 +172,11 @@ describe('parse: diagnostics', () => {
   });
 
   it('E003: treats the line as the bare keyword', () => {
-    const { document, diagnostics } = parse(lines('Screen: S', 'Element: E', 'Enable: now'));
+    const { document, diagnostics } = parse(lines('Screen: S', 'Element: E', 'Enable now'));
     expect(diagnostics.map((d) => d.code)).toEqual([DiagnosticCode.BareKeywordWithArgument]);
+    expect(diagnostics[0]?.message).toBe(
+      `'Enable' takes no argument without a colon. Write 'Enable' on its own line for the element itself, or 'Enable: now' for a target.`,
+    );
     expect(document.screens[0]?.elements[0]?.unconditional).toEqual([
       { kind: 'enable', keyword: 'Enable', location: { line: 3, column: 1 } },
     ]);
@@ -616,5 +619,144 @@ describe('formatDiagnostic', () => {
       `specs/login.sanmaime:7:5: error SANMAIME_E007: 'And:' must follow 'Show:', 'Hide:' or 'And:' in the same block.`,
     );
     expect(formatDiagnostic(diagnostic)).toMatch(/^7:5: error SANMAIME_E007: /);
+  });
+});
+
+describe('parse: expectation vocabulary v1 (v0.3)', () => {
+  const block = (...expectations: string[]): string =>
+    lines('Screen: S', 'Element: E', ...expectations);
+  const unconditional = (source: string): unknown =>
+    parse(source).document.screens[0]?.elements[0]?.unconditional;
+
+  it('parses Text:, Contain: and Count: into a target and a value', () => {
+    const source = block(
+      'Text: Title = "Welcome"',
+      'Contain: Summary = "a = b"',
+      'Count: Items = 3',
+      'Text: Quote = "Say \\"hi\\" \\\\ bye"',
+      'Text: Empty text = ""',
+      'Text:Tight=x = "="',
+    );
+    expect(parse(source).diagnostics).toEqual([]);
+    const at = (line: number): { line: number; column: number } => ({ line, column: 1 });
+    expect(unconditional(source)).toEqual([
+      { kind: 'text', keyword: 'Text', target: 'Title', value: 'Welcome', location: at(3) },
+      { kind: 'contain', keyword: 'Contain', target: 'Summary', value: 'a = b', location: at(4) },
+      { kind: 'count', keyword: 'Count', target: 'Items', value: 3, location: at(5) },
+      { kind: 'text', keyword: 'Text', target: 'Quote', value: 'Say "hi" \\ bye', location: at(6) },
+      { kind: 'text', keyword: 'Text', target: 'Empty text', value: '', location: at(7) },
+      { kind: 'text', keyword: 'Text', target: 'Tight=x', value: '=', location: at(8) },
+    ]);
+  });
+
+  it('parses state keywords alone (the element itself) and with a target', () => {
+    const source = block(
+      'Check',
+      'Focus: Email',
+      'Enable: Login button',
+      'ReadOnly',
+      'Empty: Notes',
+    );
+    expect(parse(source).diagnostics).toEqual([]);
+    expect(unconditional(source)).toEqual([
+      { kind: 'check', keyword: 'Check', location: { line: 3, column: 1 } },
+      { kind: 'focus', keyword: 'Focus', target: 'Email', location: { line: 4, column: 1 } },
+      {
+        kind: 'enable',
+        keyword: 'Enable',
+        target: 'Login button',
+        location: { line: 5, column: 1 },
+      },
+      { kind: 'readonly', keyword: 'ReadOnly', location: { line: 6, column: 1 } },
+      { kind: 'empty', keyword: 'Empty', target: 'Notes', location: { line: 7, column: 1 } },
+    ]);
+  });
+
+  it('E026: a value keyword without a standalone " = "', () => {
+    expect(codes(block('Text: Title'))).toEqual(['SANMAIME_E026@3:1']);
+    expect(codes(block('Count: Items=3'))).toEqual(['SANMAIME_E026@3:1']);
+    expect(parse(block('Count: Items')).diagnostics[0]?.message).toBe(
+      `'Count:' needs a value after ' = '. Write 'Count: Items = <number>' (with spaces around '=').`,
+    );
+  });
+
+  it('E027: a text that is not quoted, a bad escape, a count that is not a whole number', () => {
+    for (const line of [
+      'Text: T = Welcome',
+      'Text: T = "a" b',
+      'Text: T = "a\\nb"',
+      'Text: T = "unterminated',
+      'Contain: T = ',
+      'Contain: T =',
+      'Count: T = -1',
+      'Count: T = 1.5',
+      'Count: T = ３',
+      'Count: T = "3"',
+    ]) {
+      expect(codes(block(line)), line).toEqual(['SANMAIME_E027@3:1']);
+    }
+  });
+
+  it('E002: a value keyword or a state keyword with a colon but no target', () => {
+    expect(codes(block('Text:'))).toEqual(['SANMAIME_E002@3:1']);
+    expect(codes(block('Text: = "x"'))).toEqual(['SANMAIME_E002@3:1']);
+    expect(codes(block('Check:'))).toEqual(['SANMAIME_E002@3:1']);
+  });
+
+  it('E003: a state keyword with an argument but no colon', () => {
+    expect(codes(block('Check Remember me'))).toEqual(['SANMAIME_E003@3:1']);
+  });
+
+  it('E007: And: continues Show: / Hide: only', () => {
+    expect(codes(block('Show: A', 'Text: A = "x"', 'And: B'))).toEqual(['SANMAIME_E007@5:1']);
+    expect(codes(block('Check: A', 'And: B'))).toEqual(['SANMAIME_E007@4:1']);
+  });
+
+  it('E014: one fact per target and family in a block', () => {
+    // Different families about one target are fine.
+    expect(
+      codes(block('Show: A', 'Text: A = "x"', 'Contain: A = "x"', 'Check: A', 'Focus: A')),
+    ).toEqual([]);
+    // Two Contain: with different texts are two facts; the same text twice is a duplicate.
+    expect(codes(block('Contain: A = "x"', 'Contain: A = "y"'))).toEqual([]);
+    expect(codes(block('Contain: A = "x"', 'Contain: A = "x"'))).toEqual(['SANMAIME_E014@4:1']);
+    for (const pair of [
+      ['Show: A', 'Hide: A'],
+      ['Text: A = "x"', 'Text: A = "y"'],
+      ['Count: A = 1', 'Count: A = 1'],
+      ['Check: A', 'Uncheck: A'],
+      ['Enable: A', 'Disable: A'],
+      ['Editable: A', 'ReadOnly: A'],
+      ['Empty: A', 'Empty: A'],
+    ]) {
+      expect(codes(block(...pair)), pair.join(' + ')).toEqual(['SANMAIME_E014@4:1']);
+    }
+  });
+
+  it('E015: one state of each family of the element itself in a block', () => {
+    expect(codes(block('Enable', 'Check', 'Editable', 'Focus', 'Empty'))).toEqual([]);
+    for (const pair of [
+      ['Enable', 'Disable'],
+      ['Check', 'Uncheck'],
+      ['Editable', 'ReadOnly'],
+      ['Focus', 'Focus'],
+    ]) {
+      expect(codes(block(...pair)), pair.join(' + ')).toEqual(['SANMAIME_E015@4:1']);
+    }
+    // A target is not the element itself.
+    expect(codes(block('Check', 'Uncheck: Box'))).toEqual([]);
+  });
+
+  it('E016: a When: block repeats a fact of the unconditional block', () => {
+    expect(codes(block('Count: A = 0', 'When: C', 'Count: A = 1'))).toEqual(['SANMAIME_E016@5:1']);
+    expect(codes(block('Check', 'When: C', 'Uncheck'))).toEqual(['SANMAIME_E016@5:1']);
+    expect(codes(block('Show: A', 'When: C', 'Text: A = "x"', 'Check'))).toEqual([]);
+  });
+
+  it('skips duplicate checks after E026 / E027', () => {
+    expect(codes(block('Text: A', 'Text: A = x', 'Text: A = "y"'))).toEqual([
+      'SANMAIME_E026@3:1',
+      'SANMAIME_E027@4:1',
+    ]);
   });
 });

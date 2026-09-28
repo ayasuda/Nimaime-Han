@@ -44,18 +44,19 @@ test/tool/cases/failure-message/
     └── sanmaime-gen/specs/login.spec.ts.snap
 ```
 
-| Case                  | What it checks                                                                                                                                 |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `basic`               | The README's Login and User Details examples against a static app (`file://` URLs): generation summary, snapshots, 6 passing tests, the tree.  |
-| `missing-definitions` | Exit 1, the pretty report with snippets (full stderr snapshot), `--format compact`, nothing written.                                           |
-| `allow-missing`       | `--allow-missing`: partial generation (a spec left without tests gets no file), the list of left-out tests, exit 0, the generated tests pass.  |
-| `syntax-error`        | Exit 1, the `Syntax errors:` block and compact lines, specs with errors not matched against definitions, `check`.                              |
-| `i18n-ja`             | Japanese keywords via `# language: ja` and via the config's `language: 'ja'` (with full-width colons); without either, syntax errors.          |
-| `custom-fixtures`     | `importTestFrom: { file, varName }` with an option fixture set per project and a custom fixture used by a condition; `quotes: 'double'`.       |
-| `failure-message`     | A failing `Disable`: the Sanmaime header in Playwright's output and in the JSON report, the code frame of the `.sanmaime` file, the ✗ block.   |
-| `reporter`            | The Sanmaime reporter's tree for a run with passes, an expectation failure, a condition failure and a skip (snapshot), and its `quiet` option. |
-| `multi-project`       | Two `defineSanmaimeConfig()` calls / Playwright projects with their own `outputDir`; one configuration with errors does not stop the other.    |
-| `export-and-check`    | `export` output, `check` (success, `--verbose` information, missing definitions), `--allow-missing` with both, usage errors (exit 2), version. |
+| Case                  | What it checks                                                                                                                                                                                                 |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `basic`               | The README's Login and User Details examples against a static app (`file://` URLs): generation summary, snapshots, 6 passing tests, the tree.                                                                  |
+| `missing-definitions` | Exit 1, the pretty report with snippets (full stderr snapshot), `--format compact`, nothing written.                                                                                                           |
+| `allow-missing`       | `--allow-missing`: partial generation (a spec left without tests gets no file), the list of left-out tests, exit 0, the generated tests pass.                                                                  |
+| `syntax-error`        | Exit 1, the `Syntax errors:` block and compact lines, specs with errors not matched against definitions, `check`.                                                                                              |
+| `i18n-ja`             | Japanese keywords via `# language: ja` and via the config's `language: 'ja'` (with full-width colons); without either, syntax errors.                                                                          |
+| `custom-fixtures`     | `importTestFrom: { file, varName }` with an option fixture set per project and a custom fixture used by a condition; `quotes: 'double'`.                                                                       |
+| `failure-message`     | A failing `Disable`: the Sanmaime header in Playwright's output and in the JSON report, the code frame of the `.sanmaime` file, the ✗ block.                                                                   |
+| `reporter`            | The Sanmaime reporter's tree for a run with passes, an expectation failure, a condition failure and a skip (snapshot), and its `quiet` option.                                                                 |
+| `multi-project`       | Two `defineSanmaimeConfig()` calls / Playwright projects with their own `outputDir`; one configuration with errors does not stop the other.                                                                    |
+| `export-and-check`    | `export` output, `check` (success, `--verbose` information, missing definitions), `--allow-missing` with both, usage errors (exit 2), version.                                                                 |
+| `vocabulary-v1`       | Every keyword of the expectation vocabulary v1 (`Text:`, `Count:`, `Check`, `Focus: T`, …) against a real page, and a failing `Text:` whose `Expected:` / `Actual:` lines are locked by the reporter snapshot. |
 
 A `tags` case is to be added with issue #15 (tags / `--tags`).
 

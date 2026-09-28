@@ -18,13 +18,14 @@ import type { Tag } from '../parser';
 import type { ElementDefinition } from '../runtime/registry';
 import { hasHooks, type DocumentHooks, type HookCall, type HookUsage } from './hooks';
 import { tagNames } from './tags';
-import type {
-  ResolvedCondition,
-  ResolvedConditionRef,
-  ResolvedDocument,
-  ResolvedElement,
-  ResolvedExpectation,
-  ResolvedScreen,
+import {
+  expectationTarget,
+  type ResolvedCondition,
+  type ResolvedConditionRef,
+  type ResolvedDocument,
+  type ResolvedElement,
+  type ResolvedExpectation,
+  type ResolvedScreen,
 } from './match';
 
 /** First line of every generated file; also how `nimaime-gen` recognises files it may delete. */
@@ -386,9 +387,10 @@ function blockFixtures(
   const def = element.definition;
   if (def) {
     for (const expectation of expectations) {
-      if (expectation.kind === 'show' || expectation.kind === 'hide') {
-        const target = definedTargetName(def, expectation.target);
-        add(`element "${element.name}" target "${expectation.target}"`, def.targets.get(target));
+      const name = expectationTarget(expectation);
+      if (name !== undefined) {
+        const target = definedTargetName(def, name);
+        add(`element "${element.name}" target "${name}"`, def.targets.get(target));
       } else {
         add(`element "${element.name}" self`, def.self);
       }
@@ -425,8 +427,13 @@ function expectationEntries(
   w: Writer,
 ): string[] {
   const entries = [`kind: ${w.q(expectation.kind)}`];
-  if (expectation.kind === 'show' || expectation.kind === 'hide') {
-    entries.push(`target: ${w.q(definedTargetName(element.definition, expectation.target))}`);
+  const target = expectationTarget(expectation);
+  if (target !== undefined) {
+    entries.push(`target: ${w.q(definedTargetName(element.definition, target))}`);
+  }
+  if ('value' in expectation) {
+    const { value } = expectation;
+    entries.push(`value: ${typeof value === 'number' ? String(value) : w.q(value)}`);
   }
   entries.push(`location: ${position(expectation.location)}`);
   return entries;
@@ -454,10 +461,10 @@ function writeExpectations(
     }
     w.line(depth + 1, '{');
     for (const entry of entries) {
-      const target = /^target: (.*)$/.exec(entry);
-      if (target && !w.fits(depth + 2, `${entry},`)) {
-        w.line(depth + 2, 'target:');
-        w.line(depth + 3, `${target[1] ?? ''},`);
+      const long = /^(target|value): (.*)$/.exec(entry);
+      if (long && !w.fits(depth + 2, `${entry},`)) {
+        w.line(depth + 2, `${long[1] ?? ''}:`);
+        w.line(depth + 3, `${long[2] ?? ''},`);
       } else {
         w.line(depth + 2, `${entry},`);
       }

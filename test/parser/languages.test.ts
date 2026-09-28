@@ -36,7 +36,7 @@ describe('LANGUAGES', () => {
     expect(DEFAULT_LANGUAGE).toBe('en');
   });
 
-  it('keeps the English keywords of v0 and adds those of v0.2', () => {
+  it('keeps the English keywords of v0 and adds those of v0.2 and v0.3', () => {
     expect(LANGUAGES.en).toEqual({
       code: 'en',
       name: 'English',
@@ -52,6 +52,15 @@ describe('LANGUAGES', () => {
         and: ['And'],
         enable: ['Enable'],
         disable: ['Disable'],
+        check: ['Check'],
+        uncheck: ['Uncheck'],
+        focus: ['Focus'],
+        editable: ['Editable'],
+        readOnly: ['ReadOnly'],
+        empty: ['Empty'],
+        text: ['Text'],
+        contain: ['Contain'],
+        count: ['Count'],
         background: ['Background'],
       },
     });
@@ -73,6 +82,15 @@ describe('LANGUAGES', () => {
         and: ['かつ'],
         enable: ['有効'],
         disable: ['無効'],
+        check: ['チェック'],
+        uncheck: ['未チェック'],
+        focus: ['フォーカス'],
+        editable: ['編集可'],
+        readOnly: ['読取専用'],
+        empty: ['空'],
+        text: ['テキスト'],
+        contain: ['含む'],
+        count: ['件数'],
         background: ['背景'],
       },
     });
@@ -123,7 +141,11 @@ describe('getLanguage', () => {
 
 describe('keyword tables', () => {
   it('maps every canonical keyword to a dictionary slot', () => {
-    expect(Object.keys(KEYWORD_SLOTS).sort()).toEqual([...NAME_KEYWORDS, ...BARE_KEYWORDS].sort());
+    expect(Object.keys(KEYWORD_SLOTS).sort()).toEqual(
+      [...new Set([...NAME_KEYWORDS, ...BARE_KEYWORDS])].sort(),
+    );
+    // State keywords have a bare form and a form with a target (v0.3).
+    expect(BARE_KEYWORDS.every((keyword) => NAME_KEYWORDS.includes(keyword))).toBe(true);
   });
 
   it('exposes the primary spelling of every keyword', () => {
@@ -137,6 +159,15 @@ describe('keyword tables', () => {
       And: 'かつ',
       Enable: '有効',
       Disable: '無効',
+      Check: 'チェック',
+      Uncheck: '未チェック',
+      Focus: 'フォーカス',
+      Editable: '編集可',
+      ReadOnly: '読取専用',
+      Empty: '空',
+      Text: 'テキスト',
+      Contain: '含む',
+      Count: '件数',
       Background: '背景',
     });
     expect(keywordTable('en').primary.Show).toBe('Show');
@@ -171,6 +202,15 @@ describe('keyword tables', () => {
         and: ['And', 'Also'],
         enable: ['On'],
         disable: ['Off'],
+        check: ['Ticked'],
+        uncheck: ['Unticked'],
+        focus: ['Focused'],
+        editable: ['Writable'],
+        readOnly: ['Locked'],
+        empty: ['Blank'],
+        text: ['Says'],
+        contain: ['Mentions'],
+        count: ['Number'],
         background: ['Setup'],
       },
     });
@@ -242,10 +282,41 @@ describe('classifyLine with the Japanese keywords', () => {
       hasArgument: false,
     });
     expect(classifyLine('無効', 1, ja)).toMatchObject({ keyword: 'Disable', hasArgument: false });
-    for (const text of ['有効:', '有効：', '有効: X', '有効：X', '無効 X', '無効　X']) {
+    for (const text of ['無効 X', '無効　X', '空 X']) {
       expect(classifyLine(text, 1, ja)).toMatchObject({ type: 'bare-keyword', hasArgument: true });
     }
+    // With a colon: a target (v0.3), or E002 when empty.
+    for (const text of ['有効:', '有効：', '有効: X', '有効：X']) {
+      expect(classifyLine(text, 1, ja)).toMatchObject({ type: 'name-keyword', keyword: 'Enable' });
+    }
     expect(classifyLine('有効期限', 1, ja).type).toBe('unknown');
+    expect(classifyLine('空欄', 1, ja).type).toBe('unknown');
+  });
+
+  it('classifies the v0.3 keywords, not confusing チェック and 未チェック', () => {
+    const cases = [
+      ['チェック', 'Check'],
+      ['未チェック', 'Uncheck'],
+      ['フォーカス', 'Focus'],
+      ['編集可', 'Editable'],
+      ['読取専用', 'ReadOnly'],
+      ['空', 'Empty'],
+    ] as const;
+    for (const [text, keyword] of cases) {
+      expect(classifyLine(text, 1, ja)).toMatchObject({ type: 'bare-keyword', keyword, text });
+      expect(classifyLine(`${text}：対象`, 1, ja)).toMatchObject({
+        type: 'name-keyword',
+        keyword,
+        name: '対象',
+      });
+    }
+    for (const [text, keyword] of [
+      ['テキスト', 'Text'],
+      ['含む', 'Contain'],
+      ['件数', 'Count'],
+    ] as const) {
+      expect(classifyLine(`${text}: 対象 = 1`, 1, ja)).toMatchObject({ keyword, name: '対象 = 1' });
+    }
   });
 
   it('classifies 背景: and かつ条件: as name keywords (v0.2)', () => {

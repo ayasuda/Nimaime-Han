@@ -144,13 +144,12 @@ function conditionSpec(block: ConditionBlock): ConditionSpec {
 }
 
 function expectationOf(expectation: Expectation): NimaimeExpectation {
-  return expectation.kind === 'show' || expectation.kind === 'hide'
-    ? {
-        kind: expectation.kind,
-        target: expectation.target.trim(),
-        location: position(expectation.location),
-      }
-    : { kind: expectation.kind, location: position(expectation.location) };
+  return {
+    kind: expectation.kind,
+    ...(expectation.target === undefined ? {} : { target: expectation.target.trim() }),
+    ...('value' in expectation ? { value: expectation.value } : {}),
+    location: position(expectation.location),
+  };
 }
 
 function position(location: SanmaimePosition): SanmaimePosition {

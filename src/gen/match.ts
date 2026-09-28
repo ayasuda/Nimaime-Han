@@ -6,14 +6,9 @@
  * The result is a resolved model the code generator consumes directly, plus reports of missing and
  * unused definitions. See docs/definitions.md, "Definition loading and matching".
  */
-import {
-  CONDITION_SEPARATOR,
-  type Expectation,
-  type Location,
-  type StateExpectation,
-  type Tag,
-  type VisibilityExpectation,
-} from '../parser';
+import { CONDITION_SEPARATOR, type Expectation, type Location, type Tag } from '../parser';
+import type { StateKeyword, ValueKeyword } from '../parser/tokens';
+import type { StateKind, ValueKind } from '../runtime/expectations';
 import type { SourceLocation } from '../runtime/source';
 import type {
   ConditionDefinition,
@@ -34,16 +29,43 @@ export interface ResolvedVisibilityExpectation {
   location: Location;
 }
 
-/** `Enable` / `Disable` with the element's `self` locator resolved. */
+/**
+ * A state keyword (`Enable`, `Check`, …): bare, with the element's `self` locator resolved, or
+ * with a target (`Check: X`, v0.3), resolved against the element definition.
+ */
 export interface ResolvedStateExpectation {
-  kind: 'enable' | 'disable';
-  keyword: 'Enable' | 'Disable';
-  /** Whether the element definition has a `self` locator. */
-  selfDefined: boolean;
+  kind: StateKind;
+  keyword: StateKeyword;
+  /** The target of `Check: <target>`; absent for the bare keyword (the element itself). */
+  target?: string;
+  /** Bare keyword: whether the element definition has a `self` locator. */
+  selfDefined?: boolean;
+  /** With a target: whether the element definition maps `target` to a locator. */
+  targetDefined?: boolean;
   location: Location;
 }
 
-export type ResolvedExpectation = ResolvedVisibilityExpectation | ResolvedStateExpectation;
+/** `Text:` / `Contain:` / `Count:` (v0.3) with its target resolved against the element definition. */
+export interface ResolvedValueExpectation {
+  kind: ValueKind;
+  keyword: ValueKeyword;
+  target: string;
+  /** The text (`Text:`, `Contain:`) or number (`Count:`). */
+  value: string | number;
+  /** Whether the element definition maps `target` to a locator. */
+  targetDefined: boolean;
+  location: Location;
+}
+
+export type ResolvedExpectation =
+  ResolvedVisibilityExpectation | ResolvedStateExpectation | ResolvedValueExpectation;
+
+/** The target an expectation is about, or `undefined` when it is about the element itself. */
+export function expectationTarget(
+  expectation: Expectation | ResolvedExpectation,
+): string | undefined {
+  return 'target' in expectation ? expectation.target : undefined;
+}
 
 /**
  * A condition name resolved to its definition (screen-scoped first, then global): a
@@ -203,10 +225,6 @@ function buildLookup(registry: Registry): Lookup {
   return lookup;
 }
 
-function isVisibility(expectation: Expectation): expectation is VisibilityExpectation {
-  return expectation.kind === 'show' || expectation.kind === 'hide';
-}
-
 function setOnce<K, V>(map: Map<K, V>, key: K, value: V): void {
   if (!map.has(key)) map.set(key, value);
 }
@@ -296,13 +314,12 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
         }
         const targets = elementDef ? lookup.targets.get(elementDef) : undefined;
 
-        const resolveExpectation = (expectation: Expectation): ResolvedExpectation =>
-          isVisibility(expectation) ? resolveVisibility(expectation) : resolveState(expectation);
-
-        const resolveVisibility = (
-          expectation: VisibilityExpectation,
-        ): ResolvedVisibilityExpectation => {
-          const target = expectation.target.trim();
+        /** The trimmed target, marked as used, or reported as missing (defined elements only). */
+        const resolveTargetName = (
+          name: string,
+          location: Location,
+        ): { target: string; defined: boolean } => {
+          const target = name.trim();
           const original = targets?.get(target);
           if (elementDef && original !== undefined) {
             let set = usedTargets.get(elementDef);
@@ -319,20 +336,13 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
               element: elementName,
               name: target,
               file,
-              location: expectation.location,
+              location,
             });
           }
-          return {
-            kind: expectation.kind,
-            target,
-            keyword: expectation.keyword,
-            viaAnd: expectation.viaAnd,
-            targetDefined: original !== undefined,
-            location: expectation.location,
-          };
+          return { target, defined: original !== undefined };
         };
 
-        const resolveState = (expectation: StateExpectation): ResolvedStateExpectation => {
+        const resolveSelf = (location: Location): boolean => {
           const selfDefined = elementDef?.self !== undefined;
           if (elementDef && !selfDefined) {
             reportMissing({
@@ -342,15 +352,59 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
               element: elementName,
               name: elementName,
               file,
-              location: expectation.location,
+              location,
             });
           }
-          return {
-            kind: expectation.kind,
-            keyword: expectation.keyword,
-            selfDefined,
-            location: expectation.location,
-          };
+          return selfDefined;
+        };
+
+        const resolveExpectation = (expectation: Expectation): ResolvedExpectation => {
+          const { location } = expectation;
+          switch (expectation.kind) {
+            case 'show':
+            case 'hide': {
+              const { target, defined } = resolveTargetName(expectation.target, location);
+              return {
+                kind: expectation.kind,
+                target,
+                keyword: expectation.keyword,
+                viaAnd: expectation.viaAnd,
+                targetDefined: defined,
+                location,
+              };
+            }
+            case 'text':
+            case 'contain':
+            case 'count': {
+              const { target, defined } = resolveTargetName(expectation.target, location);
+              return {
+                kind: expectation.kind,
+                keyword: expectation.keyword,
+                target,
+                value: expectation.value,
+                targetDefined: defined,
+                location,
+              };
+            }
+            default: {
+              if (expectation.target === undefined) {
+                return {
+                  kind: expectation.kind,
+                  keyword: expectation.keyword,
+                  selfDefined: resolveSelf(location),
+                  location,
+                };
+              }
+              const { target, defined } = resolveTargetName(expectation.target, location);
+              return {
+                kind: expectation.kind,
+                keyword: expectation.keyword,
+                target,
+                targetDefined: defined,
+                location,
+              };
+            }
+          }
         };
 
         const conditions = element.conditions.map((condition): ResolvedCondition => {

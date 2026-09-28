@@ -1,0 +1,39 @@
+
+✗ Screen: Settings
+
+  ✓ Element: Header
+    ✓ Title has text "Settings"
+    ✓ Greeting contains text "Hello"
+    ✓ Count of Tabs is 3
+
+  ✓ Element: Remember Me Checkbox
+    ✓ enabled
+    ✓ checked
+
+  ✓ Element: Account Form
+    ✓ Newsletter is not checked
+    ✓ Account ID is read-only
+    ✓ Nickname is editable
+    ✓ Notes is empty
+
+    When: Nothing was touched
+      ✓ Save button is disabled
+
+    When: The nickname is focused
+      ✓ Nickname is focused
+      ✓ Save button is enabled
+
+  ✓ Element: Nickname Field
+    ✓ empty
+
+    When: The nickname is focused
+      ✓ focused
+      ✓ editable
+
+  ✗ Element: Welcome
+    ✗ Greeting has text "Hello, Bob"
+      Expected: Greeting has text "Hello, Bob"
+      Actual: text "Hello, Alice"
+      Location: specs/settings.sanmaime:35
+
+1 screen, 5 elements, 16 expectations: 15 passed, 1 failed, 0 skipped (<duration>)

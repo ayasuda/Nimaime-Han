@@ -5,9 +5,11 @@
  * - Tests: `test.describe('Screen: X') > test.describe('Element: Y') > test('When: C' | other)`.
  *   A test title that does not start with `When: ` is the element's unconditional block.
  * - Steps (category `test.step`, made by the runtime): `Screen: X`, `Background: B`, `When: C`,
- *   `And when: D`, `Show: T`, `Hide: T`, `Enable`, `Disable`.
+ *   `And when: D`, and the expectations: `Show: T`, `Enable`, `Check: T`, `Text: T = "a"`, …
+ *   (`expectationTitle()` of src/runtime/expectations.ts).
  */
 import { isAbsolute, relative } from 'node:path';
+import { describeExpectation, parseExpectationTitle } from '../runtime/expectations';
 import { parseSanmaimeHeader, type SanmaimeHeader } from './header';
 import type { ReportError, ReportLocation, ReportStep, ReportSuite, ReportTest } from './types';
 
@@ -23,9 +25,12 @@ export interface FailureDetails {
   location: string | undefined;
 }
 
-/** One `Show:` / `Hide:` / `Enable` / `Disable` that ran. */
+/** One expectation (`Show:`, `Enable`, `Text:`, …) that ran. */
 export interface ExpectationReport {
-  /** `Email address is shown`, `Error message is hidden`, `enabled`, `disabled`. */
+  /**
+   * The expectation as the `Expected:` line of a failure phrases it: `Email address is shown`,
+   * `enabled`, `Remember me is checked`, `Title has text "Welcome"`, `Count of Items is 3`.
+   */
   text: string;
   status: 'passed' | 'failed';
   failure?: FailureDetails;
@@ -96,12 +101,11 @@ export function parseStepTitle(
   | { type: 'expectation'; text: string }
   | { type: 'screen' | 'background' | 'condition'; name: string }
   | undefined {
-  if (title === 'Enable') return { type: 'expectation', text: 'enabled' };
-  if (title === 'Disable') return { type: 'expectation', text: 'disabled' };
-  if (title.startsWith('Show: '))
-    return { type: 'expectation', text: `${title.slice(6)} is shown` };
-  if (title.startsWith('Hide: '))
-    return { type: 'expectation', text: `${title.slice(6)} is hidden` };
+  const expectation = parseExpectationTitle(title);
+  if (expectation) {
+    const { kind, target, value } = expectation;
+    return { type: 'expectation', text: describeExpectation(kind, target, value) };
+  }
   if (title.startsWith(SCREEN_PREFIX)) return { type: 'screen', name: title.slice(8) };
   if (title.startsWith(WHEN_PREFIX)) return { type: 'condition', name: title.slice(6) };
   if (title.startsWith(AND_WHEN_PREFIX)) {

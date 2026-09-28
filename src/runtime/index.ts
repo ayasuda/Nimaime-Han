@@ -20,6 +20,33 @@ export {
   type NimaimeFixtures,
   type StepLocation,
 } from './nimaime';
+// The expectation vocabulary: one entry per keyword (docs/expectations.md).
+export {
+  describeExpectation,
+  EXPECTATION_KINDS,
+  EXPECTATIONS,
+  expectationSpec,
+  formatTextLiteral,
+  formatValue,
+  isExpectationKind,
+  kindOfKeyword,
+  parseExpectationTitle,
+  parseExpectedText,
+  parseIntLiteral,
+  parseTextLiteral,
+  parseValue,
+  splitTargetValue,
+  type ExpectationArity,
+  type ExpectationKeyword,
+  type ExpectationSlot,
+  type ExpectationSpec,
+  type ExpectationValue,
+  type ExpectationValueType,
+  type ParsedExpectation,
+  type PlaywrightExpect,
+  type StateKind,
+  type ValueKind,
+} from './expectations';
 export {
   EXPECTATION_KEYWORDS,
   expectationTitle,

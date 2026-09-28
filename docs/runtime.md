@@ -105,6 +105,7 @@ interface Nimaime {
   ): Promise<void>;
   expectEnable(fixtures: object, element: string, ctx?: ExpectationContext): Promise<void>;
   expectDisable(fixtures: object, element: string, ctx?: ExpectationContext): Promise<void>;
+  // Any kind (the four methods above are shortcuts), dispatched through EXPECTATIONS.
   check(
     fixtures: object,
     element: string,
@@ -136,9 +137,17 @@ conditions — for Gherkin `Then` steps (see [`verify`](#verifyfixtures-screen-o
 | `Hide: T` / `And: T` | `expect(target locator).toBeHidden()`                      | `Hide: T`       |
 | `Enable`             | `expect(self locator).toBeEnabled()` — the Element itself  | `Enable`        |
 | `Disable`            | `expect(self locator).toBeDisabled()` — the Element itself | `Disable`       |
+| `Check: T`           | `expect(target locator).toBeChecked()` (v0.3)              | `Check: T`      |
+| `Text: T = "x"`      | `expect(target locator).toHaveText('x')` (v0.3)            | `Text: T = "x"` |
+| `Count: T = 3`       | `expect(target locator).toHaveCount(3)` (v0.3)             | `Count: T = 3`  |
 
-Step titles use the canonical English keywords (the AST keeps them canonical; `And:` is already
-resolved to `Show` / `Hide` by the parser).
+Every expectation keyword maps to one Playwright assertion through the vocabulary table
+`EXPECTATIONS` (`src/runtime/expectations.ts`, exported from `nimaime-han/runtime`); the full list
+(`Check`, `Uncheck`, `Focus`, `Editable`, `ReadOnly`, `Empty`, `Contain:`, …) is in
+[expectations.md](./expectations.md). A state keyword alone uses the element's `self` locator; with
+a target (`Check: T`, `Enable: T`) the target's locator. Step titles use the canonical English
+keywords (the AST keeps them canonical; `And:` is already resolved to `Show` / `Hide` by the
+parser); a text value is written quoted and escaped as in Sanmaime (`Text: T = "Say \"hi\""`).
 
 ### `run(fixtures, plan)`
 
@@ -161,8 +170,10 @@ interface NimaimePlan {
   };
 }
 interface NimaimeExpectation {
-  kind: 'show' | 'hide' | 'enable' | 'disable';
-  target?: string; // required for show / hide
+  kind: ExpectationKind; // 'show' | 'hide' | 'enable' | 'disable' | 'check' | … | 'count'
+  target?: string; // required for show / hide / text / contain / count; for a state kind
+  //                  (enable, check, …) the target, or absent for the element itself
+  value?: string | number; // text / contain: a string, count: a whole number (v0.3)
   location?: SanmaimePosition;
 }
 interface SanmaimePosition {
@@ -250,18 +261,33 @@ Details:
 
 Header lines, in this order:
 
-| Line        | Content                                                                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `Screen:`   | the `Screen:` name (left out when unknown, e.g. low-level calls without `ctx.screen`)                                                   |
-| `Element:`  | the `Element:` name                                                                                                                     |
-| `When:`     | the `When:` name; left out for the element's unconditional block (the base state)                                                       |
-| `Expected:` | `<target> is shown` / `<target> is hidden` (`Show:` / `Hide:`); `enabled` / `disabled` (`Enable` / `Disable`, about the element itself) |
-| `Actual:`   | the observed state, plus `after <timeout>ms` when the assertion timed out (see below)                                                   |
-| `Location:` | `<.sanmaime file>:<line>` (relative to the working directory when possible); left out when unknown                                      |
+| Line        | Content                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `Screen:`   | the `Screen:` name (left out when unknown, e.g. low-level calls without `ctx.screen`)              |
+| `Element:`  | the `Element:` name                                                                                |
+| `When:`     | the `When:` name; left out for the element's unconditional block (the base state)                  |
+| `Expected:` | what the expectation requires, phrased by its kind (table below)                                   |
+| `Actual:`   | the observed state, plus `after <timeout>ms` when the assertion timed out (see below)              |
+| `Location:` | `<.sanmaime file>:<line>` (relative to the working directory when possible); left out when unknown |
 
-- `Actual` is observed after the failure without waiting: `shown` / `hidden` / `hidden (not found)`
-  / `enabled` / `disabled` / `not found` / `N matching elements (expected exactly one)`, or
-  `unknown` if the probe itself failed. The page may have changed after the assertion timed out;
+`Expected:` for each kind (a state keyword without target is about the element itself; with a
+target it reads `<target> is <state>`):
+
+| Sanmaime                   | `Expected:`                    | `Actual:` (probed)                          |
+| -------------------------- | ------------------------------ | ------------------------------------------- |
+| `Show: T` / `Hide: T`      | `T is shown` / `T is hidden`   | `shown` / `hidden` / `hidden (not found)`   |
+| `Enable` / `Disable: T`    | `enabled` / `T is disabled`    | `enabled` / `disabled`                      |
+| `Check` / `Uncheck: T`     | `checked` / `T is not checked` | `checked` / `not checked`                   |
+| `Focus` / `Focus: T`       | `focused` / `T is focused`     | `focused` / `not focused`                   |
+| `Editable` / `ReadOnly: T` | `editable` / `T is read-only`  | `editable` / `read-only`                    |
+| `Empty` / `Empty: T`       | `empty` / `T is empty`         | `empty` / `text "…"`                        |
+| `Text: T = "x"`            | `T has text "x"`               | `text "…"` (whitespace collapsed, 80 chars) |
+| `Contain: T = "x"`         | `T contains text "x"`          | `text "…"`                                  |
+| `Count: T = 3`             | `Count of T is 3`              | the number of matching elements             |
+
+- `Actual` is observed after the failure without waiting (the table above), or `not found` /
+  `N matching elements (expected exactly one)` (except for `Count:`), or `unknown` if the probe
+  itself failed. The page may have changed after the assertion timed out;
   this is best effort. When Playwright's message says the assertion timed out (`Timeout: 5000ms`,
   or `Timed out 5000ms waiting for expect(…)` in older versions), the timeout is added:
   `hidden (after 5000ms)`, `hidden (not found, after 5000ms)`. A strict mode violation (several
@@ -297,7 +323,8 @@ Header lines, in this order:
   screen: 'Login',
   element: 'Login Button',
   condition: 'Input is invalid',             // null for the base state
-  expectation: { kind: 'disable', target: null }, // target: the Show:/Hide: target
+  expectation: { kind: 'disable', target: null }, // target: null = the element itself;
+  //                                                  value: only for text / contain / count
   expected: 'disabled',
   actual: 'enabled',                         // the probed state, without the timeout
   timeout: 5000,                             // null unless the assertion timed out
@@ -322,10 +349,10 @@ timeout)`, `detectTimeout(error)`, `parseExpectationFailure(message)`.
 
 ## Errors
 
-| Error                     | When                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `NimaimeRuntimeError`     | missing element definition, target, `self` locator (for `Enable`/`Disable`) or condition; a fixture not passed |
-| `NimaimeExpectationError` | an expectation did not hold                                                                                    |
+| Error                     | When                                                                                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NimaimeRuntimeError`     | missing element definition, target, `self` locator (for a bare state keyword) or condition; an expectation without the target / value its kind takes, or of an unknown kind; a fixture not passed |
+| `NimaimeExpectationError` | an expectation did not hold                                                                                                                                                                       |
 
 Runtime errors name the Sanmaime names and, when known, the location (`Location: file:line`). They
 are a safety net: the generator refuses to generate tests with unresolvable names.

@@ -22,11 +22,14 @@ Syntax highlighting for [Sanmaime](https://github.com/ayasuda/Nimaime-Han/blob/m
 ## Features
 
 - Highlights keywords (`Screen:`, `Background:`, `Element:`, `When:`, `And when:`, `Show:`,
-  `Hide:`, `And:`, `Enable`, `Disable`), names and targets, comments, tags and the
+  `Hide:`, `And:`, the state keywords `Enable`, `Disable`, `Check`, `Uncheck`, `Focus`,
+  `Editable`, `ReadOnly`, `Empty` — alone or with a target — and the value keywords `Text:`,
+  `Contain:`, `Count:`), names and targets, text and number values, comments, tags and the
   `# language:` directive.
 - All keyword languages (English and Japanese, with the full-width colon `：`). A
   `# language: xx` directive restricts highlighting to that language's keywords.
-- Marks unknown keywords (`Given:`) so typos stand out.
+- Marks unknown keywords (`Given:`) and invalid values (`Count: Items = three`) so typos stand
+  out.
 - `#` line comments, indentation-based folding, Japanese-aware word selection.
 
 The extension contains no code. Diagnostics, go-to-definition and completion are planned for a

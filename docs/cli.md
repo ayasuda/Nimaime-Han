@@ -107,7 +107,7 @@ The messages of missing definitions:
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `Element "X" is not defined`                                        | `defineElement('X', …)`                                                      |
 | `Element "X" has no definition for "Y"`                             | the target `Y` in the existing `defineElement('X', { … })`                   |
-| `Element "X" has no self locator (needed by Enable/Disable)`        | the element's own locator: `defineElement('X', self, targets)`               |
+| `Element "X" has no self locator (needed by bare Enable, Check, …)` | the element's own locator: `defineElement('X', self, targets)`               |
 | `Condition "C" is not defined`                                      | `defineCondition('C', …)` (global, or for the screen)                        |
 | `Screen "S" is not defined (optional: without defineScreen …)` (\*) | `defineScreen('S', …)`; allowed, the screen is just not opened (information) |
 

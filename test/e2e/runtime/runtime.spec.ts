@@ -219,14 +219,27 @@ test.describe('failures', () => {
       );
     expect(error).toBeInstanceOf(NimaimeExpectationError);
     const { message, sanmaime } = error as NimaimeExpectationError;
-    expect(message).toMatch(
+    // Playwright colors its own message when the terminal supports it.
+    // eslint-disable-next-line no-control-regex
+    expect(message.replace(/\u001b\[[0-9;]*m/g, '')).toMatch(
       new RegExp(
         '^Screen: Login\\nElement: User Information\\nExpected: Full name is shown\\n' +
-          'Actual: hidden\\nLocation: \\S*login\\.sanmaime:21\\n\\n',
+          'Actual: hidden \\(after 1000ms\\)\\nLocation: \\S*login\\.sanmaime:21\\n\\n' +
+          'Details:\\n  expect\\(locator\\)\\.toBeVisible\\(\\) failed\\n',
       ),
     );
-    expect(message).toContain('toBeVisible');
-    expect(sanmaime).toMatchObject({ kind: 'show', target: 'Full name', actual: 'hidden' });
+    expect(sanmaime).toMatchObject({
+      kind: 'show',
+      target: 'Full name',
+      actual: 'hidden',
+      timeout: 1000,
+      locator: "getByTestId('real-name')",
+    });
+    expect((error as NimaimeExpectationError).toJSON()).toMatchObject({
+      expectation: { kind: 'show', target: 'Full name' },
+      line: 21,
+      column: 5,
+    });
   });
 
   test('a failing Enable in a condition names the condition', async ({
@@ -248,7 +261,7 @@ test.describe('failures', () => {
       )
       .catch((e: unknown) => e);
     expect((error as Error).message).toMatch(
-      /^Screen: Login\nElement: Login Button\nWhen: Input is invalid\nExpected: enabled\nActual: disabled\n/,
+      /^Screen: Login\nElement: Login Button\nWhen: Input is invalid\nExpected: enabled\nActual: disabled \(after 1000ms\)\n/,
     );
   });
 

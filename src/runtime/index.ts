@@ -32,10 +32,18 @@ export { collectFixtureNames, fixtureNamesOf, validatePlan, type PlanFixtures } 
 export {
   createExpectationError,
   describeExpected,
+  describeLocator,
+  detectTimeout,
+  formatActual,
   formatExpectationFailure,
+  formatFailureDetails,
+  formatFailureHeader,
   NimaimeExpectationError,
+  parseExpectationFailure,
   probeActual,
   type ExpectationFailureContext,
+  type ExpectationFailureJSON,
+  type SanmaimeFrame,
 } from './failure';
 export {
   findCondition,

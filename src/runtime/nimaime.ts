@@ -1,7 +1,7 @@
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Locator } from '@playwright/test';
 import { NimaimeRuntimeError } from './errors';
-import { createExpectationError, describeExpected } from './failure';
+import { createExpectationError, describeExpected, describeLocator } from './failure';
 import {
   EXPECTATION_KEYWORDS,
   expectationTitle,
@@ -151,6 +151,7 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
           location: ctx.location,
           expected: describeExpected(kind, target),
           actual,
+          locator: describeLocator(locator),
         },
         error,
         location && { ...location, title: expectationTitle(kind, target) },

@@ -1,6 +1,6 @@
 {
   "name": "nimaime-han",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A screen specification testing tool for Playwright: describe what a screen should contain in the human-readable Sanmaime DSL and verify it in a real browser.",
   "keywords": [
     "playwright",

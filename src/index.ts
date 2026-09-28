@@ -32,3 +32,8 @@ export type {
   OpenScreenFn,
   ScreenOptions,
 } from './runtime/types';
+// Runtime errors and the failure parser, re-exported so users and reporters can import them from
+// the main entry (the classes are also exported from `nimaime-han/runtime`).
+export { NimaimeRuntimeError } from './runtime/errors';
+export { NimaimeExpectationError, parseExpectationFailure } from './runtime/failure';
+export type { ExpectationFailureJSON } from './runtime/failure';

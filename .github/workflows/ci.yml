@@ -50,6 +50,9 @@ jobs:
       - name: End-to-end tests of nimaime-gen
         run: npm run test:e2e:gen
 
+      - name: End-to-end tests of nimaime draft
+        run: npm run test:e2e:draft
+
       - name: Example project (examples/basic)
         run: npm run test:example:basic
 

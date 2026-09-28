@@ -347,8 +347,15 @@ createNimaime().defineElement('Panel', { Title: (fixtures) => fixtures.page.loca
 
 describe('built CLI', () => {
   const bin = path.join(repoRoot, 'dist', 'cli', 'nimaime-gen.js');
+  // Skip when there is no build, or when the build predates the CLI sources (a stale dist
+  // from an earlier checkout would otherwise fail this test for reasons unrelated to the code).
+  const cliSources = ['args.ts', 'main.ts', 'nimaime-gen.ts'].map((f) =>
+    path.join(repoRoot, 'src', 'cli', f),
+  );
+  const built = fs.existsSync(bin) ? fs.statSync(bin).mtimeMs : -1;
+  const fresh = built >= 0 && cliSources.every((f) => fs.statSync(f).mtimeMs <= built);
 
-  it.skipIf(!fs.existsSync(bin))('runs --help from dist', () => {
+  it.skipIf(!fresh)('runs --help from dist', () => {
     const result = spawnSync(process.execPath, [bin, '--help'], { encoding: 'utf8' });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Usage: nimaime-gen [command] [options]');

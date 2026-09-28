@@ -16,6 +16,7 @@ import {
 /** A fake locator that remembers which test id it was built from. */
 interface FakeLocator {
   testId: string;
+  toString(): string;
 }
 
 interface Harness {
@@ -32,7 +33,10 @@ function harness(): Harness {
   const steps: Harness['steps'] = [];
   const failing = new Set<string>();
   const page = {
-    getByTestId: (testId: string): FakeLocator => ({ testId }),
+    getByTestId: (testId: string): FakeLocator => ({
+      testId,
+      toString: () => `getByTestId('${testId}')`,
+    }),
   } as unknown as Page;
   const driver: NimaimeDriver = {
     async step(title, body, location) {
@@ -168,12 +172,15 @@ describe('$nimaime.run', () => {
     const { message, sanmaime, stack } = error as NimaimeExpectationError;
     expect(message).toBe(
       'Screen: Login\nElement: Login Button\nWhen: Input is invalid\nExpected: disabled\n' +
-        'Actual: enabled\nLocation: specs/login.sanmaime:16\n\nexpect(locator) failed for button',
+        'Actual: enabled\nLocation: specs/login.sanmaime:16\n\n' +
+        "Details:\n  expect(locator) failed for button\n\n  Locator: getByTestId('button')",
     );
     expect(sanmaime).toMatchObject({
       kind: 'disable',
       actual: 'enabled',
       file: 'specs/login.sanmaime',
+      locator: "getByTestId('button')",
+      timeout: undefined,
     });
     expect(stack?.split('\n    at ')[1]).toBe('Disable (/app/specs/login.sanmaime:16:5)');
     expect(h.events.at(-1)).toBe('assert disable button');

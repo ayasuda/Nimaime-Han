@@ -13,21 +13,22 @@ playwright-bdd's special fixtures (`$bddContext`, `$test`, …).
 
 ## Exports
 
-| Export                                                                     | What it is                                                                              |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `test`                                                                     | `@playwright/test`'s `test` extended with `$nimaime`                                    |
-| `expect`                                                                   | re-export of `@playwright/test`'s `expect`                                              |
-| `nimaimeFixtures`                                                          | `{ $nimaime: [fixture, { scope: 'test', box: true }] }` — for `anyTest.extend(…)`       |
-| `createNimaimeTest(base)`                                                  | `base.extend(nimaimeFixtures)`, typed: keeps `base`'s custom fixtures                   |
-| `Nimaime`, `NimaimeTestArgs`                                               | the fixture's type; `{ $nimaime: Nimaime }`                                             |
-| `NimaimePlan`, `NimaimeExpectation`, `SanmaimePosition`, `ExpectationKind` | the plan emitted by the generator                                                       |
-| `collectFixtureNames(plan)`                                                | the fixtures a plan's definitions destructure (for the generator)                       |
-| `fixtureNamesOf(fn)`                                                       | the fixtures one callback destructures (`undefined` if it cannot be known)              |
-| `validatePlan(plan)`                                                       | throws `NimaimeRuntimeError` if a name of the plan does not resolve                     |
-| `NimaimeRuntimeError`                                                      | unresolvable name / fixture not provided                                                |
-| `NimaimeExpectationError`                                                  | a failed expectation (`.sanmaime`: structured context, `.original`: Playwright error)   |
-| `formatExpectationFailure(ctx, err)`                                       | builds the failure message (the single place to change its format, see #12)             |
-| registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see definitions.md) |
+| Export                                                                     | What it is                                                                                        |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `test`                                                                     | `@playwright/test`'s `test` extended with `$nimaime`                                              |
+| `expect`                                                                   | re-export of `@playwright/test`'s `expect`                                                        |
+| `nimaimeFixtures`                                                          | `{ $nimaime: [fixture, { scope: 'test', box: true }] }` — for `anyTest.extend(…)`                 |
+| `createNimaimeTest(base)`                                                  | `base.extend(nimaimeFixtures)`, typed: keeps `base`'s custom fixtures                             |
+| `Nimaime`, `NimaimeTestArgs`                                               | the fixture's type; `{ $nimaime: Nimaime }`                                                       |
+| `NimaimePlan`, `NimaimeExpectation`, `SanmaimePosition`, `ExpectationKind` | the plan emitted by the generator                                                                 |
+| `collectFixtureNames(plan)`                                                | the fixtures a plan's definitions destructure (for the generator)                                 |
+| `fixtureNamesOf(fn)`                                                       | the fixtures one callback destructures (`undefined` if it cannot be known)                        |
+| `validatePlan(plan)`                                                       | throws `NimaimeRuntimeError` if a name of the plan does not resolve                               |
+| `NimaimeRuntimeError`                                                      | unresolvable name / fixture not provided                                                          |
+| `NimaimeExpectationError`                                                  | a failed expectation (`.sanmaime`: structured context, `.original`: Playwright error, `toJSON()`) |
+| `formatExpectationFailure(ctx, err)`                                       | builds the failure message (see [Failures](#failures))                                            |
+| `parseExpectationFailure(message)`                                         | recovers the structured failure from a message (for reporters)                                    |
+| registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see definitions.md)           |
 
 ## Why the fixtures are passed explicitly
 
@@ -153,41 +154,100 @@ to the generated `.spec.ts`.
 
 ## Failures
 
-A failed assertion is rethrown as a `NimaimeExpectationError` whose message starts with a Sanmaime
-header, followed by Playwright's own message:
+A failed assertion is rethrown as a `NimaimeExpectationError`. Its message is a Sanmaime header,
+a blank line, then Playwright's own message (locator, timeout, call log) indented under
+`Details:`. This is what Playwright's `list` and `html` reporters print (they prefix the error
+name):
 
 ```text
 NimaimeExpectationError: Screen: Login
 Element: Login Button
 When: Input is invalid
-Expected: Error message is hidden
-Actual: shown
-Location: specs/login.sanmaime:17
+Expected: disabled
+Actual: enabled (after 5000ms)
+Location: specs/login.sanmaime:13
 
-expect(locator).toBeHidden() failed
+Details:
+  expect(locator).toBeDisabled() failed
 
-Locator:  getByTestId('error')
-Expected: hidden
-Received: visible
-…
+  Locator:  getByTestId('login-button')
+  Expected: disabled
+  Received: enabled
+  Timeout:  5000ms
+  …
 ```
 
-- `Expected` is `<target> is shown`, `<target> is hidden`, `enabled` or `disabled` (as in the
-  README).
+Header lines, in this order:
+
+| Line        | Content                                                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Screen:`   | the `Screen:` name (left out when unknown, e.g. low-level calls without `ctx.screen`)                                                   |
+| `Element:`  | the `Element:` name                                                                                                                     |
+| `When:`     | the `When:` name; left out for the element's unconditional block (the base state)                                                       |
+| `Expected:` | `<target> is shown` / `<target> is hidden` (`Show:` / `Hide:`); `enabled` / `disabled` (`Enable` / `Disable`, about the element itself) |
+| `Actual:`   | the observed state, plus `after <timeout>ms` when the assertion timed out (see below)                                                   |
+| `Location:` | `<.sanmaime file>:<line>` (relative to the working directory when possible); left out when unknown                                      |
+
 - `Actual` is observed after the failure without waiting: `shown` / `hidden` / `hidden (not found)`
   / `enabled` / `disabled` / `not found` / `N matching elements (expected exactly one)`, or
   `unknown` if the probe itself failed. The page may have changed after the assertion timed out;
-  this is best effort.
-- The `.sanmaime` line is added as the top stack frame (`at Hide: Error message
-(/abs/specs/login.sanmaime:17:5)`), so Playwright reports the error at, and prints a code frame
-  of, the specification line. The message shows `file:line` without a column on purpose:
-  Playwright parses every line ending in `:line:column` — message lines included — as a stack
-  frame.
-- `error.sanmaime` holds the structured context (`ExpectationFailureContext`), `error.original`
-  Playwright's error (not `cause`, which reporters would print a second time).
+  this is best effort. When Playwright's message says the assertion timed out (`Timeout: 5000ms`,
+  or `Timed out 5000ms waiting for expect(…)` in older versions), the timeout is added:
+  `hidden (after 5000ms)`, `hidden (not found, after 5000ms)`. A strict mode violation (several
+  matching elements) fails at once, so it has no timeout.
+- `Details:` is Playwright's original message, which already names the locator. When it does not
+  (an error that is not an assertion failure), `Locator: <description>` is added.
+- `Location` has no column on purpose: Playwright parses every line ending in `:line:column` —
+  message lines included — as a stack frame.
+- The `.sanmaime` line is added as the top stack frame (`at Disable
+(/abs/specs/login.sanmaime:13:5)`), so Playwright reports the error at, and prints a code frame
+  of, the specification line — in the `list` reporter and in the `html` report:
 
-The message is built by `formatExpectationFailure(ctx, originalError)` in
-`src/runtime/failure.ts`; the reporter work (#12) refines the format there.
+  ```text
+     at login.sanmaime:13
+
+    11 |
+    12 |     When: Input is invalid
+  > 13 |     Disable
+       |     ^
+  ```
+
+- `error.sanmaime` holds the structured context (`ExpectationFailureContext`, including `timeout`
+  and `locator`), `error.original` Playwright's error (not `cause`, which reporters would print a
+  second time).
+
+### Structured data for reporters
+
+`error.toJSON()` returns an `ExpectationFailureJSON` (absent values are `null`):
+
+```ts
+{
+  name: 'NimaimeExpectationError',
+  screen: 'Login',
+  element: 'Login Button',
+  condition: 'Input is invalid',             // null for the base state
+  expectation: { kind: 'disable', target: null }, // target: the Show:/Hide: target
+  expected: 'disabled',
+  actual: 'enabled',                         // the probed state, without the timeout
+  timeout: 5000,                             // null unless the assertion timed out
+  locator: "getByTestId('login-button')",
+  file: 'specs/login.sanmaime',
+  line: 13,
+  column: 5,
+  header: 'Screen: Login\nElement: Login Button\n…',   // the header block
+  details: 'expect(locator).toBeDisabled() failed\n…', // Playwright's message, not indented
+  message: 'Screen: Login\n…',              // the whole error message
+}
+```
+
+Playwright only transfers an error's `message` and `stack` from the worker to reporters, so a
+reporter recovers the same data with `parseExpectationFailure(testError.message)` (it accepts the
+`NimaimeExpectationError: ` prefix and ANSI colors; `column` and `locator` are then `null`, and it
+returns `undefined` for any other message).
+
+All formatting lives in `src/runtime/failure.ts`: `formatExpectationFailure(ctx, originalError)`,
+`formatFailureHeader(ctx)`, `formatFailureDetails(ctx, originalError)`, `formatActual(actual,
+timeout)`, `detectTimeout(error)`, `parseExpectationFailure(message)`.
 
 ## Errors
 

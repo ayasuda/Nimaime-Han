@@ -415,6 +415,101 @@ describe('generateSpecFile', () => {
     await expectPrettier(result.content, 'single');
   });
 
+  it('generates Background: and And when: plans (v0.2)', async () => {
+    interface Shop {
+      page: Page;
+      login: (user: string) => Promise<void>;
+      cart: string[];
+      address: string;
+    }
+    const { defineScreen, defineElement, defineCondition } = definitionsFor<Shop>();
+    defineScreen('Cart', { open: ({ page }: Shop) => page.goto('/cart') });
+    defineElement('Checkout Button', ({ page }: Shop) => page.getByRole('button'), {
+      Total: ({ page }: Shop) => page.getByTestId('total'),
+    });
+    defineCondition('The user is logged in', async ({ login }: Shop) => {
+      await login('alice');
+    });
+    defineCondition('The cart has items', async ({ cart }: Shop) => {
+      await Promise.resolve(cart.push('apple'));
+    });
+    defineCondition(
+      'The shipping address is set',
+      async ({ page, address }: Shop) => {
+        await page.getByLabel('Address').fill(address);
+      },
+      { screen: 'Cart' },
+    );
+    const doc = resolve(
+      `Screen: Cart
+  Background: The user is logged in
+
+  Element: Checkout Button
+    Show: Total
+
+    When: The cart has items
+    And when: The shipping address is set
+    Enable
+`,
+      'specs/cart.sanmaime',
+    );
+    expect(doc.screens[0]?.background.map((ref) => ref.name)).toEqual(['The user is logged in']);
+    const result = generateSpecFile(doc, baseOptions);
+    expect(result.tests.map((t) => t.titlePath.at(-1))).toEqual([
+      'Always',
+      'When: The cart has items and The shipping address is set',
+    ]);
+    expect(listTests(doc)).toEqual(result.tests);
+    // The fixtures of the background and of every condition of the block are requested.
+    expect(result.content).toContain(`test('Always', async ({ $nimaime, login, page }) => {`);
+    expect(result.content).toContain(`{ address, cart, login, page },`);
+    expect(result.content).toContain(`background: ['The user is logged in'],`);
+    expect(result.content).toContain(
+      `conditions: ['The cart has items', 'The shipping address is set'],`,
+    );
+    await expect(result.content).toMatchFileSnapshot(
+      path.join(snapshots, 'background-and-when.spec.ts.snap'),
+    );
+    await expectPrettier(result.content, 'single');
+  });
+
+  it('breaks long Background: and And when: plans like Prettier', async () => {
+    const { defineElement, defineCondition } = createNimaime();
+    const long = (n: number): string =>
+      `Condition number ${String(n)} with a rather long name that does not fit on one line`;
+    defineElement('E', ({ page }) => page.locator('e'));
+    for (const n of [1, 2, 3, 4]) {
+      defineCondition(long(n), async ({ page }) => {
+        await page.goto('/');
+      });
+    }
+    defineCondition('A', async ({ page }) => {
+      await page.goto('/');
+    });
+    defineCondition('B', async ({ page }) => {
+      await page.goto('/');
+    });
+    const doc = resolve(
+      `Screen: S
+Background: ${long(1)}
+Background: ${long(2)}
+Element: E
+When: ${long(3)}
+And when: ${long(4)}
+Enable
+When: A
+And when: B
+Disable
+`,
+      'specs/long.sanmaime',
+    );
+    const result = generateSpecFile(doc, { ...baseOptions, quotes: 'double' });
+    await expect(result.content).toMatchFileSnapshot(
+      path.join(snapshots, 'background-and-when-long.spec.ts.snap'),
+    );
+    await expectPrettier(result.content, 'double');
+  });
+
   it('uses the defined names in plans (names are matched after trim())', async () => {
     const { defineElement, defineCondition } = createNimaime();
     defineElement(' Login Form ', { ' Password': locator });
@@ -432,7 +527,7 @@ describe('generateSpecFile', () => {
     const result = generateSpecFile(doc, baseOptions);
     expect(result.content).toContain(`test.describe('Element: Login Form', () => {`);
     expect(result.content).toContain(`element: ' Login Form ',`);
-    expect(result.content).toContain(`condition: ' Ready ',`);
+    expect(result.content).toContain(`conditions: [' Ready '],`);
     expect(result.content).toContain(`target: ' Password'`);
     await expectPrettier(result.content, 'single');
   });

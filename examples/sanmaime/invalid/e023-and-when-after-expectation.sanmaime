@@ -1,0 +1,8 @@
+# expect: SANMAIME_E023
+# at: 8:5
+# And when: must directly follow When: or And when:, before the block's expectations.
+Screen: Cart
+  Element: Checkout Button
+    When: The cart has items
+    Enable
+    And when: The user is logged in

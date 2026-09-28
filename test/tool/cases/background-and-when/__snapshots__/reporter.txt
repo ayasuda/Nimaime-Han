@@ -1,0 +1,27 @@
+
+✗ Screen: Checkout
+  Background: The user is signed in
+  Background: The cart has an item
+
+  ✓ Element: Summary
+    ✓ Greeting is shown
+    ✓ Item count is shown
+
+  ✓ Element: Pay Button
+    When: An address is entered and A card is entered
+      ✓ enabled
+
+    When: An address is entered
+      ✓ disabled
+
+    When: An address is entered and An expired card is entered
+      ✓ disabled
+
+  ✗ Element: Coupon
+    When: An address is entered and A coupon is applied
+      ✗ Discount is shown
+        Expected: Discount is shown
+        Actual: hidden
+        Location: specs/checkout.sanmaime:26
+
+1 screen, 3 elements, 6 expectations: 5 passed, 1 failed, 0 skipped (<duration>)

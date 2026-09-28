@@ -1,0 +1,21 @@
+# Background: (v0.2) names conditions shared by every element of the screen. They are
+# established after the screen is opened, in order, before the condition of each block.
+Screen: User Details
+  Background: The user is logged in
+  Background: The user has a profile picture
+
+  Element: Page Header
+    Show: Avatar
+    And: Logout link
+
+  Element: Edit Button
+    When: Viewing your own profile
+    Enable
+
+    When: Viewing another user's profile
+    Disable
+
+Screen: Login
+
+  Element: Login Form
+    Show: Email address

@@ -1,0 +1,9 @@
+# expect: SANMAIME_E021
+# at: 6:3
+# A Background: takes no expectations: they belong to an Element:.
+Screen: Cart
+  Background: The user is logged in
+  Show: Cart icon
+
+  Element: Item List
+    Show: Items

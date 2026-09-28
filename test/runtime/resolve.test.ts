@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createNimaime } from '../../src/index';
+import { createNimaime, type NimaimeDefinitions } from '../../src/index';
 import {
   collectFixtureNames,
   fixtureNamesOf,
@@ -165,6 +165,29 @@ describe('collectFixtureNames', () => {
         expectations: [{ kind: 'disable' }, { kind: 'hide', target: 'Spinner' }],
       }),
     ).toEqual({ names: ['baseURL', 'page'], unknown: [] });
+  });
+
+  it('includes the background and every block condition (v0.2)', () => {
+    interface Shop {
+      login: () => Promise<void>;
+      cart: () => Promise<void>;
+    }
+    const { defineCondition } = createNimaime() as unknown as NimaimeDefinitions<Shop>;
+    defineCondition('Logged in', async ({ login }) => {
+      await login();
+    });
+    defineCondition('Has items', async ({ cart }) => {
+      await cart();
+    });
+    expect(
+      collectFixtureNames({
+        screen: 'Login',
+        element: 'Login Button',
+        background: ['Logged in'],
+        conditions: ['Input is invalid', 'Has items'],
+        expectations: [],
+      }),
+    ).toEqual({ names: ['baseURL', 'cart', 'login', 'page'], unknown: [] });
   });
 
   it('reports callbacks whose fixtures cannot be analysed', () => {

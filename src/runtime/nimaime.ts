@@ -5,6 +5,10 @@ import { createExpectationError, describeExpected, describeLocator } from './fai
 import {
   EXPECTATION_KEYWORDS,
   expectationTitle,
+  planConditionLocation,
+  planConditions,
+  planConditionTitle,
+  type ConditionStepKeyword,
   type ExpectationContext,
   type ExpectationKind,
   type NimaimeExpectation,
@@ -41,8 +45,10 @@ export type NimaimeFixtures = object;
  */
 export interface Nimaime {
   /**
-   * Runs a whole plan: validates it, opens the screen (once per test), establishes the condition
-   * (if any, once per test) and checks each expectation in order. Stops at the first failure.
+   * Runs a whole plan: validates it, opens the screen (once per test), establishes the screen's
+   * background conditions and then the block's conditions (each once per test, in order: steps
+   * `Background: X`, `When: A`, `And when: B`) and checks each expectation in order. Stops at the
+   * first failure.
    */
   run(fixtures: NimaimeFixtures, plan: NimaimePlan): Promise<void>;
   /**
@@ -51,7 +57,9 @@ export interface Nimaime {
    * (or of `options.elements`) and, for each name in `options.when`, the matching `When:` blocks.
    *
    * Unlike `run`, it does **not** open the screen and does **not** run condition definitions: the
-   * caller (typically the preceding Gherkin steps) has already brought the page to that state.
+   * caller (typically the preceding Gherkin steps) has already brought the page to that state
+   * (background conditions included). A block with `And when:` is checked when every one of its
+   * conditions is in `options.when`.
    * Every name is resolved before the browser is touched; unknown screen / element / condition
    * names throw `NimaimeRuntimeError`. Checks are nested steps: `Screen: X` > `Element: Y` >
    * (`When: C` >) `Show: T`. Stops at the first failure (`NimaimeExpectationError`).
@@ -64,6 +72,12 @@ export interface Nimaime {
    * per test. Throws `NimaimeRuntimeError` if it is not defined.
    */
   condition(fixtures: NimaimeFixtures, condition: string, ctx?: ExpectationContext): Promise<void>;
+  /**
+   * Establishes a `Background:` condition of `ctx.screen`: the same as `condition`, with the step
+   * titled `Background: <condition>`. A condition is established at most once per test, whether
+   * as a background or as a block condition.
+   */
+  background(fixtures: NimaimeFixtures, condition: string, ctx?: ExpectationContext): Promise<void>;
   /** `Show: target` — the target of `element` is visible. */
   expectShow(
     fixtures: NimaimeFixtures,
@@ -208,21 +222,48 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
     );
   };
 
+  /** Establishes a condition once per test, in a step titled `<keyword>: <condition>`. */
+  const establish = async (
+    keyword: ConditionStepKeyword,
+    fixtures: NimaimeFixtures,
+    condition: string,
+    ctx: ExpectationContext,
+  ): Promise<void> => {
+    const def = resolveCondition(condition, ctx, keyword);
+    const key = `${ctx.screen ?? ''}\u0000${condition}`;
+    if (establishedConditions.has(key)) return;
+    establishedConditions.add(key);
+    await driver.step(
+      `${keyword}: ${condition}`,
+      async () => {
+        await def.fn(guardFixtures(fixtures, `Condition "${condition}"`));
+      },
+      stepLocation(ctx.file, ctx.location),
+    );
+  };
+
   const nimaime: Nimaime = {
     async run(fixtures, plan) {
       validatePlan(plan);
       const base: ExpectationContext = { screen: plan.screen, file: plan.file };
       await nimaime.screen(fixtures, plan.screen, { ...base, location: plan.locations?.screen });
-      if (plan.condition !== undefined) {
-        await nimaime.condition(fixtures, plan.condition, {
+      for (const [index, name] of (plan.background ?? []).entries()) {
+        await establish('Background', fixtures, name, {
           ...base,
-          location: plan.locations?.condition,
+          location: plan.locations?.background?.[index],
         });
       }
+      for (const [index, name] of planConditions(plan).entries()) {
+        await establish(index === 0 ? 'When' : 'And when', fixtures, name, {
+          ...base,
+          location: planConditionLocation(plan, index),
+        });
+      }
+      const condition = planConditionTitle(plan);
       for (const expectation of plan.expectations) {
         await nimaime.check(fixtures, plan.element, expectation, {
           ...base,
-          condition: plan.condition,
+          condition,
           location: expectation.location,
         });
       }
@@ -237,7 +278,7 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
         for (const expectation of block.expectations) {
           await nimaime.check(fixtures, block.element, expectation, {
             screen: block.screen,
-            condition: block.condition,
+            condition: planConditionTitle(block),
             file: block.file,
             location: expectation.location,
           });
@@ -251,13 +292,14 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
               `Element: ${element.element}`,
               async () => {
                 for (const block of element.blocks) {
-                  if (block.condition === undefined) {
+                  const title = planConditionTitle(block);
+                  if (title === undefined) {
                     await checkBlock(block);
                   } else {
                     await driver.step(
-                      `When: ${block.condition}`,
+                      `When: ${title}`,
                       () => checkBlock(block),
-                      stepLocation(block.file, block.locations?.condition),
+                      stepLocation(block.file, planConditionLocation(block, 0)),
                     );
                   }
                 }
@@ -284,19 +326,9 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
       );
     },
 
-    async condition(fixtures, condition, ctx = {}) {
-      const def = resolveCondition(condition, ctx);
-      const key = `${ctx.screen ?? ''}\u0000${condition}`;
-      if (establishedConditions.has(key)) return;
-      establishedConditions.add(key);
-      await driver.step(
-        `When: ${condition}`,
-        async () => {
-          await def.fn(guardFixtures(fixtures, `Condition "${condition}"`));
-        },
-        stepLocation(ctx.file, ctx.location),
-      );
-    },
+    condition: (fixtures, condition, ctx = {}) => establish('When', fixtures, condition, ctx),
+    background: (fixtures, condition, ctx = {}) =>
+      establish('Background', fixtures, condition, ctx),
 
     expectShow: (fixtures, element, target, ctx) =>
       expectTarget('show', fixtures, element, target, ctx),

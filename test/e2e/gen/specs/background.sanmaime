@@ -1,0 +1,17 @@
+# Background: (v0.2) runs after the screen is opened and before the conditions of every block
+# (the unconditional one included); And when: composes conditions. definitions/background.ts logs
+# the order in which the definitions run and checks it.
+Screen: Composed Login
+  Background: The order log is started
+  Background: A valid email is typed
+
+  Element: Login Form
+    Show: Email address
+
+  Element: Login Button
+    When: The order is checked
+    Enable
+
+    When: The email is cleared
+    And when: The order is checked
+    Disable

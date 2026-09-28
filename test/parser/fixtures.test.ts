@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '../../src/parser';
+import { DiagnosticCode, parse } from '../../src/parser';
 import { listFixtures, readExpectation } from './fixtures';
 
 describe('valid fixtures', () => {
@@ -43,10 +43,13 @@ describe('invalid fixtures', () => {
     },
   );
 
-  it('cover every diagnostic code E001..E020', () => {
+  it('cover every diagnostic code but the retired E019', () => {
     const codes = new Set(fixtures.map((f) => readExpectation(f.source).code));
-    for (let n = 1; n <= 20; n++) {
-      expect(codes).toContain(`SANMAIME_E${String(n).padStart(3, '0')}`);
-    }
+    const reported = Object.values(DiagnosticCode).filter(
+      (code) => code !== DiagnosticCode.ReservedKeyword,
+    );
+    for (const code of reported) expect(codes).toContain(code);
+    // E019 (`Background:` reserved) is no longer reported since v0.2.
+    expect(codes).not.toContain(DiagnosticCode.ReservedKeyword);
   });
 });

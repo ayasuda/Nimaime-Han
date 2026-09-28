@@ -43,14 +43,15 @@ test.describe('Screen: Account Settings and Preferences and Preferences and Pref
           screen:
             'Account Settings and Preferences and Preferences and Preferences and Preferences and Preferences and Preferences Screen',
           element: 'Notification Preferences Panel With Several Toggles',
-          condition:
+          conditions: [
             'The user has verified the email address and enabled at least one notification channel',
+          ],
           expectations: [{ kind: 'enable', location: { line: 7, column: 5 } }],
           file,
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 3, column: 3 },
-            condition: { line: 6, column: 5 },
+            conditions: [{ line: 6, column: 5 }],
           },
         },
       );
@@ -63,13 +64,13 @@ test.describe('Screen: Account Settings and Preferences and Preferences and Pref
           screen:
             'Account Settings and Preferences and Preferences and Preferences and Preferences and Preferences and Preferences Screen',
           element: 'Notification Preferences Panel With Several Toggles',
-          condition: 'Short',
+          conditions: ['Short'],
           expectations: [{ kind: 'disable', location: { line: 10, column: 5 } }],
           file,
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 3, column: 3 },
-            condition: { line: 9, column: 5 },
+            conditions: [{ line: 9, column: 5 }],
           },
         },
       );

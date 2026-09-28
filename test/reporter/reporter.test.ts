@@ -135,6 +135,64 @@ describe('NimaimeReporter', () => {
     );
   });
 
+  it('prints Background: under the screen and titles composed blocks (v0.2)', () => {
+    const always = fakeTest({
+      path: ['Screen: Cart', 'Element: Checkout', 'Always'],
+      line: 10,
+      steps: [
+        step('Screen: Cart'),
+        step('Background: Logged in'),
+        step('Background: Cookies accepted'),
+        step('Show: Total'),
+      ],
+    });
+    const composed = fakeTest({
+      path: ['Screen: Cart', 'Element: Checkout', 'When: Has items and Address set'],
+      line: 20,
+      steps: [
+        step('Screen: Cart'),
+        step('Background: Logged in'),
+        step('Background: Cookies accepted'),
+        step('When: Has items'),
+        step('And when: Address set'),
+        step('Enable'),
+      ],
+    });
+    const failedCondition = fakeTest({
+      path: ['Screen: Cart', 'Element: Coupon', 'When: Has items and Coupon applied'],
+      line: 30,
+      status: 'failed',
+      steps: [
+        step('Screen: Cart'),
+        step('Background: Logged in'),
+        step('When: Has items'),
+        step('And when: Coupon applied', {
+          line: 12,
+          error: { message: 'Error: no coupon field' },
+        }),
+      ],
+    });
+    const out = report([always, composed, failedCondition]);
+    expect(out).toContain(
+      [
+        '✗ Screen: Cart',
+        '  Background: Logged in',
+        '  Background: Cookies accepted',
+        '',
+        '  ✓ Element: Checkout',
+        '    ✓ Total is shown',
+        '',
+        '    When: Has items and Address set',
+        '      ✓ enabled',
+        '',
+        '  ✗ Element: Coupon',
+        '    When: Has items and Coupon applied',
+        '      ✗ And when: Coupon applied',
+        '        Error: Error: no coupon field',
+      ].join('\n'),
+    );
+  });
+
   it('prints an unconditional failure at 4 spaces and omits the expectations after it', () => {
     const test = fakeTest({
       path: ['Screen: Login', 'Element: User Information', 'Always'],

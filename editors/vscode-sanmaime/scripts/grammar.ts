@@ -58,8 +58,6 @@ export const SCOPES = {
   expectation: 'keyword.operator.expectation.sanmaime',
   target: 'string.unquoted.target.sanmaime',
   state: 'keyword.operator.state.sanmaime',
-  reserved: 'invalid.deprecated.sanmaime',
-  reservedKeyword: 'keyword.other.reserved.sanmaime',
   missingName: 'invalid.illegal.missing-name.sanmaime',
   illegal: 'invalid.illegal.sanmaime',
 } as const;
@@ -163,12 +161,17 @@ function bodyRules(
   const bareWithArgument = bare
     .map(([text, colons]) => `${escapeRegExp(text)}(?=${charClass(colons)}|${WS})`)
     .join('|');
-  const reserved = keywordBeforeColon(collect(languages, ['background']));
   return [
     { include: '#comment' },
     { include: '#tags' },
     ...nameKeywordRules(languages, ['screen', 'element'], SCOPES.structure, SCOPES.section),
-    ...nameKeywordRules(languages, ['when'], SCOPES.condition, SCOPES.conditionName),
+    // `Background:`, `When:` and `And when:` all name a condition (v0.2).
+    ...nameKeywordRules(
+      languages,
+      ['background', 'when', 'andWhen'],
+      SCOPES.condition,
+      SCOPES.conditionName,
+    ),
     ...nameKeywordRules(languages, ['show', 'hide', 'and'], SCOPES.expectation, SCOPES.target),
     {
       // `Enable` / `Disable`: the whole trimmed line is the keyword.
@@ -179,15 +182,6 @@ function bodyRules(
       // `Enable: X`, `Enable X` (SANMAIME_E003).
       match: `^${WS}*((?:${bareWithArgument}).*?)${WS}*$`,
       captures: { '1': { name: SCOPES.illegal } },
-    },
-    {
-      // `Background:` (reserved, SANMAIME_E019).
-      match: `^${WS}*(((?:${reserved})(${allColons(languages)})).*?)${WS}*$`,
-      captures: {
-        '1': { name: SCOPES.reserved },
-        '2': { name: SCOPES.reservedKeyword },
-        '3': { name: SCOPES.colon },
-      },
     },
     {
       // Anything else that looks like `Word:` is an unknown keyword (SANMAIME_E001). This also

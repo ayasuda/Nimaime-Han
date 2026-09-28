@@ -71,8 +71,8 @@ describe('parse: # language: ja', () => {
     );
     expect(codes(result)).toEqual(['SANMAIME_E001@5:1', 'SANMAIME_E001@6:1']);
     expect(result.diagnostics.map((d) => d.message)).toEqual([
-      `Unrecognised line 'Hide: B'. Expected 画面:, 要素:, 条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Hide:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '非表示:'?`,
-      `Unrecognised line 'Enable'. Expected 画面:, 要素:, 条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Enable' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '有効'?`,
+      `Unrecognised line 'Hide: B'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Hide:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '非表示:'?`,
+      `Unrecognised line 'Enable'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Enable' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '有効'?`,
     ]);
   });
 
@@ -118,7 +118,8 @@ describe('parse: # language: ja', () => {
         '条件: C',
         '無効', // E016
         '無効', // E015
-        '背景：x', // E019
+        '背景：x', // E025
+        'かつ条件：Y', // E023
         '@t',
         '表示: D', // E018
       ),
@@ -137,10 +138,8 @@ describe('parse: # language: ja', () => {
         `'無効' is not allowed here: element 'E' already declares '有効' unconditionally (line 11). Unconditional expectations hold in every state.`,
       ],
       ['SANMAIME_E015', `This block already declares '無効' (line 13).`],
-      [
-        'SANMAIME_E019',
-        `'背景:' is reserved for a future version of Sanmaime and is not supported in v0.`,
-      ],
+      ['SANMAIME_E025', `'背景:' must appear directly under a '画面:', before its first '要素:'.`],
+      ['SANMAIME_E023', `'かつ条件:' must directly follow '条件:' or 'かつ条件:'.`],
       ['SANMAIME_E018', `Tags must be followed by '画面:', '要素:' or '条件:'.`],
     ]);
   });

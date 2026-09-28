@@ -20,6 +20,7 @@ import { hasHooks, type DocumentHooks, type HookCall, type HookUsage } from './h
 import { tagNames } from './tags';
 import type {
   ResolvedCondition,
+  ResolvedConditionRef,
   ResolvedDocument,
   ResolvedElement,
   ResolvedExpectation,
@@ -34,6 +35,14 @@ export const RUNTIME_MODULE = 'nimaime-han/runtime';
 
 /** Title of the test of an element's unconditional block (its invariants, sanmaime.md §5.4). */
 export const UNCONDITIONAL_TEST_TITLE = 'Always';
+
+/**
+ * Title of the test of a condition block: `When: A`, or `When: A and B` for a block with
+ * `And when: B` (sanmaime.md §5.10). The same in every keyword language.
+ */
+export function conditionTestTitle(condition: Pick<ResolvedCondition, 'title'>): string {
+  return `When: ${condition.title}`;
+}
 
 /** Fixture requested for a callback whose fixtures cannot be determined. */
 export const FALLBACK_FIXTURE = 'page';
@@ -298,6 +307,19 @@ class Writer {
     this.line(depth, '},');
   }
 
+  /** `key: ['a', 'b'],` on one line if it fits, else one string per line. */
+  stringArrayProperty(depth: number, key: string, values: readonly string[]): void {
+    const items = values.map((value) => this.q(value));
+    const flat = `${key}: [${items.join(', ')}],`;
+    if (this.fits(depth, flat)) {
+      this.line(depth, flat);
+      return;
+    }
+    this.line(depth, `${key}: [`);
+    for (const item of items) this.line(depth + 1, `${item},`);
+    this.line(depth, '],');
+  }
+
   /** `{ a, b },` on one line if it fits, else one entry per line. */
   inlineOrBrokenObject(depth: number, prefix: string, entries: string[], suffix = ','): void {
     const flat = entries.length === 0 ? '{}' : `{ ${entries.join(', ')} }`;
@@ -337,7 +359,8 @@ interface BlockFixtures {
 }
 
 /**
- * The fixtures the callbacks of one block destructure (screen `open`, condition `fn`, the element's
+ * The fixtures the callbacks of one block destructure (screen `open`, the `fn` of the screen's
+ * background conditions and of the block's conditions, the element's
  * `self` / target locators): the same analysis as the runtime's `collectFixtureNames(plan)`, done on
  * the resolved definitions. A callback whose first parameter is not destructured is `unknown`;
  * the test then requests `page` for it.
@@ -358,7 +381,8 @@ function blockFixtures(
     else for (const name of found) names.add(name);
   };
   add(`screen "${screen.name}" open`, screen.definition?.open);
-  if (condition) add(`condition "${condition.name}"`, condition.definition?.fn);
+  for (const ref of screen.background) add(`condition "${ref.name}"`, ref.definition?.fn);
+  for (const ref of condition?.conditions ?? []) add(`condition "${ref.name}"`, ref.definition?.fn);
   const def = element.definition;
   if (def) {
     for (const expectation of expectations) {
@@ -443,6 +467,38 @@ function writeExpectations(
   w.line(depth, '],');
 }
 
+/** A `locations` property: one position, or an array of positions. */
+type LocationEntry = [key: string, value: string | string[]];
+
+/**
+ * `locations: { screen: {…}, element: {…}, conditions: [{…}] },` laid out like Prettier: flat when
+ * it fits, else one property per line. An array of more than one position object always breaks
+ * (Prettier's rule for arrays of objects with several properties), and so does the object
+ * around it.
+ */
+function writeLocations(w: Writer, depth: number, entries: LocationEntry[]): void {
+  const flatValue = (value: string | string[]): string =>
+    typeof value === 'string' ? value : `[${value.join(', ')}]`;
+  const forced = entries.some(([, value]) => Array.isArray(value) && value.length > 1);
+  const flat = `locations: { ${entries.map(([key, value]) => `${key}: ${flatValue(value)}`).join(', ')} },`;
+  if (!forced && w.fits(depth, flat)) {
+    w.line(depth, flat);
+    return;
+  }
+  w.line(depth, 'locations: {');
+  for (const [key, value] of entries) {
+    const line = `${key}: ${flatValue(value)},`;
+    if (typeof value === 'string' || (value.length <= 1 && w.fits(depth + 1, line))) {
+      w.line(depth + 1, line);
+      continue;
+    }
+    w.line(depth + 1, `${key}: [`);
+    for (const item of value) w.line(depth + 2, `${item},`);
+    w.line(depth + 1, '],');
+  }
+  w.line(depth, '},');
+}
+
 function writeTest(
   w: Writer,
   depth: number,
@@ -462,15 +518,24 @@ function writeTest(
     const p = d + 2;
     w.stringProperty(p, 'screen', screen.definition?.name ?? screen.name);
     w.stringProperty(p, 'element', element.definition?.name ?? element.name);
-    if (condition) w.stringProperty(p, 'condition', condition.definition?.name ?? condition.name);
+    const definedName = (ref: ResolvedConditionRef): string => ref.definition?.name ?? ref.name;
+    if (screen.background.length > 0) {
+      w.stringArrayProperty(p, 'background', screen.background.map(definedName));
+    }
+    if (condition) w.stringArrayProperty(p, 'conditions', condition.conditions.map(definedName));
     writeExpectations(w, p, element, expectations);
     w.line(p, 'file,');
-    const locations = [
-      `screen: ${position(screen.location)}`,
-      `element: ${position(element.location)}`,
+    const locations: LocationEntry[] = [
+      ['screen', position(screen.location)],
+      ['element', position(element.location)],
     ];
-    if (condition) locations.push(`condition: ${position(condition.location)}`);
-    w.inlineOrBrokenObject(p, 'locations: ', locations);
+    if (screen.background.length > 0) {
+      locations.push(['background', screen.background.map((ref) => position(ref.location))]);
+    }
+    if (condition) {
+      locations.push(['conditions', condition.conditions.map((ref) => position(ref.location))]);
+    }
+    writeLocations(w, p, locations);
     w.line(d + 1, '},');
     w.line(d, ');');
   };
@@ -616,7 +681,9 @@ function ownTags(tags: readonly Tag[], inherited: readonly (readonly Tag[])[]): 
  *
  * Layout: `test.describe('Screen: X')` > `test.describe('Element: Y')` > one `test()` per block:
  * `'Always'` for the element's unconditional block (its invariants, checked in the base state) and
- * `'When: C'` for each condition block. Each test destructures `$nimaime` plus the fixtures its
+ * `'When: C'` (`'When: C and D'` with `And when: D`) for each condition block. The plans of a
+ * screen with `Background:` lines carry `background: [...]`; condition blocks carry
+ * `conditions: [...]` (the `When:` condition, then each `And when:` condition). Each test destructures `$nimaime` plus the fixtures its
  * definitions use and calls `$nimaime.run(fixtures, plan)`; plans carry the `.sanmaime` file
  * (relative to the generated file) and the line/column of every Screen/Element/When/expectation.
  *
@@ -714,7 +781,7 @@ export function generateSpecFile(
               }
               for (const condition of element.conditions) {
                 blocks.push({
-                  title: `When: ${condition.name}`,
+                  title: conditionTestTitle(condition),
                   condition,
                   expectations: condition.expectations,
                   tags: ownTags(condition.tags, [screen.tags, element.tags]),
@@ -773,7 +840,7 @@ export function listTests(doc: ResolvedDocument): GeneratedTest[] {
       }
       for (const condition of element.conditions) {
         tests.push({
-          titlePath: [...prefix, `When: ${condition.name}`],
+          titlePath: [...prefix, conditionTestTitle(condition)],
           tags: tagNames(screen.tags, element.tags, condition.tags),
         });
       }

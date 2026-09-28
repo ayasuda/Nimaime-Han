@@ -45,15 +45,30 @@ export const DiagnosticCode = {
   InvalidLanguage: 'SANMAIME_E017',
   /** Tag lines not followed by `Screen:`, `Element:` or `When:`. */
   MisplacedTags: 'SANMAIME_E018',
-  /** Use of the reserved keyword `Background:`. */
+  /**
+   * Use of the reserved keyword `Background:` (v0 and v0.1). Retired in v0.2, where `Background:`
+   * became a keyword: no longer reported, kept so that the code is never reused.
+   */
   ReservedKeyword: 'SANMAIME_E019',
   /** Malformed tag line. */
   InvalidTag: 'SANMAIME_E020',
+  /** An expectation after `Background:`, before the screen's first `Element:` (v0.2). */
+  BackgroundWithExpectations: 'SANMAIME_E021',
+  /**
+   * A condition established twice for one test (v0.2): a repeated `Background:` name, a name
+   * repeated in the `When:` / `And when:` lines of one block, or a block condition that the
+   * screen's `Background:` already establishes.
+   */
+  DuplicateConditionInChain: 'SANMAIME_E022',
+  /** `And when:` that does not directly follow `When:` or `And when:` (v0.2). */
+  MisplacedAndWhen: 'SANMAIME_E023',
+  /** `Background:` outside a screen or after the screen's first `Element:` (v0.2). */
+  MisplacedBackground: 'SANMAIME_E025',
 } as const;
 
 export type DiagnosticCode = (typeof DiagnosticCode)[keyof typeof DiagnosticCode];
 
-/** All v0 diagnostics are errors; `warning` is reserved for future lint-style checks. */
+/** All diagnostics are errors; `warning` is reserved for future lint-style checks. */
 export type DiagnosticSeverity = 'error' | 'warning';
 
 export interface Diagnostic {
@@ -85,7 +100,7 @@ export type KeywordSpellings = Readonly<Record<CanonicalKeyword, string>>;
 export function createMessages(k: KeywordSpellings) {
   return {
     unrecognisedLine: (text: string, hint: string | undefined): string =>
-      `Unrecognised line '${text}'. Expected ${k.Screen}:, ${k.Element}:, ${k.When}:, ${k.Show}:, ${k.Hide}:, ${k.And}:, ${k.Enable}, ${k.Disable}, a comment (#) or tags (@).` +
+      `Unrecognised line '${text}'. Expected ${k.Screen}:, ${k.Background}:, ${k.Element}:, ${k.When}:, ${k.AndWhen}:, ${k.Show}:, ${k.Hide}:, ${k.And}:, ${k.Enable}, ${k.Disable}, a comment (#) or tags (@).` +
       (hint === undefined ? '' : ` ${hint}`),
     missingName: (keyword: string): string => `'${keyword}:' requires a name.`,
     bareKeywordWithArgument: (keyword: string): string =>
@@ -103,8 +118,8 @@ export function createMessages(k: KeywordSpellings) {
       `Duplicate screen '${name}' (first declared on line ${String(firstLine)}).`,
     duplicateElement: (name: string, screen: string, firstLine: number): string =>
       `Duplicate element '${name}' in screen '${screen}' (first declared on line ${String(firstLine)}).`,
-    duplicateCondition: (name: string, element: string, firstLine: number): string =>
-      `Duplicate condition '${name}' in element '${element}' (first declared on line ${String(firstLine)}). Merge the two blocks.`,
+    duplicateCondition: (title: string, element: string, firstLine: number): string =>
+      `Duplicate condition '${title}' in element '${element}' (first declared on line ${String(firstLine)}). Merge the two blocks.`,
     duplicateTarget: (target: string, firstLine: number): string =>
       `'${target}' is already asserted in this block (line ${String(firstLine)}).`,
     duplicateState: (keyword: string, firstLine: number): string =>
@@ -124,10 +139,20 @@ export function createMessages(k: KeywordSpellings) {
       `Duplicate language directive (first on line ${String(firstLine)}).`,
     misplacedTags: (): string =>
       `Tags must be followed by '${k.Screen}:', '${k.Element}:' or '${k.When}:'.`,
-    reservedKeyword: (keyword: string): string =>
-      `'${keyword}:' is reserved for a future version of Sanmaime and is not supported in v0.`,
     invalidTag: (token: string): string =>
       `Invalid tag '${token}'. A tag is '@' followed by characters other than whitespace, '@' and '#'.`,
+    backgroundWithExpectations: (keyword: string): string =>
+      `'${keyword}' is not allowed under '${k.Background}:': a background takes no expectations. Put expectations under an '${k.Element}:'.`,
+    duplicateBackground: (name: string, screen: string, firstLine: number): string =>
+      `Duplicate background condition '${name}' in screen '${screen}' (first on line ${String(firstLine)}).`,
+    duplicateBlockCondition: (name: string, firstLine: number): string =>
+      `Condition '${name}' is already part of this block (line ${String(firstLine)}).`,
+    conditionInBackground: (name: string, firstLine: number): string =>
+      `Condition '${name}' is already established by '${k.Background}:' (line ${String(firstLine)}). Background conditions apply to every block of the screen.`,
+    misplacedAndWhen: (keyword: string): string =>
+      `'${keyword}:' must directly follow '${k.When}:' or '${k.AndWhen}:'.`,
+    misplacedBackground: (keyword: string): string =>
+      `'${keyword}:' must appear directly under a '${k.Screen}:', before its first '${k.Element}:'.`,
   };
 }
 

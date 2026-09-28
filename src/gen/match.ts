@@ -6,12 +6,13 @@
  * The result is a resolved model the code generator consumes directly, plus reports of missing and
  * unused definitions. See docs/definitions.md, "Definition loading and matching".
  */
-import type {
-  Expectation,
-  Location,
-  StateExpectation,
-  Tag,
-  VisibilityExpectation,
+import {
+  CONDITION_SEPARATOR,
+  type Expectation,
+  type Location,
+  type StateExpectation,
+  type Tag,
+  type VisibilityExpectation,
 } from '../parser';
 import type { SourceLocation } from '../runtime/source';
 import type {
@@ -44,13 +45,29 @@ export interface ResolvedStateExpectation {
 
 export type ResolvedExpectation = ResolvedVisibilityExpectation | ResolvedStateExpectation;
 
-/** `When: <name>` resolved to its definition (screen-scoped first, then global). */
-export interface ResolvedCondition {
+/**
+ * A condition name resolved to its definition (screen-scoped first, then global): a
+ * `Background:` line, or the `When:` / an `And when:` line of a block.
+ */
+export interface ResolvedConditionRef {
   name: string;
+  location: Location;
+  definition: ConditionDefinition | undefined;
+}
+
+/** `When: <name>` (plus its `And when:` lines) resolved to the condition definitions. */
+export interface ResolvedCondition {
+  /** The primary condition (`When:`): `conditions[0].name`. */
+  name: string;
+  /** The block's display name, `A and B` (the test title is `When: <title>`). */
+  title: string;
   /** Tags written before `When:` (block-level tags). */
   tags: Tag[];
   location: Location;
+  /** The definition of the primary condition: `conditions[0].definition`. */
   definition: ConditionDefinition | undefined;
+  /** Every condition of the block, in execution order (`When:`, then each `And when:`). */
+  conditions: ResolvedConditionRef[];
   expectations: ResolvedExpectation[];
 }
 
@@ -73,6 +90,8 @@ export interface ResolvedScreen {
   file: string;
   /** `undefined` is allowed: the screen then has no `open` (see `MissingDefinition`). */
   definition: ScreenDefinition | undefined;
+  /** The screen's `Background:` conditions, in order (established before every block's own). */
+  background: ResolvedConditionRef[];
   elements: ResolvedElement[];
 }
 
@@ -104,7 +123,10 @@ export interface MissingDefinition {
   severity: 'error' | 'info';
   /** The screen the name is used in. */
   screen: string;
-  /** The element the name is used in (for `element`, `target`, `self` and `condition`). */
+  /**
+   * The element the name is used in (for `element`, `target`, `self` and `condition`); not set
+   * for a condition used by the screen's `Background:`.
+   */
   element?: string;
   /** The missing name: the screen, element, target or condition name (the element name for `self`). */
   name: string;
@@ -232,6 +254,31 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
         });
       }
 
+      /** Resolves a condition name used in this screen (by `element`, or by the background). */
+      const resolveConditionRef = (
+        ref: { name: string; location: Location },
+        element: string | undefined,
+      ): ResolvedConditionRef => {
+        const conditionName = ref.name.trim();
+        const conditionDef =
+          lookup.scopedConditions.get(screenName)?.get(conditionName) ??
+          lookup.globalConditions.get(conditionName);
+        if (conditionDef) used.add(conditionDef);
+        else {
+          reportMissing({
+            kind: 'condition',
+            severity: 'error',
+            screen: screenName,
+            ...(element === undefined ? {} : { element }),
+            name: conditionName,
+            file,
+            location: ref.location,
+          });
+        }
+        return { name: conditionName, location: ref.location, definition: conditionDef };
+      };
+      const background = screen.background.map((entry) => resolveConditionRef(entry, undefined));
+
       const elements = screen.elements.map((element): ResolvedElement => {
         const elementName = element.name.trim();
         const elementDef = lookup.elements.get(elementName);
@@ -307,27 +354,15 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
         };
 
         const conditions = element.conditions.map((condition): ResolvedCondition => {
-          const conditionName = condition.name.trim();
-          const conditionDef =
-            lookup.scopedConditions.get(screenName)?.get(conditionName) ??
-            lookup.globalConditions.get(conditionName);
-          if (conditionDef) used.add(conditionDef);
-          else {
-            reportMissing({
-              kind: 'condition',
-              severity: 'error',
-              screen: screenName,
-              element: elementName,
-              name: conditionName,
-              file,
-              location: condition.location,
-            });
-          }
+          const resolved = condition.conditions.map((ref) => resolveConditionRef(ref, elementName));
+          const [primary] = resolved;
           return {
-            name: conditionName,
+            name: primary?.name ?? condition.name.trim(),
+            title: resolved.map((ref) => ref.name).join(CONDITION_SEPARATOR),
             tags: condition.tags,
             location: condition.location,
-            definition: conditionDef,
+            definition: primary?.definition,
+            conditions: resolved,
             expectations: condition.expectations.map(resolveExpectation),
           };
         });
@@ -348,6 +383,7 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
         location: screen.location,
         file,
         definition: screenDef,
+        background,
         elements,
       };
     });

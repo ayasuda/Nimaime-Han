@@ -1,6 +1,12 @@
 import type { Page } from '@playwright/test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { matchSpecs, type ParsedSpec } from '../../src/gen';
+import {
+  formatMissing,
+  listTests,
+  matchSpecs,
+  withoutMissingDefinitions,
+  type ParsedSpec,
+} from '../../src/gen';
 import { createNimaime } from '../../src/index';
 import { parse } from '../../src/parser';
 import { getRegistry, resetRegistry } from '../../src/runtime/index';
@@ -336,5 +342,101 @@ describe('matchSpecs', () => {
     const screen = result.documents[0]?.screens[0];
     expect(screen?.tags.map((t) => t.name)).toEqual(['@smoke']);
     expect(screen?.elements[0]?.tags.map((t) => t.name)).toEqual(['@slow']);
+  });
+
+  it('resolves Background: and And when: conditions (v0.2)', () => {
+    defineScreen('Cart');
+    defineElement('Checkout', ({ page }: { page: Page }) => page.locator('b'), {});
+    const loggedIn = () => undefined;
+    const items = () => undefined;
+    const address = () => undefined;
+    defineCondition('Logged in', loggedIn);
+    defineCondition('Has items', items);
+    defineCondition('Address set', address, { screen: 'Cart' });
+    defineCondition('Unused', () => undefined);
+    const result = matchSpecs(
+      [
+        spec(
+          'Screen: Cart\nBackground: Logged in\nElement: Checkout\n' +
+            'When: Has items\nAnd when: Address set\nEnable\n',
+        ),
+      ],
+      getRegistry(),
+    );
+    expect(result.missing).toEqual([]);
+    expect(result.unused.map((u) => u.name)).toEqual(['Unused']);
+    const screen = result.documents[0]?.screens[0];
+    expect(screen?.background.map((ref) => [ref.name, ref.location])).toEqual([
+      ['Logged in', { line: 2, column: 1 }],
+    ]);
+    expect(screen?.background[0]?.definition?.fn).toBe(loggedIn);
+    const block = screen?.elements[0]?.conditions[0];
+    expect(block?.name).toBe('Has items');
+    expect(block?.title).toBe('Has items and Address set');
+    expect(block?.definition?.fn).toBe(items);
+    expect(block?.conditions.map((c) => [c.name, c.location.line, c.definition?.fn])).toEqual([
+      ['Has items', 4, items],
+      ['Address set', 5, address],
+    ]);
+  });
+
+  it('reports missing Background: and And when: conditions', () => {
+    defineElement('Checkout', ({ page }: { page: Page }) => page.locator('b'), {});
+    defineCondition('Has items', () => undefined);
+    const result = matchSpecs(
+      [
+        spec(
+          'Screen: Cart\n  Background: Logged in\n  Element: Checkout\n' +
+            '    When: Has items\n    And when: Address set\n    Enable\n',
+        ),
+      ],
+      getRegistry(),
+    );
+    expect(result.missing.filter((m) => m.severity === 'error')).toEqual([
+      {
+        kind: 'condition',
+        severity: 'error',
+        screen: 'Cart',
+        name: 'Logged in',
+        file: '/project/specs/test.sanmaime',
+        location: { line: 2, column: 3 },
+      },
+      {
+        kind: 'condition',
+        severity: 'error',
+        screen: 'Cart',
+        element: 'Checkout',
+        name: 'Address set',
+        file: '/project/specs/test.sanmaime',
+        location: { line: 5, column: 5 },
+      },
+    ]);
+    const block = result.documents[0]?.screens[0]?.elements[0]?.conditions[0];
+    expect(block?.definition).toBeDefined();
+    expect(block?.conditions[1]?.definition).toBeUndefined();
+  });
+
+  it('--allow-missing drops the blocks of a missing And when: and the screens of a missing Background:', () => {
+    defineElement('B', ({ page }: { page: Page }) => page.locator('b'), {});
+    defineCondition('Has items', () => undefined);
+    const result = matchSpecs(
+      [
+        spec(
+          'Screen: Cart\nElement: B\nWhen: Nope\nEnable\nWhen: Has items\nAnd when: Nope\nDisable\n' +
+            'When: Has items\nDisable\n' +
+            'Screen: Other\nBackground: Nope\nElement: B\nEnable\n',
+        ),
+      ],
+      getRegistry(),
+    );
+    const [doc] = result.documents;
+    if (!doc) throw new Error('not resolved');
+    expect(listTests(withoutMissingDefinitions(doc)).map((t) => t.titlePath.join(' > '))).toEqual([
+      'Screen: Cart > Element: B > When: Has items',
+    ]);
+    expect(formatMissing(result.missing, { cwd: '/project', format: 'compact' })).toEqual([
+      'specs/test.sanmaime:3:1: error: Condition "When: Nope" (Screen "Cart", Element "B") has no definition (defineCondition).',
+      'specs/test.sanmaime:11:1: error: Condition "Background: Nope" (Screen "Other") has no definition (defineCondition).',
+    ]);
   });
 });

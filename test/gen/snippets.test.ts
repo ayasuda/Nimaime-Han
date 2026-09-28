@@ -389,7 +389,7 @@ describe('formatDiagnostics', () => {
           SANMAIME_E009: Element 'X' has no expectations.
 
         specs/broken.sanmaime:3:5
-          SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).
+          SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).
       "
     `);
   });
@@ -397,7 +397,7 @@ describe('formatDiagnostics', () => {
   it('prints formatDiagnostic lines in compact form, and nothing for no diagnostics', () => {
     expect(formatDiagnostics(diagnostics, { cwd: root, format: 'compact' })).toEqual([
       "specs/broken.sanmaime:2:3: error SANMAIME_E009: Element 'X' has no expectations.",
-      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
+      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
     ]);
     expect(formatDiagnostics([], { cwd: root })).toEqual([]);
   });

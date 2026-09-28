@@ -315,7 +315,7 @@ describe('runGeneration', () => {
         "    SANMAIME_E009: Element 'X' has no expectations.",
         '',
         '  specs/broken.sanmaime:3:5',
-        "    SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
+        "    SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
         '',
         'Missing definitions: 3',
         '',
@@ -362,7 +362,7 @@ describe('runGeneration', () => {
     expect(await main(['--format', 'compact'], { ...io, cwd: dir })).toBe(1);
     expect(io.err.split('\n')).toEqual([
       "specs/broken.sanmaime:2:3: error SANMAIME_E009: Element 'X' has no expectations.",
-      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
+      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
       'specs/missing.sanmaime:4:5: error: Element "Login Button" has no definition for target "Spinner".',
       'specs/missing.sanmaime:6:3: error: Element "Nowhere" of Screen "Somewhere" has no definition (defineElement).',
       'specs/missing.sanmaime:10:5: error: Condition "When: Never defined" (Screen "Somewhere", Element "Login Form") has no definition (defineCondition).',

@@ -27,7 +27,7 @@ test.describe('Screen: ユーザー詳細', () => {
         {
           screen: 'ユーザー詳細',
           element: 'ユーザー情報',
-          condition: '自分のプロフィールを閲覧している',
+          conditions: ['自分のプロフィールを閲覧している'],
           expectations: [
             { kind: 'show', target: '氏名', location: { line: 8, column: 5 } },
             { kind: 'show', target: 'メールアドレス', location: { line: 9, column: 5 } },
@@ -36,7 +36,7 @@ test.describe('Screen: ユーザー詳細', () => {
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 4, column: 3 },
-            condition: { line: 7, column: 5 },
+            conditions: [{ line: 7, column: 5 }],
           },
         },
       );
@@ -48,7 +48,7 @@ test.describe('Screen: ユーザー詳細', () => {
         {
           screen: 'ユーザー詳細',
           element: 'ユーザー情報',
-          condition: '他のユーザーのプロフィールを閲覧している',
+          conditions: ['他のユーザーのプロフィールを閲覧している'],
           expectations: [
             { kind: 'hide', target: '氏名', location: { line: 12, column: 5 } },
             { kind: 'hide', target: 'メールアドレス', location: { line: 13, column: 5 } },
@@ -57,7 +57,7 @@ test.describe('Screen: ユーザー詳細', () => {
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 4, column: 3 },
-            condition: { line: 11, column: 5 },
+            conditions: [{ line: 11, column: 5 }],
           },
         },
       );
@@ -71,13 +71,13 @@ test.describe('Screen: ユーザー詳細', () => {
         {
           screen: 'ユーザー詳細',
           element: '編集ボタン',
-          condition: '自分のプロフィールを閲覧している',
+          conditions: ['自分のプロフィールを閲覧している'],
           expectations: [{ kind: 'enable', location: { line: 17, column: 5 } }],
           file,
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 15, column: 3 },
-            condition: { line: 16, column: 5 },
+            conditions: [{ line: 16, column: 5 }],
           },
         },
       );
@@ -89,13 +89,13 @@ test.describe('Screen: ユーザー詳細', () => {
         {
           screen: 'ユーザー詳細',
           element: '編集ボタン',
-          condition: '他のユーザーのプロフィールを閲覧している',
+          conditions: ['他のユーザーのプロフィールを閲覧している'],
           expectations: [{ kind: 'disable', location: { line: 20, column: 5 } }],
           file,
           locations: {
             screen: { line: 2, column: 1 },
             element: { line: 15, column: 3 },
-            condition: { line: 19, column: 5 },
+            conditions: [{ line: 19, column: 5 }],
           },
         },
       );

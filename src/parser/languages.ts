@@ -14,6 +14,8 @@ export interface LanguageKeywords {
   element: readonly string[];
   /** `When:` — name keyword. */
   when: readonly string[];
+  /** `And when:` — name keyword (a further condition of a `When:` block, v0.2). */
+  andWhen: readonly string[];
   /** `Show:` — name keyword. */
   show: readonly string[];
   /** `Hide:` — name keyword. */
@@ -24,7 +26,7 @@ export interface LanguageKeywords {
   enable: readonly string[];
   /** `Disable` — bare keyword. */
   disable: readonly string[];
-  /** `Background:` — reserved for a future version (`SANMAIME_E019`). */
+  /** `Background:` — name keyword (conditions shared by every element of a screen, v0.2). */
   background: readonly string[];
 }
 
@@ -32,7 +34,7 @@ export interface LanguageKeywords {
  * One keyword language.
  *
  * Keyword spellings are stored **without** a colon. The lexer appends a colon to name keywords
- * (`screen` … `and`, and the reserved `background`) and matches bare keywords (`enable`,
+ * (`screen` … `and`, `andWhen` and `background`) and matches bare keywords (`enable`,
  * `disable`) against the whole line. Every slot has at least one spelling; the first one is the
  * *primary* spelling used in diagnostics and by tools that write Sanmaime. Further spellings are
  * synonyms, as in Gherkin.
@@ -61,6 +63,7 @@ const en: LanguageDefinition = {
     screen: ['Screen'],
     element: ['Element'],
     when: ['When'],
+    andWhen: ['And when'],
     show: ['Show'],
     hide: ['Hide'],
     and: ['And'],
@@ -79,6 +82,7 @@ const ja: LanguageDefinition = {
     screen: ['画面'],
     element: ['要素'],
     when: ['条件'],
+    andWhen: ['かつ条件'],
     show: ['表示'],
     hide: ['非表示'],
     and: ['かつ'],

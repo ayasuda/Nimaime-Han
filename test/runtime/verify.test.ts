@@ -299,3 +299,67 @@ describe('$nimaime.verify', () => {
     );
   });
 });
+
+describe('verify with Background: and And when: (v0.2)', () => {
+  const COMPOSED = `Screen: Cart
+  Background: Logged in
+
+  Element: Checkout
+    When: Has items
+    Show: Total
+
+    When: Has items
+    And when: Address set
+    Enable
+`;
+
+  beforeEach(() => {
+    const { defineElement } = createNimaime();
+    defineElement('Checkout', ({ page }) => page.getByTestId('checkout'), {
+      Total: ({ page }) => page.getByTestId('total'),
+    });
+    const { document, diagnostics } = parse(COMPOSED);
+    expect(diagnostics).toEqual([]);
+    const [spec] = screenSpecsFromDocument(document, '/app/specs/cart.sanmaime');
+    expect(spec?.background).toEqual(['Logged in']);
+    expect(spec?.elements[0]?.conditions.map((c) => [c.name, c.conditions])).toEqual([
+      ['Has items', undefined],
+      ['Has items', ['Has items', 'Address set']],
+    ]);
+    if (spec) registerScreenSpec(spec);
+  });
+
+  it('checks a composed block only when all its conditions are listed', () => {
+    const titles = (when: string[]): (string | undefined)[] =>
+      planVerify('Cart', { when }).elements.flatMap((e) =>
+        e.blocks.map((b) => b.condition ?? b.conditions?.join(' + ')),
+      );
+    expect(titles(['Has items'])).toEqual(['Has items']);
+    expect(titles(['Has items', 'Address set'])).toEqual(['Has items', 'Has items + Address set']);
+    // Background conditions are known names (the page is assumed to be in that state).
+    expect(titles(['Logged in', 'Has items'])).toEqual(['Has items']);
+    expect(() => planVerify('Cart', { when: ['Nope'] })).toThrow(
+      /Conditions: "Has items", "Address set", "Logged in"\./,
+    );
+  });
+
+  it('titles the step of a composed block like its test', async () => {
+    const h = harness();
+    await h.nimaime.verify(h.fixtures, 'Cart', { when: ['Has items', 'Address set'] });
+    expect(h.events).toEqual([
+      'Screen: Cart',
+      '  Element: Checkout',
+      '    When: Has items',
+      '      Show: Total',
+      '        assert show total',
+      '    When: Has items and Address set',
+      '      Enable',
+      '        assert enable checkout',
+    ]);
+    expect(h.steps.find((s) => s.title === 'When: Has items and Address set')?.location).toEqual({
+      file: '/app/specs/cart.sanmaime',
+      line: 8,
+      column: 5,
+    });
+  });
+});

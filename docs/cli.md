@@ -336,13 +336,13 @@ test.describe('Screen: Login', () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is valid',
+          conditions: ['Input is valid'],
           expectations: [{ kind: 'enable', location: { line: 10, column: 5 } }],
           file,
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 8, column: 3 },
-            condition: { line: 9, column: 5 },
+            conditions: [{ line: 9, column: 5 }],
           },
         },
       );
@@ -354,13 +354,13 @@ test.describe('Screen: Login', () => {
         {
           screen: 'Login',
           element: 'Login Button',
-          condition: 'Input is invalid',
+          conditions: ['Input is invalid'],
           expectations: [{ kind: 'disable', location: { line: 13, column: 5 } }],
           file,
           locations: {
             screen: { line: 1, column: 1 },
             element: { line: 8, column: 3 },
-            condition: { line: 12, column: 5 },
+            conditions: [{ line: 12, column: 5 }],
           },
         },
       );
@@ -384,7 +384,8 @@ Details:
   extension (`steps.ts` and `steps.js`) in the same directory.
 - **Fixtures.** Playwright sets up only the fixtures a test destructures, so each test
   destructures `$nimaime` plus exactly the fixtures that the definitions of its block use (screen
-  `open`, condition, the element's locators), found by reading the first parameter of each
+  `open`, the screen's `Background:` conditions and the block's conditions, the element's
+  locators), found by reading the first parameter of each
   callback ([runtime.md](./runtime.md#why-the-fixtures-are-passed-explicitly)), and passes them to
   `$nimaime.run()`. When a callback does not destructure its parameter
   (`(fixtures) => fixtures.page…`), its fixtures cannot be known: `nimaime-gen` warns and the test
@@ -395,9 +396,18 @@ Details:
   fixtures their hooks use (worker-scoped only for screen hooks; the fallback is `browser` for
   screen hooks, `page` for element hooks), and `runHooks` is imported only when used. See
   [hooks.md](./hooks.md#generated-code).
+- **Background and combined conditions** (v0.2). A test's title is `When: C` for a `When: C`
+  block and `When: C and D` for a block with `And when: D`
+  ([sanmaime.md §5.10](./sanmaime.md#510-combined-conditions-and-when-v02)). Its plan lists the
+  block's conditions in order (`conditions: ['C', 'D']`), and, when the screen has `Background:`
+  lines, the background conditions (`background: ['B']`, on every plan of the screen, the
+  `Always` one included). A missing background or `And when:` condition definition is reported like
+  a missing `When:` one; with `--allow-missing`, a missing background leaves out every test of its
+  screen.
 - **Source locations.** `file` is the `.sanmaime` file relative to the generated file; every plan
-  carries the line and column of its `Screen:`, `Element:` and `When:` lines and of each
-  expectation. The runtime uses them for step locations, failure messages and code frames that
+  carries the line and column of its `Screen:`, `Element:`, `Background:`, `When:` and
+  `And when:` lines (`locations.background` / `locations.conditions`, one position per name) and
+  of each expectation. The runtime uses them for step locations, failure messages and code frames that
   point at the specification.
 - **Names.** Titles use the names as written in the spec. Plans use the names as defined (names
   are matched after trimming surrounding whitespace, the runtime looks them up exactly).

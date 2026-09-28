@@ -55,8 +55,9 @@ afterElement(fn: (fixtures: Fixtures, info: { screen: string; element: string; c
 
 - `fn` may return a promise, which is awaited; its value is ignored.
 - `info.screen` / `info.element` are the `Screen:` / `Element:` names; `info.condition` is the
-  `When:` name of the block the test checks, absent for the element's unconditional block
-  (`Always`).
+  `When:` name of the block the test checks (`A and B` for a block with `And when: B`, as in its
+  title), absent for the element's unconditional block (`Always`). Element hooks run before the
+  screen is opened, so before its `Background:` conditions.
 - `WorkerFixtures` / `Fixtures` are the worker-scoped / all fixtures of the `test` passed to
   `createNimaime` (types `WorkerFixturesOf<T>` / `FixturesOf<T>`; by default Playwright's built-in
   ones). Using `page` in a screen hook is a type error.

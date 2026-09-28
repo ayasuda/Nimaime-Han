@@ -79,28 +79,27 @@ uses (`vscode-textmate` + `vscode-oniguruma`), checking each line against the pa
 
 ## Scopes
 
-| Syntax                                             | Scope                                                                                |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| comment line `# …`                                 | `comment.line.number-sign.sanmaime` (`#`: `punctuation.definition.comment.sanmaime`) |
-| `# language: ja` in the header                     | `meta.language.sanmaime`                                                             |
-| &nbsp;&nbsp;`language`                             | `keyword.other.language.sanmaime`                                                    |
-| &nbsp;&nbsp;`ja` (supported)                       | `constant.language.sanmaime`                                                         |
-| &nbsp;&nbsp;`xx` (unsupported, `E017`)             | `invalid.illegal.language.sanmaime`                                                  |
-| tag line                                           | `meta.tags.sanmaime`                                                                 |
-| &nbsp;&nbsp;`@smoke`                               | `entity.name.tag.sanmaime` (`@`: `punctuation.definition.tag.sanmaime`)              |
-| &nbsp;&nbsp;any other token (`E020`)               | `invalid.illegal.tag.sanmaime`                                                       |
-| `Screen:` `Element:` (`画面:` `要素:`)             | `keyword.control.structure.sanmaime`                                                 |
-| &nbsp;&nbsp;their name                             | `entity.name.section.sanmaime`                                                       |
-| `When:` (`条件:`)                                  | `keyword.control.condition.sanmaime`                                                 |
-| &nbsp;&nbsp;its name                               | `entity.name.function.sanmaime`                                                      |
-| `Show:` `Hide:` `And:` (`表示:` `非表示:` `かつ:`) | `keyword.operator.expectation.sanmaime`                                              |
-| &nbsp;&nbsp;the target                             | `string.unquoted.target.sanmaime`                                                    |
-| the colon of a keyword (`:` or `：`)               | `punctuation.separator.key-value.sanmaime` (inside the keyword scope)                |
-| `Enable` `Disable` (`有効` `無効`)                 | `keyword.operator.state.sanmaime`                                                    |
-| `Background:` (`背景:`), reserved (`E019`)         | `invalid.deprecated.sanmaime` (keyword: `keyword.other.reserved.sanmaime`)           |
-| name keyword without a name, e.g. `Show:` (`E002`) | `invalid.illegal.missing-name.sanmaime`                                              |
-| `Enable: X`, `Enable X` (`E003`)                   | `invalid.illegal.sanmaime`                                                           |
-| any other `Word:` at the start of a line (`E001`)  | `invalid.illegal.sanmaime` (`Given:`, `show:`, `Show：` in an English file, …)       |
+| Syntax                                                          | Scope                                                                                |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| comment line `# …`                                              | `comment.line.number-sign.sanmaime` (`#`: `punctuation.definition.comment.sanmaime`) |
+| `# language: ja` in the header                                  | `meta.language.sanmaime`                                                             |
+| &nbsp;&nbsp;`language`                                          | `keyword.other.language.sanmaime`                                                    |
+| &nbsp;&nbsp;`ja` (supported)                                    | `constant.language.sanmaime`                                                         |
+| &nbsp;&nbsp;`xx` (unsupported, `E017`)                          | `invalid.illegal.language.sanmaime`                                                  |
+| tag line                                                        | `meta.tags.sanmaime`                                                                 |
+| &nbsp;&nbsp;`@smoke`                                            | `entity.name.tag.sanmaime` (`@`: `punctuation.definition.tag.sanmaime`)              |
+| &nbsp;&nbsp;any other token (`E020`)                            | `invalid.illegal.tag.sanmaime`                                                       |
+| `Screen:` `Element:` (`画面:` `要素:`)                          | `keyword.control.structure.sanmaime`                                                 |
+| &nbsp;&nbsp;their name                                          | `entity.name.section.sanmaime`                                                       |
+| `Background:` `When:` `And when:` (`背景:` `条件:` `かつ条件:`) | `keyword.control.condition.sanmaime`                                                 |
+| &nbsp;&nbsp;the condition name                                  | `entity.name.function.sanmaime`                                                      |
+| `Show:` `Hide:` `And:` (`表示:` `非表示:` `かつ:`)              | `keyword.operator.expectation.sanmaime`                                              |
+| &nbsp;&nbsp;the target                                          | `string.unquoted.target.sanmaime`                                                    |
+| the colon of a keyword (`:` or `：`)                            | `punctuation.separator.key-value.sanmaime` (inside the keyword scope)                |
+| `Enable` `Disable` (`有効` `無効`)                              | `keyword.operator.state.sanmaime`                                                    |
+| name keyword without a name, e.g. `Show:` (`E002`)              | `invalid.illegal.missing-name.sanmaime`                                              |
+| `Enable: X`, `Enable X` (`E003`)                                | `invalid.illegal.sanmaime`                                                           |
+| any other `Word:` at the start of a line (`E001`)               | `invalid.illegal.sanmaime` (`Given:`, `show:`, `Show：` in an English file, …)       |
 
 Other lines (for example free text, which is `E001` too) are left unscoped. The grammar only
 highlights: structural errors such as `Element:` outside a `Screen:` are reported by

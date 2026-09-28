@@ -32,6 +32,17 @@ import {
 
 export { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from './languages';
 
+/** What joins the condition names of a block in its title (`When: A and B`, §5.10). */
+export const CONDITION_SEPARATOR = ' and ';
+
+/**
+ * The display name of a block with the conditions `names` (`['A', 'B']` -> `'A and B'`). The same
+ * in every keyword language: titles, like the AST, are language-independent.
+ */
+export function joinConditions(names: readonly string[]): string {
+  return names.join(CONDITION_SEPARATOR);
+}
+
 export interface ParseOptions {
   /** Identifies the source (file path or URL). Copied to `document.uri`; not read by the parser. */
   uri?: string;
@@ -78,6 +89,11 @@ interface BlockState {
   state: StateAsserted | undefined;
   /** Kind of the open `Show:`/`Hide:` group that an `And:` may continue. */
   groupKind: 'show' | 'hide' | undefined;
+  /**
+   * Whether the block's condition list is still open: after `When:` and `And when:`, until the
+   * first expectation (or the end of the block). Only then is `And when:` accepted (E023).
+   */
+  chainOpen: boolean;
 }
 
 interface ElementState {
@@ -90,6 +106,8 @@ interface ElementState {
 interface ScreenState {
   node: Screen;
   elementNames: Map<string, number>;
+  /** `Background:` names -> line of their first declaration. */
+  backgroundNames: Map<string, number>;
   element: ElementState | undefined;
 }
 
@@ -196,14 +214,6 @@ class Parser {
           token.location,
         );
         return;
-      case 'reserved':
-        // E019: ignore the line.
-        this.report(
-          DiagnosticCode.ReservedKeyword,
-          this.messages.reservedKeyword(token.text),
-          token.location,
-        );
-        return;
       case 'invalid-tags':
         // E020: ignore the line and discard its tags.
         this.report(
@@ -250,8 +260,14 @@ class Parser {
       case 'Element':
         this.startElement(token);
         return;
+      case 'Background':
+        this.background(token);
+        return;
       case 'When':
         this.startCondition(token);
+        return;
+      case 'AndWhen':
+        this.andWhen(token);
         return;
       case 'Show':
       case 'Hide':
@@ -286,6 +302,7 @@ class Parser {
       name: token.name,
       tags: this.takeTags(),
       location: token.location,
+      background: [],
       elements: [],
     };
     if (token.name !== '') {
@@ -299,7 +316,39 @@ class Parser {
         );
     }
     this.document.screens.push(node);
-    this.screen = { node, elementNames: new Map(), element: undefined };
+    this.screen = {
+      node,
+      elementNames: new Map(),
+      backgroundNames: new Map(),
+      element: undefined,
+    };
+  }
+
+  /** `Background: <condition>`: directly under `Screen:`, before its first `Element:` (§5.9). */
+  private background(token: NameKeywordToken): void {
+    if (this.skip !== 'none') return;
+    this.rejectTags();
+    const screen = this.screen;
+    if (!screen || screen.element !== undefined) {
+      // E025: ignore the line.
+      this.report(
+        DiagnosticCode.MisplacedBackground,
+        this.messages.misplacedBackground(token.text),
+        token.location,
+      );
+      return;
+    }
+    if (token.name !== '') {
+      const first = screen.backgroundNames.get(token.name);
+      if (first === undefined) screen.backgroundNames.set(token.name, token.location.line);
+      else
+        this.report(
+          DiagnosticCode.DuplicateConditionInChain,
+          this.messages.duplicateBackground(token.name, screen.node.name, first),
+          token.location,
+        );
+    }
+    screen.node.background.push({ name: token.name, location: token.location });
   }
 
   private startElement(token: NameKeywordToken): void {
@@ -353,25 +402,82 @@ class Parser {
       this.skip = 'until-element';
       return;
     }
-    this.endBlock(element.block);
+    this.endBlock(element);
     const node: ConditionBlock = {
       name: token.name,
+      conditions: [{ name: token.name, keyword: 'When', location: token.location }],
+      title: token.name,
       tags,
       location: token.location,
       expectations: [],
     };
-    if (token.name !== '') {
-      const first = element.conditionNames.get(token.name);
-      if (first === undefined) element.conditionNames.set(token.name, token.location.line);
-      else
-        this.report(
-          DiagnosticCode.DuplicateCondition,
-          this.messages.duplicateCondition(token.name, element.node.name, first),
-          token.location,
-        );
-    }
+    this.checkBackgroundConflict(token);
     element.node.conditions.push(node);
     element.block = newBlock(node.expectations, node);
+    element.block.chainOpen = true;
+  }
+
+  /** `And when: <condition>`: a further condition of the block it directly follows (§5.10). */
+  private andWhen(token: NameKeywordToken): void {
+    if (this.skip !== 'none') return;
+    this.rejectTags();
+    const block = this.screen?.element?.block;
+    const node = block?.condition;
+    if (!block?.chainOpen || !node) {
+      // E023: ignore the line.
+      this.report(
+        DiagnosticCode.MisplacedAndWhen,
+        this.messages.misplacedAndWhen(token.text),
+        token.location,
+      );
+      return;
+    }
+    if (!this.checkBackgroundConflict(token) && token.name !== '') {
+      const first = node.conditions.find((c) => c.name === token.name);
+      if (first) {
+        this.report(
+          DiagnosticCode.DuplicateConditionInChain,
+          this.messages.duplicateBlockCondition(token.name, first.location.line),
+          token.location,
+        );
+      }
+    }
+    node.conditions.push({ name: token.name, keyword: 'AndWhen', location: token.location });
+    node.title = joinConditions(node.conditions.map((c) => c.name));
+  }
+
+  /** E022 when a `When:` / `And when:` condition is one of the screen's backgrounds. */
+  private checkBackgroundConflict(token: NameKeywordToken): boolean {
+    if (token.name === '') return false;
+    const line = this.screen?.backgroundNames.get(token.name);
+    if (line === undefined) return false;
+    this.report(
+      DiagnosticCode.DuplicateConditionInChain,
+      this.messages.conditionInBackground(token.name, line),
+      token.location,
+    );
+    return true;
+  }
+
+  /**
+   * Ends the condition list of the element's current block (at its first expectation or at the
+   * end of the block) and checks that no other block of the element has the same conditions
+   * (E013, located at the second block's `When:` line).
+   */
+  private closeConditions(element: ElementState): void {
+    const block = element.block;
+    if (!block.chainOpen) return;
+    block.chainOpen = false;
+    const node = block.condition;
+    if (!node || node.conditions.some((c) => c.name === '')) return;
+    const first = element.conditionNames.get(node.title);
+    if (first === undefined) element.conditionNames.set(node.title, node.location.line);
+    else
+      this.report(
+        DiagnosticCode.DuplicateCondition,
+        this.messages.duplicateCondition(node.title, element.node.name, first),
+        node.location,
+      );
   }
 
   private expectation(token: NameKeywordToken | BareKeywordToken): void {
@@ -380,14 +486,24 @@ class Parser {
     const element = this.screen?.element;
     if (!element) {
       const keyword = token.type === 'name-keyword' ? `${token.text}:` : token.text;
-      this.report(
-        DiagnosticCode.ExpectationOutsideElement,
-        this.messages.expectationOutsideElement(keyword),
-        token.location,
-      );
+      if (this.screen && this.screen.node.background.length > 0) {
+        // E021 (after `Background:`), else E006: skip to the next `Element:`.
+        this.report(
+          DiagnosticCode.BackgroundWithExpectations,
+          this.messages.backgroundWithExpectations(keyword),
+          token.location,
+        );
+      } else {
+        this.report(
+          DiagnosticCode.ExpectationOutsideElement,
+          this.messages.expectationOutsideElement(keyword),
+          token.location,
+        );
+      }
       this.skip = 'until-element';
       return;
     }
+    this.closeConditions(element);
     const block = element.block;
     if (token.type === 'bare-keyword') this.stateExpectation(token, element, block);
     else this.visibilityExpectation(token, element, block);
@@ -481,11 +597,13 @@ class Parser {
 
   // --- end of constructs ------------------------------------------------------------------------
 
-  private endBlock(block: BlockState): void {
+  private endBlock(element: ElementState): void {
+    this.closeConditions(element);
+    const block = element.block;
     if (block.condition && block.expectations.length === 0) {
       this.report(
         DiagnosticCode.EmptyConditionBlock,
-        this.messages.emptyConditionBlock(block.condition.name),
+        this.messages.emptyConditionBlock(block.condition.title),
         block.condition.location,
       );
     }
@@ -494,7 +612,7 @@ class Parser {
   private endElement(screen: ScreenState): void {
     const element = screen.element;
     if (!element) return;
-    this.endBlock(element.block);
+    this.endBlock(element);
     const node = element.node;
     if (node.unconditional.length === 0 && node.conditions.length === 0) {
       this.report(
@@ -535,7 +653,14 @@ class Parser {
 }
 
 function newBlock(expectations: Expectation[], condition: ConditionBlock | undefined): BlockState {
-  return { expectations, condition, targets: new Map(), state: undefined, groupKind: undefined };
+  return {
+    expectations,
+    condition,
+    targets: new Map(),
+    state: undefined,
+    groupKind: undefined,
+    chainOpen: false,
+  };
 }
 
 function escapeRegExp(text: string): string {

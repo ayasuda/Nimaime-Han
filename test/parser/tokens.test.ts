@@ -103,14 +103,24 @@ describe('classifyLine', () => {
     expect(classifyLine('Then: X', 1).type).toBe('unknown');
   });
 
-  it('classifies Background: as reserved', () => {
+  it('classifies Background: and And when: as name keywords (v0.2)', () => {
     expect(classifyLine('  Background: logged in', 2)).toEqual({
-      type: 'reserved',
+      type: 'name-keyword',
       keyword: 'Background',
       text: 'Background',
+      name: 'logged in',
       location: { line: 2, column: 3 },
     });
     expect(classifyLine('Background', 1).type).toBe('unknown');
+    expect(classifyLine('And when: B', 1)).toMatchObject({
+      type: 'name-keyword',
+      keyword: 'AndWhen',
+      text: 'And when',
+      name: 'B',
+    });
+    expect(classifyLine('And: when: B', 1)).toMatchObject({ keyword: 'And', name: 'when: B' });
+    expect(classifyLine('And when B', 1).type).toBe('unknown');
+    expect(classifyLine('And When: B', 1).type).toBe('unknown');
   });
 
   it('tokenises tag lines with per-tag columns in code points', () => {

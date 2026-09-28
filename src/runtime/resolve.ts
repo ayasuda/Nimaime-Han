@@ -1,6 +1,14 @@
 import type { Locator } from '@playwright/test';
 import { NimaimeRuntimeError } from './errors';
-import type { ExpectationContext, NimaimePlan, SanmaimePosition } from './plan';
+import {
+  planConditionLocation,
+  planConditions,
+  planConditionTitle,
+  type ConditionStepKeyword,
+  type ExpectationContext,
+  type NimaimePlan,
+  type SanmaimePosition,
+} from './plan';
 import {
   findCondition,
   findElement,
@@ -80,16 +88,20 @@ export function resolveSelf(element: string, ctx: ExpectationContext = {}): Loca
   return def.self;
 }
 
-/** The condition named `condition` as seen from `ctx.screen`; throws if there is none. */
+/**
+ * The condition named `condition` as seen from `ctx.screen`; throws if there is none. `keyword`
+ * is how the condition is used (`When`, `And when`, `Background`), for the message.
+ */
 export function resolveCondition(
   condition: string,
   ctx: ExpectationContext = {},
+  keyword: ConditionStepKeyword = 'When',
 ): ConditionDefinition {
   const def = findCondition(condition, { screen: ctx.screen });
   if (!def) {
     const screen = ctx.screen === undefined ? '' : ` in Screen "${ctx.screen}"`;
     throw runtimeError(
-      `No condition definition for "When: ${condition}"${screen}. ` +
+      `No condition definition for "${keyword}: ${condition}"${screen}. ` +
         `Define it with defineCondition('${condition}', async ({ page }) => { … }).`,
       ctx,
     );
@@ -98,14 +110,26 @@ export function resolveCondition(
 }
 
 /**
- * Checks that every name used by `plan` resolves (element, targets, `self`, condition), so that a
- * test fails before it starts driving the browser. Throws `NimaimeRuntimeError`.
+ * Checks that every name used by `plan` resolves (element, targets, `self`, background and block
+ * conditions), so that a test fails before it starts driving the browser. Throws
+ * `NimaimeRuntimeError`.
  */
 export function validatePlan(plan: NimaimePlan): void {
   const base: ExpectationContext = { screen: plan.screen, file: plan.file };
   resolveElement(plan.element, { ...base, location: plan.locations?.element });
-  if (plan.condition !== undefined) {
-    resolveCondition(plan.condition, { ...base, location: plan.locations?.condition });
+  for (const [index, name] of (plan.background ?? []).entries()) {
+    resolveCondition(
+      name,
+      { ...base, location: plan.locations?.background?.[index] },
+      'Background',
+    );
+  }
+  for (const [index, name] of planConditions(plan).entries()) {
+    resolveCondition(
+      name,
+      { ...base, location: planConditionLocation(plan, index) },
+      index === 0 ? 'When' : 'And when',
+    );
   }
   validateExpectations(plan);
 }
@@ -118,8 +142,9 @@ export function validatePlan(plan: NimaimePlan): void {
 export function validateExpectations(plan: NimaimePlan): void {
   const base: ExpectationContext = { screen: plan.screen, file: plan.file };
   resolveElement(plan.element, { ...base, location: plan.locations?.element });
+  const condition = planConditionTitle(plan);
   for (const expectation of plan.expectations) {
-    const ctx = { ...base, condition: plan.condition, location: expectation.location };
+    const ctx = { ...base, condition, location: expectation.location };
     if (expectation.kind === 'show' || expectation.kind === 'hide') {
       if (expectation.target === undefined) {
         throw runtimeError(`A "${expectation.kind}" expectation needs a target name.`, ctx);
@@ -218,8 +243,8 @@ export interface PlanFixtures {
 }
 
 /**
- * The fixtures that the definition callbacks run by `plan` destructure (screen `open`, condition
- * `fn`, the element's `self` and target locators). The generated test must request exactly these
+ * The fixtures that the definition callbacks run by `plan` destructure (screen `open`, the `fn`
+ * of every background and block condition, the element's `self` and target locators). The generated test must request exactly these
  * fixtures (Playwright only sets up the fixtures a test destructures) and pass them to
  * `$nimaime.run(fixtures, plan)`. Unresolvable names are skipped (the runtime reports them).
  */
@@ -234,11 +259,8 @@ export function collectFixtureNames(plan: NimaimePlan): PlanFixtures {
     else for (const name of found) names.add(name);
   };
   add(`screen "${plan.screen}" open`, findScreen(plan.screen)?.open);
-  if (plan.condition !== undefined) {
-    add(
-      `condition "${plan.condition}"`,
-      findCondition(plan.condition, { screen: plan.screen })?.fn,
-    );
+  for (const name of [...(plan.background ?? []), ...planConditions(plan)]) {
+    add(`condition "${name}"`, findCondition(name, { screen: plan.screen })?.fn);
   }
   const element = findElement(plan.element);
   if (element) {

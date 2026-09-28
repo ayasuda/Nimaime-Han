@@ -1,0 +1,8 @@
+# expect: SANMAIME_E022
+# at: 7:5
+# A condition appears at most once in the When: / And when: lines of a block.
+Screen: Cart
+  Element: Checkout Button
+    When: The cart has items
+    And when: The cart has items
+    Enable

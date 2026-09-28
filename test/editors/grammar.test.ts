@@ -156,6 +156,22 @@ describe('English keywords', () => {
     expect(line('Disable  ')).toEqual([['Disable', SCOPES.state]]);
   });
 
+  it('scopes Background: and And when: as conditions (v0.2)', () => {
+    expect(line('  Background: Logged in')).toEqual([
+      ['Background', SCOPES.condition],
+      [':', SCOPES.colon],
+      ['Logged in', SCOPES.conditionName],
+    ]);
+    expect(line('    And when: The cart has items')).toEqual([
+      ['And when', SCOPES.condition],
+      [':', SCOPES.colon],
+      ['The cart has items', SCOPES.conditionName],
+    ]);
+    // `And:` is still an expectation, and `And when` without a colon is not a keyword.
+    expect(line('And: when')[0]).toEqual(['And', SCOPES.expectation]);
+    expect(line('And when X')).toEqual([]);
+  });
+
   it('keeps colons, # and @ inside names', () => {
     expect(line('Show: Time: 12:00 #1 @home')).toEqual([
       ['Show', SCOPES.expectation],
@@ -169,12 +185,7 @@ describe('English keywords', () => {
     ]);
   });
 
-  it('flags reserved, unknown and malformed keyword lines', () => {
-    expect(line('Background: Logged in')).toEqual([
-      ['Background', SCOPES.reservedKeyword],
-      [':', SCOPES.colon],
-      [' Logged in', SCOPES.reserved],
-    ]);
+  it('flags unknown and malformed keyword lines', () => {
     expect(line('  Given: a user')).toEqual([['Given:', SCOPES.illegal]]);
     expect(line('show: Username')).toEqual([['show:', SCOPES.illegal]]);
     // Not a keyword (whitespace before the colon) and not `Word:` either: left unscoped.
@@ -216,7 +227,12 @@ describe('Japanese keywords', () => {
     expect(line('かつ：パスワード')[0]).toEqual(['かつ', SCOPES.expectation]);
     expect(line('有効')).toEqual([['有効', SCOPES.state]]);
     expect(line('無効')).toEqual([['無効', SCOPES.state]]);
-    expect(line('背景：ログイン済み')[0]).toEqual(['背景', SCOPES.reservedKeyword]);
+    expect(line('背景：ログイン済み')).toEqual([
+      ['背景', SCOPES.condition],
+      ['：', SCOPES.colon],
+      ['ログイン済み', SCOPES.conditionName],
+    ]);
+    expect(line('かつ条件: カートに商品がある')[0]).toEqual(['かつ条件', SCOPES.condition]);
     expect(line('有効期限: 30日')).toEqual([['有効期限:', SCOPES.illegal]]);
     expect(line('有効：送信')).toEqual([['有効：送信', SCOPES.illegal]]);
   });
@@ -320,7 +336,9 @@ const LOOKS_LIKE_KEYWORD = /^[^\s#@:：]+[:：]/;
 const KEYWORD_SCOPES: Record<string, [string, string]> = {
   Screen: [SCOPES.structure, SCOPES.section],
   Element: [SCOPES.structure, SCOPES.section],
+  Background: [SCOPES.condition, SCOPES.conditionName],
   When: [SCOPES.condition, SCOPES.conditionName],
+  AndWhen: [SCOPES.condition, SCOPES.conditionName],
   Show: [SCOPES.expectation, SCOPES.target],
   Hide: [SCOPES.expectation, SCOPES.target],
   And: [SCOPES.expectation, SCOPES.target],
@@ -333,7 +351,6 @@ const PRIORITY: LineToken['type'][] = [
   'invalid-tags',
   'name-keyword',
   'bare-keyword',
-  'reserved',
   'unknown',
 ];
 
@@ -385,9 +402,6 @@ function checkLine(tokens: Token[], expected: LineToken, inHeader: boolean): voi
     }
     case 'bare-keyword':
       expect(scopes).toEqual([expected.hasArgument ? SCOPES.illegal : SCOPES.state]);
-      return;
-    case 'reserved':
-      expect(scopes).toEqual([SCOPES.reserved, SCOPES.reservedKeyword]);
       return;
     case 'unknown':
       if (LOOKS_LIKE_KEYWORD.test(expected.text)) expect(scopes).toEqual([SCOPES.illegal]);

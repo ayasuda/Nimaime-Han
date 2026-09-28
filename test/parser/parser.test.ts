@@ -113,7 +113,7 @@ describe('parse: diagnostics', () => {
       'Show: skipped',
       'Screen: S', // E010 (no element)
       'Screen: T',
-      'Background: x', // E019
+      'And when: x', // E023 (no When: block to extend)
       'Element: E',
       'Show: A',
       'Show: A', // E014
@@ -135,7 +135,7 @@ describe('parse: diagnostics', () => {
       'SANMAIME_E020@2:1',
       'SANMAIME_E004@3:1',
       'SANMAIME_E010@5:1',
-      'SANMAIME_E019@7:1',
+      'SANMAIME_E023@7:1',
       'SANMAIME_E014@10:1',
       'SANMAIME_E015@12:1',
       'SANMAIME_E007@13:1',
@@ -368,6 +368,232 @@ describe('parse: diagnostics', () => {
       `Duplicate element 'E' in screen 'S' (first declared on line 2).`,
       `'A' is already asserted in this block (line 5).`,
     ]);
+  });
+});
+
+describe('parse: Background: and And when: (v0.2)', () => {
+  it('collects the Background: conditions of a screen in order', () => {
+    const { document, diagnostics } = parse(
+      lines(
+        'Screen: S',
+        '  Background: Logged in',
+        '  # comments and blank lines are fine',
+        '',
+        '  Background: Has items',
+        '  Element: E',
+        '    Show: A',
+        'Screen: T',
+        '  Element: F',
+        '    Enable',
+      ),
+    );
+    expect(diagnostics).toEqual([]);
+    expect(document.screens[0]?.background).toEqual([
+      { name: 'Logged in', location: { line: 2, column: 3 } },
+      { name: 'Has items', location: { line: 5, column: 3 } },
+    ]);
+    expect(document.screens[1]?.background).toEqual([]);
+  });
+
+  it('composes the conditions of a block with And when:', () => {
+    const { document, diagnostics } = parse(
+      lines(
+        'Screen: S',
+        'Element: E',
+        'When: A',
+        '',
+        'And when: B',
+        'And when:C',
+        'Show: X',
+        'When: A',
+        'Hide: X',
+      ),
+    );
+    expect(diagnostics).toEqual([]);
+    const [composed, single] = document.screens[0]?.elements[0]?.conditions ?? [];
+    expect(composed).toMatchObject({
+      name: 'A',
+      title: 'A and B and C',
+      location: { line: 3, column: 1 },
+      conditions: [
+        { name: 'A', keyword: 'When', location: { line: 3, column: 1 } },
+        { name: 'B', keyword: 'AndWhen', location: { line: 5, column: 1 } },
+        { name: 'C', keyword: 'AndWhen', location: { line: 6, column: 1 } },
+      ],
+    });
+    // `When: A` alone is another block than `When: A` + `And when: B` + `And when: C`.
+    expect(single).toMatchObject({ name: 'A', title: 'A', conditions: [{ name: 'A' }] });
+  });
+
+  it('keeps the order of the conditions in the title and in E013', () => {
+    // `When: B` alone differs from `When: A` + `And when: B`.
+    expect(
+      codes(
+        lines('Screen: S', 'Element: E', 'When: A', 'And when: B', 'Enable', 'When: B', 'Enable'),
+      ),
+    ).toEqual([]);
+    expect(
+      codes(
+        lines(
+          'Screen: S',
+          'Element: E',
+          'When: A',
+          'And when: B',
+          'Enable',
+          'When: B',
+          'And when: A',
+          'Enable',
+          'When: A',
+          'And when: B',
+          'Disable',
+        ),
+      ),
+    ).toEqual(['SANMAIME_E013@9:1']);
+  });
+
+  it('E013 and E008 of a composed block use its title', () => {
+    const { diagnostics } = parse(
+      lines(
+        'Screen: S',
+        'Element: E',
+        'When: A',
+        'And when: B',
+        'Show: X',
+        'When: A',
+        'And when: B',
+      ),
+    );
+    expect(diagnostics.map((d) => [d.code, d.message])).toEqual([
+      [
+        'SANMAIME_E013',
+        `Duplicate condition 'A and B' in element 'E' (first declared on line 3). Merge the two blocks.`,
+      ],
+      ['SANMAIME_E008', `Condition 'A and B' has no expectations.`],
+    ]);
+  });
+
+  it('E021: an expectation under Background: (then skips to the next Element:)', () => {
+    const { diagnostics, document } = parse(
+      lines('Screen: S', 'Background: B', 'Show: X', 'And: Y', 'Element: E', 'Show: Z'),
+    );
+    expect(diagnostics.map((d) => [d.code, d.location.line, d.message])).toEqual([
+      [
+        'SANMAIME_E021',
+        3,
+        `'Show:' is not allowed under 'Background:': a background takes no expectations. Put expectations under an 'Element:'.`,
+      ],
+    ]);
+    expect(document.screens[0]?.elements[0]?.unconditional).toHaveLength(1);
+    // Without a Background:, the same line is still E006.
+    expect(codes(lines('Screen: S', 'Enable', 'Element: E', 'Enable'))).toEqual([
+      'SANMAIME_E006@2:1',
+    ]);
+  });
+
+  it('E022: a condition established twice for one test', () => {
+    const { diagnostics } = parse(
+      lines(
+        'Screen: S',
+        'Background: L',
+        'Background: L', // E022 (duplicate background)
+        'Element: E',
+        'When: L', // E022 (already a background)
+        'Show: X',
+        'When: A',
+        'And when: L', // E022 (already a background)
+        'And when: A', // E022 (already in the block)
+        'Show: X',
+      ),
+    );
+    expect(diagnostics.map((d) => [d.code, d.location.line, d.message])).toEqual([
+      ['SANMAIME_E022', 3, `Duplicate background condition 'L' in screen 'S' (first on line 2).`],
+      [
+        'SANMAIME_E022',
+        5,
+        `Condition 'L' is already established by 'Background:' (line 2). Background conditions apply to every block of the screen.`,
+      ],
+      [
+        'SANMAIME_E022',
+        8,
+        `Condition 'L' is already established by 'Background:' (line 2). Background conditions apply to every block of the screen.`,
+      ],
+      ['SANMAIME_E022', 9, `Condition 'A' is already part of this block (line 7).`],
+    ]);
+  });
+
+  it('E023: And when: that does not directly follow When: or And when:', () => {
+    expect(
+      codes(
+        lines(
+          'And when: A', // E023: no screen
+          'Screen: S',
+          'And when: A', // E023: no element
+          'Element: E',
+          'And when: A', // E023: unconditional block
+          'Show: X',
+          'When: B',
+          'Show: Y',
+          'And when: C', // E023: after an expectation
+          '@t',
+          'And when: D', // E018 (tags) + E023
+        ),
+      ),
+    ).toEqual([
+      'SANMAIME_E023@1:1',
+      'SANMAIME_E023@3:1',
+      'SANMAIME_E023@5:1',
+      'SANMAIME_E023@9:1',
+      'SANMAIME_E018@10:1',
+      'SANMAIME_E023@11:1',
+    ]);
+    const { diagnostics } = parse(lines('Screen: S', 'Element: E', 'And when: A', 'Enable'));
+    expect(diagnostics[0]?.message).toBe(
+      `'And when:' must directly follow 'When:' or 'And when:'.`,
+    );
+  });
+
+  it('E025: Background: outside a screen or after an Element:', () => {
+    const { diagnostics, document } = parse(
+      lines(
+        'Background: A',
+        'Screen: S',
+        'Element: E',
+        'Enable',
+        'Background: B',
+        'Element: F',
+        'Enable',
+      ),
+    );
+    expect(diagnostics.map((d) => [d.code, d.location.line, d.message])).toEqual([
+      [
+        'SANMAIME_E025',
+        1,
+        `'Background:' must appear directly under a 'Screen:', before its first 'Element:'.`,
+      ],
+      [
+        'SANMAIME_E025',
+        5,
+        `'Background:' must appear directly under a 'Screen:', before its first 'Element:'.`,
+      ],
+    ]);
+    expect(document.screens[0]?.background).toEqual([]);
+    expect(document.screens[0]?.elements).toHaveLength(2);
+  });
+
+  it('E002 for Background: and And when: without a name; E018 for tags before Background:', () => {
+    expect(
+      codes(
+        lines('Screen: S', '@t', 'Background:', 'Element: E', 'When: A', 'And when:', 'Enable'),
+      ),
+    ).toEqual(['SANMAIME_E018@2:1', 'SANMAIME_E002@3:1', 'SANMAIME_E002@6:1']);
+  });
+
+  it('hints at And when: for wrong case and a missing colon', () => {
+    const messages = parse(
+      lines('Screen: S', 'Element: E', 'When: A', 'and when: B', 'And when B', 'Enable'),
+    ).diagnostics.map((d) => d.message);
+    expect(messages[0]).toMatch(/Did you mean 'And when:'\?$/);
+    expect(messages[1]).toMatch(/Did you mean 'And when: B'\?$/);
   });
 });
 

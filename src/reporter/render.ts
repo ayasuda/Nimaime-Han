@@ -3,6 +3,7 @@
  *
  * ```text
  * ✓ Screen: Login
+ *   Background: Logged out
  *
  *   ✓ Element: Login Form
  *     ✓ Email address is shown
@@ -187,6 +188,7 @@ function renderScreen(w: Writer, screen: ScreenReport): void {
   w.blank();
   const project = screen.project === undefined ? '' : p.dim(` [${screen.project}]`);
   w.line(0, `${w.mark(screen.status)} ${p.bold(`Screen: ${screen.name}`)}${project}`);
+  for (const name of screen.background) w.line(2, p.dim(`Background: ${name}`));
   for (const element of elements) renderElement(w, element);
 }
 

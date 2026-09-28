@@ -150,3 +150,53 @@ bundled separately, in both ESM and CJS builds — share one registry. It is que
 
 Stored callbacks have their fixture type erased; the runtime calls them with the fixtures object of
 the running test.
+
+## Definition loading and matching
+
+`nimaime-gen` binds Sanmaime names to definitions the way `bddgen` binds Gherkin steps to step
+definitions. Internally (`src/gen/`), for each config registered with `defineSanmaimeConfig()`:
+
+1. **Files.** The `specs` and `definitions` globs are expanded with `cwd = configDir` (Node's
+   built-in `fs.glob`, Node.js 22+). Several patterns are united; a pattern starting with `!`
+   excludes what it matches from the whole result, wherever it appears in the list
+   (`['specs/**/*.sanmaime', '!specs/drafts/**']`). `node_modules` directories and the `outputDir`
+   are never searched. The result is a sorted list of absolute file paths.
+2. **Definitions.** Each definition file is evaluated, in that order, with Playwright's own loader
+   (the one used for `playwright.config.ts`), so TypeScript works without extra setup. Its
+   `defineScreen` / `defineElement` / `defineCondition` calls fill the registry. An error thrown
+   while loading a file (including a `NimaimeDefinitionError` for a duplicate) is reported as a
+   `DefinitionLoadError` that names the file.
+3. **Specs.** Each `.sanmaime` file is read as UTF-8 and parsed. Files with error diagnostics are
+   reported and not matched or generated.
+4. **Matching.** Names are matched **exactly, after trimming surrounding whitespace** on both sides
+   (case-sensitive; no fuzzy matching): `Screen:` against `defineScreen`, `Element:` against
+   `defineElement`, `Show:` / `Hide:` / `And:` targets against the element's target names,
+   `Enable` / `Disable` against the element's `self` locator, and `When:` against
+   `defineCondition` (scoped to the screen first, then global).
+
+Missing definitions are collected rather than failing on the first one:
+
+| Kind        | Reported when                                                            | Severity |
+| ----------- | ------------------------------------------------------------------------ | -------- |
+| `screen`    | no `defineScreen` for a `Screen:` name                                   | info     |
+| `element`   | no `defineElement` for an `Element:` name                                | error    |
+| `target`    | the element is defined but has no locator for a `Show:` / `Hide:` target | error    |
+| `self`      | the element is defined without `self` but uses `Enable` / `Disable`      | error    |
+| `condition` | no screen-scoped or global `defineCondition` for a `When:` name          | error    |
+
+A missing screen definition is only informational: a screen without `open` is allowed (a hook or
+the conditions may navigate). Targets and `self` are not reported for an element that is itself
+missing. Each missing name is reported once per file, screen and element, at its first use.
+
+Definitions that no spec uses — screens, elements, element targets, and conditions (a global
+condition shadowed by a screen-scoped one in every screen that uses the name counts as unused) —
+are listed as **unused**, with their source location, for an optional warning.
+
+**Repeated runs in one process.** A definition file is evaluated at most once per process (module
+cache). The loader remembers which definitions each file registered, and every load starts from an
+empty registry and replays them, so repeated loads — e.g. one per Playwright project — each get
+exactly the definitions of their own files, and duplicates are only detected within one load. Do
+not call `resetRegistry()` between loads: it would not re-evaluate cached files. Edits to a file
+that was already loaded are not seen by the same process, so a watch mode must regenerate in a fresh
+process. Definitions made in a helper module imported by several definition files are attributed to
+the first definition file that imported it.

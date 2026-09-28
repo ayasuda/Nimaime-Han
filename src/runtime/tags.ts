@@ -9,7 +9,8 @@ import type { Fixtures, TestInfo } from '@playwright/test';
 /** The fixture `nimaime-han/runtime` adds next to `$nimaime`. */
 export interface NimaimeTagsTestArgs {
   /** Tags of the current test, e.g. `['@smoke', '@login']` (deduplicated, in order). */
-  $tags: readonly string[];
+  // Mutable `string[]` (not readonly) so it can override playwright-bdd's own `$tags` fixture.
+  $tags: string[];
 }
 
 /**
@@ -20,8 +21,15 @@ export function tagsOf(testInfo: Partial<Pick<TestInfo, 'tags'>>): string[] {
   return [...new Set(testInfo.tags ?? [])];
 }
 
-/** `{ $tags: [fixture, { scope: 'test', box: true }] }`, part of `nimaimeFixtures`. */
-export const tagsFixtures: Fixtures<NimaimeTagsTestArgs> = {
+/**
+ * `{ $tags: [fixture, { scope: 'test', box: true }] }`, part of `nimaimeFixtures`.
+ *
+ * `$tags` is declared as an *override* of a parent that already has `$tags` (third type argument).
+ * Playwright's `Fixtures<T>` widens a new fixture's options to `{ scope?: 'test' }`, but a test that
+ * already has `$tags` (playwright-bdd's `test`) requires `{ scope: 'test' }`; the override form has
+ * the required `scope`, which is assignable in both positions.
+ */
+export const tagsFixtures: Fixtures<NimaimeTagsTestArgs, object, NimaimeTagsTestArgs> = {
   $tags: [
     // Playwright requires an object destructuring pattern as the first parameter.
     // eslint-disable-next-line no-empty-pattern

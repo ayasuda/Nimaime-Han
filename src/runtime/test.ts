@@ -57,7 +57,7 @@ export function playwrightDriver(testInfo: Pick<TestInfo, 'file'> | undefined): 
  * The fixtures to add to any `test` with `test.extend(nimaimeFixtures)`:
  * `{ $nimaime: [fixture, { scope: 'test', box: true }] }`.
  */
-export const nimaimeFixtures: Fixtures<NimaimeTestArgs> = {
+export const nimaimeFixtures: Fixtures<NimaimeTestArgs, object, NimaimeTagsTestArgs> = {
   $nimaime: [
     // Playwright requires an object destructuring pattern as the first parameter.
     // eslint-disable-next-line no-empty-pattern

@@ -43,9 +43,9 @@ describe('$tags', () => {
   });
 
   it('is typed for tests and definitions', () => {
-    expectTypeOf<NimaimeTestArgs['$tags']>().toEqualTypeOf<readonly string[]>();
-    expectTypeOf<DefaultFixtures['$tags']>().toEqualTypeOf<readonly string[]>();
+    expectTypeOf<NimaimeTestArgs['$tags']>().toEqualTypeOf<string[]>();
+    expectTypeOf<DefaultFixtures['$tags']>().toEqualTypeOf<string[]>();
     type Custom = TestType<PlaywrightTestArgs & { login: string }, object>;
-    expectTypeOf<FixturesOf<Custom>['$tags']>().toEqualTypeOf<readonly string[]>();
+    expectTypeOf<FixturesOf<Custom>['$tags']>().toEqualTypeOf<string[]>();
   });
 });

@@ -1,0 +1,5 @@
+# Excluded by the "!specs/drafts/**" pattern of playwright.config.ts.
+Screen: Work In Progress
+
+  Element: Nothing Yet
+    Show: Placeholder

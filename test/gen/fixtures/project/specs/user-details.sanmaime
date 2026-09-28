@@ -1,0 +1,14 @@
+# The "Sanmaime DSL" example of README.md.
+Screen: User Details
+
+  Element: User Information
+
+    When: Viewing your own profile
+    Show: Username
+    And: Full name
+    And: Email address
+
+    When: Viewing another user's profile
+    Show: Username
+    Hide: Full name
+    And: Email address

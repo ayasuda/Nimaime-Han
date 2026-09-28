@@ -122,7 +122,7 @@ async function run(
   cwd: string,
   mode: GenerationMode = 'generate',
   verbose = false,
-  extra: { allowMissing?: boolean; format?: 'pretty' | 'compact' } = {},
+  extra: { allowMissing?: boolean; format?: 'pretty' | 'compact'; tags?: string } = {},
 ) {
   const io = capture();
   const result = await runGeneration({
@@ -144,6 +144,7 @@ describe('parseCliArgs', () => {
       verbose: false,
       allowMissing: false,
       format: 'pretty',
+      tags: undefined,
       help: false,
       version: false,
     });
@@ -163,6 +164,8 @@ describe('parseCliArgs', () => {
       allowMissing: true,
       format: 'compact',
     });
+    expect(parseCliArgs(['--tags', ' @smoke and not @wip ']).tags).toBe('@smoke and not @wip');
+    expect(parseCliArgs(['--tags=@a']).tags).toBe('@a');
     expect(parseCliArgs(['-h']).help).toBe(true);
     expect(parseCliArgs(['--version']).version).toBe(true);
   });
@@ -176,6 +179,10 @@ describe('parseCliArgs', () => {
     expect(() => parseCliArgs(['--config='])).toThrow(/needs a path/);
     expect(() => parseCliArgs(['--format', 'json'])).toThrow(
       /Unknown format 'json'. Formats: pretty, compact\./,
+    );
+    expect(() => parseCliArgs(['--tags', ' '])).toThrow(/Option --tags needs a tag expression\./);
+    expect(() => parseCliArgs(['--tags', '@a and'])).toThrow(
+      `--tags: Invalid tag expression '@a and' (column 7): expected a tag, 'not' or '(' after 'and', found the end of the expression.`,
     );
   });
 });
@@ -482,6 +489,138 @@ createNimaime().defineElement('Panel', { Title: (fixtures) => fixtures.page.loca
     expect(result.exitCode).toBe(0);
     expect(result.err).toBe('warning: no .sanmaime files match "specs" (none/*.sanmaime) in ..\n');
     expect(result.out).toBe('Generated 0 spec files (0 tests) into .sanmaime-gen\n');
+  });
+});
+
+describe('tags', () => {
+  const TAGGED_SPEC = `@login
+Screen: Login
+
+  @smoke
+  Element: Login Form
+    Show: Email address
+    And: Password
+
+  Element: Login Button
+    @smoke
+    When: Input is valid
+    Enable
+
+    @wip
+    When: Input is invalid
+    Disable
+
+    @wip
+    When: Not defined anywhere
+    Enable
+`;
+  const WIP_SPEC = `@wip
+Screen: Profile
+  Element: Undefined element
+    Show: Anything
+`;
+
+  function taggedProject(options = ''): string {
+    return project({
+      'playwright.config.ts': config(
+        `{ specs: 'specs/**/*.sanmaime', definitions: 'definitions/**/*.ts', importTestFrom: 'fixtures.ts'${options} }`,
+      ),
+      'fixtures.ts': FIXTURES,
+      'specs/login.sanmaime': TAGGED_SPEC,
+      'specs/profile.sanmaime': WIP_SPEC,
+      'definitions/login.ts': LOGIN_DEFINITIONS,
+    });
+  }
+
+  it('generates only the selected tests with --tags, with Playwright tags', async () => {
+    const dir = taggedProject();
+    const io = capture();
+    const code = await main(['--tags', '@smoke', '--verbose'], { ...io, cwd: dir });
+    expect(io.err).toContain('Tags "@smoke": 2 tests selected, 3 tests filtered out.\n');
+    expect(io.err).not.toContain('error');
+    // Definitions used by tests that are filtered out are not reported as unused.
+    expect(io.err).not.toContain('Input is invalid');
+    expect(io.err).toContain('Element "Footer" is not used by any spec.');
+    expect(code).toBe(0);
+    expect(io.out).toMatch(/^Generated 1 spec file \(2 tests\) into \.sanmaime-gen\n/);
+    const out = path.join(dir, '.sanmaime-gen', 'specs');
+    expect(fs.existsSync(path.join(out, 'profile.spec.ts'))).toBe(false);
+    const content = fs.readFileSync(path.join(out, 'login.spec.ts'), 'utf8');
+    expect(content).toContain(`test.describe('Screen: Login', { tag: ['@login'] }, () => {`);
+    expect(content).toContain(`test.describe('Element: Login Form', { tag: ['@smoke'] }, () => {`);
+    expect(content).toContain(`test.describe('Element: Login Button', () => {`);
+    expect(content).toContain(
+      `test('When: Input is valid', { tag: ['@smoke'] }, async ({ $nimaime, appHtml, page }) => {`,
+    );
+    expect(content).not.toContain('Input is invalid');
+  });
+
+  it('reports missing definitions only for the selected tests', async () => {
+    // A config file is evaluated once per process: one project per run.
+    const selected = await run(taggedProject(), 'check', false, { tags: 'not @wip' });
+    expect(selected.exitCode).toBe(0);
+    expect(selected.results[0]?.excludedByTags).toBe(3);
+    const all = await run(taggedProject(), 'check');
+    expect(all.exitCode).toBe(1);
+    expect(all.err).toContain('Not defined anywhere');
+  });
+
+  it('export reflects the filter and prints the tags of each test', async () => {
+    const dir = taggedProject();
+    const result = await run(dir, 'export', false, { tags: '@login and not @wip' });
+    expect(result.exitCode).toBe(0);
+    expect(result.out).toBe(
+      [
+        'specs/login.sanmaime',
+        '  Screen: Login > Element: Login Form > Always  @login @smoke',
+        '  Screen: Login > Element: Login Button > When: Input is valid  @login @smoke',
+        '2 tests in 1 spec file.',
+        '',
+      ].join('\n'),
+    );
+    const none = await run(taggedProject(), 'export', false, { tags: '@nothing' });
+    expect(none.out).toBe('0 tests in 0 spec files.\n');
+    expect(none.results[0]?.excludedByTags).toBe(5);
+  });
+
+  it('uses the config tags unless --tags is given', async () => {
+    const options = `, tags: '@wip and not @login'`;
+    const fromConfig = await run(taggedProject(options), 'export', true);
+    expect(fromConfig.err).toContain(
+      'Tags "@wip and not @login": 1 test selected, 4 tests filtered out.',
+    );
+    // The only selected test uses a missing element definition, which is reported.
+    expect(fromConfig.err).toContain('Undefined element');
+    expect(fromConfig.err).not.toContain('Not defined anywhere');
+    expect(fromConfig.exitCode).toBe(1);
+    const io = capture();
+    const code = await main(['export', '--tags', '@smoke'], { ...io, cwd: taggedProject(options) });
+    expect(code).toBe(0);
+    expect(io.out).toContain('2 tests in 1 spec file.');
+    expect(io.out).not.toContain('Profile');
+  });
+
+  it('exits with 2 for an invalid tag expression', async () => {
+    const dir = taggedProject();
+    const io = capture();
+    expect(await main(['--tags', '@smoke or'], { ...io, cwd: dir })).toBe(2);
+    expect(io.err).toBe(
+      "nimaime-gen: --tags: Invalid tag expression '@smoke or' (column 10): expected a tag, 'not' or '(' after 'or', found the end of the expression.\n" +
+        "Run 'nimaime-gen --help' for usage.\n",
+    );
+    const result = await run(taggedProject(), 'generate', false, { tags: '(@smoke' });
+    expect(result.exitCode).toBe(2);
+    expect(result.err).toMatch(/^nimaime-gen: --tags: Invalid tag expression '\(@smoke'/);
+    expect(fs.existsSync(path.join(dir, '.sanmaime-gen'))).toBe(false);
+  });
+
+  it('exits with 2 for an invalid tags option in the config', async () => {
+    const dir = taggedProject(`, tags: 'smoke'`);
+    const result = await run(dir);
+    expect(result.exitCode).toBe(2);
+    expect(result.err).toContain(
+      `Invalid Sanmaime config: option "tags" must be a tag expression such as "@smoke and not @wip". Invalid tag expression 'smoke' (column 1)`,
+    );
   });
 });
 

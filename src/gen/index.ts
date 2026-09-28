@@ -74,6 +74,8 @@ export {
   type ReportOptions,
 } from './report';
 export { generateSnippets, type SnippetOptions } from './snippets';
+export { parseTagExpression, TagExpressionError, type TagExpression } from './tag-expression';
+export { filterDocumentByTags, tagNames, type TagFilterResult } from './tags';
 export {
   processConfig,
   runGeneration,

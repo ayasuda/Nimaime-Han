@@ -212,6 +212,8 @@ evaluated again, or the same function with the same kind and options.
 ## Tags (not supported yet)
 
 The options accept `tags` (a tag expression such as `'@smoke and not @slow'`, as in
-playwright-bdd's `Before({ tags }, fn)`). It is validated as a string and stored on the hook, but
-**not applied yet**: until tag expressions are supported (issues #15 / #17) a hook with `tags` runs
-as if it had none.
+playwright-bdd's `Before({ tags }, fn)`). It is validated as a string and stored on the hook
+(`HookDefinition.tags`), but **not applied yet**: a hook with `tags` runs as if it had none.
+Applying it (matching the expression against the tags of the screen for screen hooks and of the
+running test for element hooks, with the tag expressions of `--tags`, [sanmaime.md
+§5.8](./sanmaime.md#58-tags)) is left to a follow-up.

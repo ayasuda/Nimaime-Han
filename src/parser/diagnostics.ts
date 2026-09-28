@@ -43,7 +43,7 @@ export const DiagnosticCode = {
   ConflictsWithUnconditional: 'SANMAIME_E016',
   /** Invalid language directive (unsupported / empty / duplicate). */
   InvalidLanguage: 'SANMAIME_E017',
-  /** Tag lines not followed by `Screen:` or `Element:`. */
+  /** Tag lines not followed by `Screen:`, `Element:` or `When:`. */
   MisplacedTags: 'SANMAIME_E018',
   /** Use of the reserved keyword `Background:`. */
   ReservedKeyword: 'SANMAIME_E019',
@@ -122,7 +122,8 @@ export function createMessages(k: KeywordSpellings) {
       `Unsupported language '${code}'. Supported languages: ${supported.join(', ')}.`,
     duplicateLanguage: (firstLine: number): string =>
       `Duplicate language directive (first on line ${String(firstLine)}).`,
-    misplacedTags: (): string => `Tags must be followed by '${k.Screen}:' or '${k.Element}:'.`,
+    misplacedTags: (): string =>
+      `Tags must be followed by '${k.Screen}:', '${k.Element}:' or '${k.When}:'.`,
     reservedKeyword: (keyword: string): string =>
       `'${keyword}:' is reserved for a future version of Sanmaime and is not supported in v0.`,
     invalidTag: (token: string): string =>

@@ -6,12 +6,17 @@ import type {
   PlaywrightWorkerOptions,
   TestType,
 } from '@playwright/test';
+import type { NimaimeTagsTestArgs } from './tags';
 
-/** Fixtures available to definitions when `createNimaime()` is called without a custom `test`. */
+/**
+ * Fixtures available to definitions when `createNimaime()` is called without a custom `test`.
+ * `$tags` is added by the generated specs' `createNimaimeTest()`.
+ */
 export type DefaultFixtures = PlaywrightTestArgs &
   PlaywrightTestOptions &
   PlaywrightWorkerArgs &
-  PlaywrightWorkerOptions;
+  PlaywrightWorkerOptions &
+  NimaimeTagsTestArgs;
 
 /** Worker-scoped fixtures available to `beforeScreen` / `afterScreen` hooks by default. */
 export type DefaultWorkerFixtures = PlaywrightWorkerArgs & PlaywrightWorkerOptions;
@@ -26,9 +31,14 @@ export type DefaultTestType = TestType<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyTestType = TestType<any, any>;
 
-/** Test-scoped and worker-scoped fixtures of a Playwright `test` type. */
+/**
+ * Test-scoped and worker-scoped fixtures of a Playwright `test` type, plus `$tags` (added by the
+ * generated specs' `createNimaimeTest()`, so definitions can always destructure it).
+ */
 export type FixturesOf<T> =
-  T extends TestType<infer TestArgs, infer WorkerArgs> ? TestArgs & WorkerArgs : never;
+  T extends TestType<infer TestArgs, infer WorkerArgs>
+    ? TestArgs & WorkerArgs & NimaimeTagsTestArgs
+    : never;
 
 /** Worker-scoped fixtures of a Playwright `test` type (what `test.beforeAll` may use). */
 export type WorkerFixturesOf<T> =
@@ -152,7 +162,7 @@ export interface ScreenHookOptions {
   screen?: string;
   /**
    * A tag expression restricting the hook (like playwright-bdd's `Before({ tags })`).
-   * **Not supported yet:** it is stored but ignored until tag expressions land (#15 / #17).
+   * **Not supported yet:** it is stored but not applied (docs/hooks.md, "Tags").
    */
   tags?: string;
 }

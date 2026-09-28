@@ -95,6 +95,7 @@ export type {
   ScreenDefinition,
 } from './registry';
 export { NimaimeDefinitionError, NimaimeHookError, NimaimeRuntimeError } from './errors';
+export { tagsFixtures, tagsOf, type NimaimeTagsTestArgs } from './tags';
 export type {
   ElementHookFn,
   ElementHookInfo,

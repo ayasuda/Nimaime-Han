@@ -32,7 +32,10 @@ export interface LanguageDirective {
   location: Location;
 }
 
-/** A tag from an `@tag` line (§3.7). Reserved in v0: parsed and attached, without semantics. */
+/**
+ * A tag from an `@tag` line (§3.7), attached to the `Screen:`, `Element:` or `When:` that follows.
+ * The tags of a test are the union of its screen's, element's and block's tags (§5.8).
+ */
 export interface Tag {
   /** The tag including its leading `@`, e.g. `"@smoke"`. */
   name: string;
@@ -62,6 +65,8 @@ export interface Element {
 export interface ConditionBlock {
   /** The condition name (the text after `When:`). */
   name: string;
+  /** Tags written before `When:` (block-level tags). */
+  tags: Tag[];
   location: Location;
   expectations: Expectation[];
 }

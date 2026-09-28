@@ -1,6 +1,6 @@
 # Sanmaime Language Specification — v0
 
-> Status: **draft v0**. This document is the reference for the Sanmaime parser,
+> Status: **draft v0.1** (v0 plus tags: §3.7, §5.8). This document is the reference for the Sanmaime parser,
 > the `nimaime-gen` generator, editor grammars and AI generators. Where this
 > document and an implementation disagree, the implementation is wrong (or this
 > document must be changed first).
@@ -259,7 +259,7 @@ to the end of the line, trimmed.
   NFC; tools MAY warn about names that differ only by normalisation).
 - Names are **not** quoted and have no escape sequences.
 
-### 3.7 Tag lines (reserved, v1)
+### 3.7 Tag lines
 
 A line whose first non-whitespace character is `@` is a **tag line**:
 
@@ -269,14 +269,19 @@ Screen: Login
 ```
 
 A tag line is one or more tags separated by whitespace. A tag is `@`
-followed by one or more characters that are not whitespace, `@` or `#`.
-Any other token on a tag line is error `SANMAIME_E020`.
+followed by one or more characters that are not whitespace, `@` or `#`
+(`@smoke`, `@owner:team-a`, `@日本語タグ`). Any other token on a tag line is
+error `SANMAIME_E020`.
 
-In v0 tags are **parsed and attached** to the `Screen:` or `Element:` that
-follows them (possibly after blank and comment lines), but they have **no
-meaning** yet. Their semantics (filtering with `--tags`, inheritance, etc.)
-are specified by issue #15. Tags followed by anything other than `Screen:`
-or `Element:` (or by the end of the file) are error `SANMAIME_E018`.
+Tags are attached to the `Screen:`, `Element:` or `When:` line that follows
+them, possibly after blank lines, comment lines and further tag lines (all
+tags of the group are attached, in source order). Tags followed by anything
+else (an expectation, or the end of the file) are error `SANMAIME_E018`.
+Tags have no effect on the structure of the file; their meaning is given in
+§5.8.
+
+Tags are language-independent: `@` and the tag text are the same whatever
+the file's `# language:` (a tag may be written in any script).
 
 ### 3.8 Line classification
 
@@ -359,7 +364,7 @@ element         = { tag-line } , element-line , element-body ;
 element-body    = expectations , { condition-block }     (* unconditional block first *)
                 | condition-block , { condition-block } ;
 
-condition-block = when-line , expectations ;
+condition-block = { tag-line } , when-line , expectations ;
 
 expectations    = expectation , { expectation } ;
 expectation     = visibility-group | bare-keyword-line ;
@@ -373,6 +378,8 @@ Consequences of the grammar:
   (`E008`).
 - `And:` can only extend a `Show:`/`Hide:` group; it cannot start a block
   and cannot follow `Enable`/`Disable` (`E007`).
+- Tags can precede `Screen:`, `Element:` and `When:` only. The unconditional
+  block has no header line, so it has no tags of its own (§5.8).
 - Unconditional expectations can only appear **before** the first `When:`
   of an element. Once a `When:` appears, every following expectation belongs
   to a condition block until the next `When:`, `Element:` or `Screen:`.
@@ -482,6 +489,53 @@ Whether an element or condition definition may be shared between screens
 runtime binding API, not by the language. The language only defines the
 identities above.
 
+### 5.8 Tags
+
+Tags label tests so that tools can select them, as Gherkin tags do. Each
+block of an element is one **test** (§5.3, §5.4); its **effective tags** are:
+
+| Test                      | Effective tags                                |
+| ------------------------- | --------------------------------------------- |
+| the unconditional block   | screen tags ∪ element tags                    |
+| a `When:` condition block | screen tags ∪ element tags ∪ the block's tags |
+
+- Tags on a `Screen:` apply to all its elements; tags on an `Element:`
+  apply to all its blocks; tags on a `When:` apply to that block only.
+- Effective tags form a set: a tag repeated on several levels (or twice on
+  one line) counts once. Tags are compared by exact code-point equality,
+  including the `@` (`@Smoke` ≠ `@smoke`).
+- Tags never change what a test checks. They are used to **select** tests:
+  `nimaime-gen --tags "<expression>"` (or the config's `tags` option)
+  generates only the tests whose effective tags match a Cucumber-style tag
+  expression such as `@smoke and not (@wip or @slow)`. Screens and elements
+  left without tests, and files left without tests, are not generated. See
+  [cli.md](./cli.md#tags).
+- The generated Playwright tests carry the tags (`{ tag: [...] }` on the
+  `test.describe` of the screen and element and on the `test` of a `When:`
+  block), so `npx playwright test --grep @smoke` also selects them, and a
+  running test can read its effective tags from the `$tags` fixture
+  ([runtime.md](./runtime.md#tags)).
+
+```text
+@smoke
+Screen: Login
+
+  Element: Login Form          # effective tags of its unconditional block: @smoke
+    Show: Email address
+
+  @regression
+  Element: Login Button
+    When: Input is valid       # @smoke @regression
+    Enable
+
+    @wip
+    When: Input is invalid     # @smoke @regression @wip
+    Disable
+```
+
+(The `# …` annotations above are explanations, not Sanmaime comments:
+Sanmaime has no trailing comments, §3.3.)
+
 ---
 
 ## 6. Consistency rules
@@ -553,7 +607,7 @@ is quoted as written; other keywords use the language's primary spelling.
 | `SANMAIME_E015` | More than one `Enable`/`Disable` in the same block (§6 rule 2).                                                        | the second line                 | `This block already declares '{Keyword}' (line {n}).`                                                                                                                                                                                                                                                                                                                                                                              |
 | `SANMAIME_E016` | A condition block re-asserts a target or state already asserted by the element's unconditional block (§6 rule 3).      | the line in the condition block | `'{target}' is already asserted unconditionally for element '{element}' (line {n}). Unconditional expectations hold in every state.`                                                                                                                                                                                                                                                                                               |
 | `SANMAIME_E017` | Invalid language directive: unsupported or empty language, or a second directive in the header.                        | the directive line              | `Unsupported language '{code}'. Supported languages: en, ja.` / `Duplicate language directive (first on line {n}).`                                                                                                                                                                                                                                                                                                                |
-| `SANMAIME_E018` | Tag lines not followed by `Screen:` or `Element:` (followed by another keyword or by end of file).                     | the first tag line of the group | `Tags must be followed by 'Screen:' or 'Element:'.`                                                                                                                                                                                                                                                                                                                                                                                |
+| `SANMAIME_E018` | Tag lines not followed by `Screen:`, `Element:` or `When:` (followed by another keyword or by end of file).            | the first tag line of the group | `Tags must be followed by 'Screen:', 'Element:' or 'When:'.`                                                                                                                                                                                                                                                                                                                                                                       |
 | `SANMAIME_E019` | Use of the reserved keyword `Background:`.                                                                             | the line                        | `'Background:' is reserved for a future version of Sanmaime and is not supported in v0.`                                                                                                                                                                                                                                                                                                                                           |
 | `SANMAIME_E020` | Malformed tag line.                                                                                                    | the line                        | `Invalid tag '{token}'. A tag is '@' followed by characters other than whitespace, '@' and '#'.`                                                                                                                                                                                                                                                                                                                                   |
 
@@ -604,7 +658,6 @@ the meaning of any valid v0 file.
 | Extension                                                              | Reserved now                                                                                                                                               | Planned for |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | **More keyword languages**                                             | `# language: <code>` directive (§3.4); v0 defines `en` and `ja`. New languages are added as dictionaries ([i18n.md](./i18n.md)).                           | any time    |
-| **Tags**                                                               | `@tag` lines before `Screen:` / `Element:` are tokenised and attached to the node (§3.7), without semantics.                                               | issue #15   |
 | **Description** (free text under a header, like Gherkin's description) | Free-text lines are `E001` in v0. A future version may accept non-keyword lines directly after `Screen:` or `Element:` as a description.                   | v1          |
 | **Background** (conditions shared by all elements of a screen)         | The keyword `Background:` is reserved and is `E019` in v0.                                                                                                 | v1          |
 | **More expectation kinds** (text, count, value, …)                     | Any `Word:` line that is not a v0 keyword is `E001`, so new keywords can be introduced freely.                                                             | later       |
@@ -694,6 +747,7 @@ interface Element {
 
 interface ConditionBlock {
   name: string; // the text after "When:"
+  tags: Tag[];
   location: Location;
   expectations: Expectation[];
 }
@@ -789,8 +843,9 @@ Notes:
   _Login / Login Form_ are unrelated targets (different elements).
 - _Page Header_ and _Edit Button / Edit icon_ are invariants: they hold in
   the base state and in both condition states.
-- The screen _User Details_ carries the tag `@profile`, which has no effect
-  in v0.
+- The screen _User Details_ carries the tag `@profile`: every test of that
+  screen has it (§5.8), so `nimaime-gen --tags @profile` generates only the
+  six _User Details_ tests.
 
 ---
 
@@ -847,12 +902,13 @@ Fixtures are parsed without a `language` option.
 | D11 | Multiple `When:` blocks per element; multiple screens per file; the same condition name may appear in several elements of a screen and denotes one condition.                  | README examples; lets the runtime set up a state once for several elements.                                                                                                                                  |
 | D12 | Duplicates (screen, element, condition, target in a block, state in a block) and re-assertion of unconditional facts are errors.                                               | Keeps one canonical place for every fact, which matters for human review of AI drafts. Strict now, relaxable later without breaking files.                                                                   |
 | D13 | Empty screen / element / condition block is an error; an empty file is valid.                                                                                                  | A header with nothing under it is almost always a truncated specification; an empty file is harmless (same as an empty `.feature`).                                                                          |
-| D14 | Unknown lines are errors (no free-text description in v0); `Background:` reserved; tags tokenised but without semantics.                                                       | Every future extension (description, background, new expectation kinds, tags) can be added without changing the meaning of existing valid files.                                                             |
+| D14 | Unknown lines are errors (no free-text description in v0); `Background:` reserved.                                                                                             | Every future extension (description, background, new expectation kinds) can be added without changing the meaning of existing valid files.                                                                   |
 | D15 | Stable diagnostic codes `SANMAIME_Ennn` with line and column; fixtures declare the expected code and location.                                                                 | Tests, editors and AI repair loops can match on codes rather than message text.                                                                                                                              |
 | D16 | Japanese keywords `画面` `要素` `条件` `表示` `非表示` `かつ` `有効` `無効` (`背景` reserved); `かつ` as in Gherkin's `ja`.                                                    | Short nouns that read naturally as headings; `表示`/`非表示` mirror Show/Hide; `条件` (condition) matches the runtime's "condition" concept better than Gherkin's `もし`.                                    |
 | D17 | Japanese keywords accept the full-width colon `：` as well as `:`; English keywords do not.                                                                                    | Japanese IMEs type `：` by default, and the two are hard to tell apart visually. English files stay strictly ASCII so nothing changes for them.                                                              |
 | D18 | The file's directive beats the configured default language; an unsupported configured language throws instead of producing per-file diagnostics.                               | A file that declares its language must mean the same in every project. A bad config value is one mistake, not one per file.                                                                                  |
 | D19 | Messages stay in English; quoted keywords follow the file's language. The AST keeps canonical English keywords.                                                                | Diagnostic codes are the stable interface; quoting the author's own keywords makes messages actionable. Downstream tools stay language-independent.                                                          |
+| D20 | Tags (v0.1) go before `Screen:`, `Element:` and `When:`; a test's tags are the union of its screen's, element's and block's tags; selection uses Cucumber tag expressions.     | Same model and expression syntax as Gherkin / playwright-bdd, so users and CI setups carry over. Allowing tags only before header lines keeps them unambiguous (the unconditional block inherits).           |
 
 ---
 
@@ -869,5 +925,6 @@ Fixtures are parsed without a `language` option.
 - 1 つの `Element:` に**複数の `When:`** を書ける。同じ画面内の別要素で同じ `When:` 名を使うと同じ条件を指す。1 ファイルに**複数の `Screen:`** を書ける。
 - 重複(画面名・要素名・条件名・同一ブロック内の対象)や、無条件ブロックで宣言済みの対象を条件ブロックで再宣言することはエラー。空の画面・要素・条件ブロックもエラー。空ファイルは有効。
 - **診断**は `SANMAIME_E001`〜`SANMAIME_E020` の安定したコードと行・桁を持つ(§7)。
-- **将来拡張の予約**: `# language: xx`(v0 は `en` と `ja`。言語は辞書の追加で増やせる)、`@tag` 行(#15。v0 では構文解析して付与するだけ)、自由記述の Description(v0 ではエラー)、`Background:`(v0 では予約語エラー)。
+- **タグ**(v0.1): `@smoke @wip` のような `@tag` 行を `Screen:` / `Element:` / `When:` の直前に書く。テスト(要素の各ブロック)のタグは画面・要素・`When:` ブロックのタグの和集合。`nimaime-gen --tags "@smoke and not @wip"`(または設定の `tags`)で生成するテストを絞り込める。生成コードは Playwright の `tag` を持つので `npx playwright test --grep @smoke` でも絞れ、定義からは `$tags` フィクスチャで参照できる。タグは言語に依存しない。
+- **将来拡張の予約**: `# language: xx`(v0 は `en` と `ja`。言語は辞書の追加で増やせる)、自由記述の Description(v0 ではエラー)、`Background:`(v0 では予約語エラー)。
 - **テストフィクスチャ**は `examples/sanmaime/valid/` と `examples/sanmaime/invalid/`。無効例は先頭に `# expect: SANMAIME_Ennn` と `# at: 行:桁` を書く。

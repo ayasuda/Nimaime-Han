@@ -444,6 +444,8 @@ Sanmaime syntax and Nimaime-Han APIs are not stable yet.
 
 Expect breaking changes.
 
+Releases stay at 0.x while the project is experimental: a breaking change bumps the minor version (0.3.x → 0.4.0), and features and fixes bump the patch version. See [docs/releasing.md](docs/releasing.md) and [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT

@@ -4,6 +4,8 @@
 import path from 'node:path';
 // The language table only (pure data), not the whole parser.
 import { SUPPORTED_LANGUAGES } from '../parser/languages';
+// Pure and dependency-free: validates the `tags` option when the config is defined.
+import { parseTagExpression, TagExpressionError } from '../gen/tag-expression';
 import { describeValue, SanmaimeConfigError } from './errors';
 import type {
   QuoteStyle,
@@ -68,6 +70,17 @@ function optionalString(option: string, value: unknown): string | undefined {
   if (value === undefined) return undefined;
   if (!isNonEmptyString(value)) fail(option, 'a non-empty string', value);
   return value.trim();
+}
+
+function validateTags(tags: string): void {
+  try {
+    parseTagExpression(tags);
+  } catch (error) {
+    if (!(error instanceof TagExpressionError)) throw error;
+    throw new SanmaimeConfigError(
+      `Invalid Sanmaime config: option "tags" must be a tag expression such as "@smoke and not @wip". ${error.message}`,
+    );
+  }
 }
 
 function resolveImportTestFrom(
@@ -157,6 +170,7 @@ export function resolveSanmaimeConfig(
   }
 
   const tags = optionalString('tags', input.tags);
+  if (tags !== undefined) validateTags(tags);
   const importTestFrom = resolveImportTestFrom(input.importTestFrom, configDir);
 
   let quotes: QuoteStyle = DEFAULT_QUOTES;

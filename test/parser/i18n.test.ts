@@ -141,7 +141,7 @@ describe('parse: # language: ja', () => {
         'SANMAIME_E019',
         `'背景:' is reserved for a future version of Sanmaime and is not supported in v0.`,
       ],
-      ['SANMAIME_E018', `Tags must be followed by '画面:' or '要素:'.`],
+      ['SANMAIME_E018', `Tags must be followed by '画面:', '要素:' or '条件:'.`],
     ]);
   });
 

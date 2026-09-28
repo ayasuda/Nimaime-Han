@@ -61,34 +61,34 @@ Read it as:
 
 - On the **User Details** screen,
 - the **User Information** element,
-- *when viewing your own profile*, shows Username, Full name and Email address;
-- *when viewing another user's profile*, shows Username and hides Full name
+- _when viewing your own profile_, shows Username, Full name and Email address;
+- _when viewing another user's profile_, shows Username and hides Full name
   and Email address.
 
 The complete keyword set of v0 is:
 
-| Keyword    | Takes a name | Introduces / means                                              |
-|------------|--------------|-----------------------------------------------------------------|
-| `Screen:`  | yes          | a screen                                                        |
-| `Element:` | yes          | an element of the current screen                                |
-| `When:`    | yes          | a condition block of the current element                        |
-| `Show:`    | yes          | expectation: the named target is visible                        |
-| `Hide:`    | yes          | expectation: the named target is not visible                    |
-| `And:`     | yes          | expectation: same kind as the preceding `Show:` / `Hide:`       |
-| `Enable`   | no           | expectation: the current element itself is enabled             |
-| `Disable`  | no           | expectation: the current element itself is disabled             |
+| Keyword    | Takes a name | Introduces / means                                        |
+| ---------- | ------------ | --------------------------------------------------------- |
+| `Screen:`  | yes          | a screen                                                  |
+| `Element:` | yes          | an element of the current screen                          |
+| `When:`    | yes          | a condition block of the current element                  |
+| `Show:`    | yes          | expectation: the named target is visible                  |
+| `Hide:`    | yes          | expectation: the named target is not visible              |
+| `And:`     | yes          | expectation: same kind as the preceding `Show:` / `Hide:` |
+| `Enable`   | no           | expectation: the current element itself is enabled        |
+| `Disable`  | no           | expectation: the current element itself is disabled       |
 
 ---
 
 ## 2. File format
 
-| Property        | Rule |
-|-----------------|------|
-| Extension       | `.sanmaime` (for example `user-details.sanmaime`). |
-| Encoding        | UTF-8. A leading byte order mark (U+FEFF) MUST be ignored. Decoding is the loader's job; invalid UTF-8 is an I/O error, not a Sanmaime diagnostic. |
-| Line breaks     | LF, CRLF and a lone CR are all accepted, and may be mixed. The last line does not need a line break. |
-| Screens per file| One or more. A file that contains only blank lines and comments is valid and describes no screens. |
-| File naming     | Not significant. Recommended: one screen per file, file named after the screen in kebab-case. |
+| Property         | Rule                                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Extension        | `.sanmaime` (for example `user-details.sanmaime`).                                                                                                 |
+| Encoding         | UTF-8. A leading byte order mark (U+FEFF) MUST be ignored. Decoding is the loader's job; invalid UTF-8 is an I/O error, not a Sanmaime diagnostic. |
+| Line breaks      | LF, CRLF and a lone CR are all accepted, and may be mixed. The last line does not need a line break.                                               |
+| Screens per file | One or more. A file that contains only blank lines and comments is valid and describes no screens.                                                 |
+| File naming      | Not significant. Recommended: one screen per file, file named after the screen in kebab-case.                                                      |
 
 ---
 
@@ -99,7 +99,7 @@ then the sequence of classified lines is checked against the grammar in §4.
 
 ### 3.1 Whitespace and indentation
 
-*Whitespace* means exactly the characters removed by ECMAScript
+_Whitespace_ means exactly the characters removed by ECMAScript
 `String.prototype.trim()`: U+0009 TAB, U+000B, U+000C, U+0020 SPACE,
 U+00A0, U+FEFF, every character of Unicode general category `Zs`
 (including U+3000 IDEOGRAPHIC SPACE), and line terminators.
@@ -133,7 +133,7 @@ A comment line of the form
 # language: en
 ```
 
-that appears **before the first significant line** (the *header*: only
+that appears **before the first significant line** (the _header_: only
 blank and comment lines may precede it) is a **language directive**. It
 selects the keyword language of the file. Precisely, after trimming, the
 line is a directive when it matches:
@@ -206,19 +206,19 @@ or `Element:` (or by the end of the file) are error `SANMAIME_E018`.
 Each physical line is trimmed to `t` and classified by the **first**
 matching rule:
 
-| # | Condition on `t`                                                   | Class / result |
-|---|--------------------------------------------------------------------|----------------|
-| 1 | empty                                                              | blank line |
-| 2 | starts with `#`                                                    | comment (or language directive, §3.4) |
-| 3 | starts with `@`                                                    | tag line (§3.7), or `E020` |
-| 4 | starts with `Screen:` `Element:` `When:` `Show:` `Hide:` `And:`    | name keyword line; empty name → `E002` |
-| 5 | equals `Enable` or `Disable`                                       | bare keyword line |
-| 6 | starts with `Enable` or `Disable` followed by whitespace or `:`    | `E003` |
-| 7 | starts with `Background:`                                          | `E019` (reserved) |
-| 8 | anything else                                                      | `E001` |
+| #   | Condition on `t`                                                | Class / result                         |
+| --- | --------------------------------------------------------------- | -------------------------------------- |
+| 1   | empty                                                           | blank line                             |
+| 2   | starts with `#`                                                 | comment (or language directive, §3.4)  |
+| 3   | starts with `@`                                                 | tag line (§3.7), or `E020`             |
+| 4   | starts with `Screen:` `Element:` `When:` `Show:` `Hide:` `And:` | name keyword line; empty name → `E002` |
+| 5   | equals `Enable` or `Disable`                                    | bare keyword line                      |
+| 6   | starts with `Enable` or `Disable` followed by whitespace or `:` | `E003`                                 |
+| 7   | starts with `Background:`                                       | `E019` (reserved)                      |
+| 8   | anything else                                                   | `E001`                                 |
 
-Blank lines and comments are *insignificant*; all other lines are
-*significant*.
+Blank lines and comments are _insignificant_; all other lines are
+_significant_.
 
 ---
 
@@ -314,7 +314,7 @@ Everything up to the next `Element:` or `Screen:` belongs to it.
 ### 5.3 Condition blocks
 
 `When: <name>` starts a **condition block**. The name refers to a
-*condition*: a screen state that the runtime can establish (log in as
+_condition_: a screen state that the runtime can establish (log in as
 another user, fill in invalid input, …). The block's expectations must hold
 **in the state established by that condition**.
 
@@ -331,7 +331,7 @@ Expectations that appear directly under `Element:`, before any `When:`,
 form the element's **unconditional block**.
 
 - Meaning: they are **invariants** of the screen — they must hold in every
-  state of the screen that the specification describes: the *base state*
+  state of the screen that the specification describes: the _base state_
   (the screen as reached by its screen definition, with no condition
   applied) and every state produced by a `When:` condition of the same
   screen.
@@ -341,13 +341,13 @@ form the element's **unconditional block**.
 
 ### 5.5 Expectations
 
-| Line           | Subject              | Meaning (Playwright analogue, non-normative) |
-|----------------|----------------------|----------------------------------------------|
-| `Show: X`      | target `X` of the element | `X` is visible (`toBeVisible()`) |
-| `Hide: X`      | target `X` of the element | `X` is not visible: absent or hidden (`toBeHidden()`) |
-| `And: X`       | target `X` of the element | same kind as the group it continues (§5.6) |
-| `Enable`       | the element itself   | the element is enabled (`toBeEnabled()`) |
-| `Disable`      | the element itself   | the element is disabled (`toBeDisabled()`) |
+| Line      | Subject                   | Meaning (Playwright analogue, non-normative)          |
+| --------- | ------------------------- | ----------------------------------------------------- |
+| `Show: X` | target `X` of the element | `X` is visible (`toBeVisible()`)                      |
+| `Hide: X` | target `X` of the element | `X` is not visible: absent or hidden (`toBeHidden()`) |
+| `And: X`  | target `X` of the element | same kind as the group it continues (§5.6)            |
+| `Enable`  | the element itself        | the element is enabled (`toBeEnabled()`)              |
+| `Disable` | the element itself        | the element is disabled (`toBeDisabled()`)            |
 
 - Name keywords (`Show:`, `Hide:`, `And:`) take a **target name** and speak
   about a part of the element.
@@ -377,20 +377,20 @@ Hide: Full name
 And: Email address
 ```
 
-| Line                 | Resolves to            |
-|----------------------|------------------------|
-| `Show: Username`     | show `Username`        |
-| `Hide: Full name`    | hide `Full name`       |
+| Line                 | Resolves to                              |
+| -------------------- | ---------------------------------------- |
+| `Show: Username`     | show `Username`                          |
+| `Hide: Full name`    | hide `Full name`                         |
 | `And: Email address` | hide `Email address` (continues `Hide:`) |
 
 ### 5.7 Names and scoping
 
-| Name        | Identity                                   | Scope of uniqueness |
-|-------------|--------------------------------------------|---------------------|
-| Screen      | the screen name                            | unique within a file (`E011`); SHOULD be unique within a project (checked by the generator, not the parser) |
-| Element     | (screen, element)                          | unique within its screen (`E012`) |
-| Condition   | (screen, condition)                        | unique within its element (`E013`); shared across elements of the same screen |
-| Target      | (screen, element, target)                  | see §6 |
+| Name      | Identity                  | Scope of uniqueness                                                                                         |
+| --------- | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Screen    | the screen name           | unique within a file (`E011`); SHOULD be unique within a project (checked by the generator, not the parser) |
+| Element   | (screen, element)         | unique within its screen (`E012`)                                                                           |
+| Condition | (screen, condition)       | unique within its element (`E013`); shared across elements of the same screen                               |
+| Target    | (screen, element, target) | see §6                                                                                                      |
 
 Whether an element or condition definition may be shared between screens
 (for example a global `defineElement("Header", …)`) is decided by the
@@ -442,28 +442,28 @@ specs/login.sanmaime:7:5: error SANMAIME_E007: 'And:' must follow 'Show:', 'Hide
 Placeholders in `{braces}` are filled in by the parser. Messages are
 suggestions; codes and locations are normative.
 
-| Code | Condition | Location | Suggested message |
-|------|-----------|----------|-------------------|
-| `SANMAIME_E001` | Unrecognised line (§3.8 rule 8): unknown keyword, wrong case, missing colon, free text. | the line | `Unrecognised line '{text}'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).` Parsers SHOULD add a hint when the line is a case-insensitive match (`Did you mean 'Show:'?`) or lacks the colon (`Did you mean 'Show: Username'?`). |
-| `SANMAIME_E002` | A name keyword has an empty name. | the line | `'{Keyword}:' requires a name.` |
-| `SANMAIME_E003` | `Enable`/`Disable` followed by a colon or an argument. | the line | `'{Keyword}' takes no argument. Write '{Keyword}' on its own line.` |
-| `SANMAIME_E004` | `Element:` before any `Screen:`. | the line | `'Element:' must appear inside a 'Screen:'.` |
-| `SANMAIME_E005` | `When:` before any `Element:` of the current screen (or before any `Screen:`). | the line | `'When:' must appear inside an 'Element:'.` |
-| `SANMAIME_E006` | `Show:`, `Hide:`, `And:`, `Enable` or `Disable` before any `Element:` of the current screen (or before any `Screen:`). | the line | `'{Keyword}' must appear inside an 'Element:'.` |
-| `SANMAIME_E007` | `And:` with no `Show:`/`Hide:` group to continue in the same block (§5.6). | the `And:` line | `'And:' must follow 'Show:', 'Hide:' or 'And:' in the same block.` |
-| `SANMAIME_E008` | A `When:` block with no expectations. | the `When:` line | `Condition '{name}' has no expectations.` |
-| `SANMAIME_E009` | An `Element:` with no expectations at all (no unconditional block and no `When:` block). | the `Element:` line | `Element '{name}' has no expectations.` |
-| `SANMAIME_E010` | A `Screen:` with no `Element:`. | the `Screen:` line | `Screen '{name}' has no elements.` |
-| `SANMAIME_E011` | Two screens with the same name in one file. | the second `Screen:` line | `Duplicate screen '{name}' (first declared on line {n}).` |
-| `SANMAIME_E012` | Two elements with the same name in one screen. | the second `Element:` line | `Duplicate element '{name}' in screen '{screen}' (first declared on line {n}).` |
-| `SANMAIME_E013` | Two `When:` blocks with the same name in one element. | the second `When:` line | `Duplicate condition '{name}' in element '{element}' (first declared on line {n}). Merge the two blocks.` |
-| `SANMAIME_E014` | A target asserted twice in the same block (§6 rule 1). | the second line | `'{target}' is already asserted in this block (line {n}).` |
-| `SANMAIME_E015` | More than one `Enable`/`Disable` in the same block (§6 rule 2). | the second line | `This block already declares '{Keyword}' (line {n}).` |
-| `SANMAIME_E016` | A condition block re-asserts a target or state already asserted by the element's unconditional block (§6 rule 3). | the line in the condition block | `'{target}' is already asserted unconditionally for element '{element}' (line {n}). Unconditional expectations hold in every state.` |
-| `SANMAIME_E017` | Invalid language directive: unsupported or empty language, or a second directive in the header. | the directive line | `Unsupported language '{code}'. Supported languages: en.` / `Duplicate language directive (first on line {n}).` |
-| `SANMAIME_E018` | Tag lines not followed by `Screen:` or `Element:` (followed by another keyword or by end of file). | the first tag line of the group | `Tags must be followed by 'Screen:' or 'Element:'.` |
-| `SANMAIME_E019` | Use of the reserved keyword `Background:`. | the line | `'Background:' is reserved for a future version of Sanmaime and is not supported in v0.` |
-| `SANMAIME_E020` | Malformed tag line. | the line | `Invalid tag '{token}'. A tag is '@' followed by characters other than whitespace, '@' and '#'.` |
+| Code            | Condition                                                                                                              | Location                        | Suggested message                                                                                                                                                                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SANMAIME_E001` | Unrecognised line (§3.8 rule 8): unknown keyword, wrong case, missing colon, free text.                                | the line                        | `Unrecognised line '{text}'. Expected Screen:, Element:, When:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).` Parsers SHOULD add a hint when the line is a case-insensitive match (`Did you mean 'Show:'?`) or lacks the colon (`Did you mean 'Show: Username'?`). |
+| `SANMAIME_E002` | A name keyword has an empty name.                                                                                      | the line                        | `'{Keyword}:' requires a name.`                                                                                                                                                                                                                                                       |
+| `SANMAIME_E003` | `Enable`/`Disable` followed by a colon or an argument.                                                                 | the line                        | `'{Keyword}' takes no argument. Write '{Keyword}' on its own line.`                                                                                                                                                                                                                   |
+| `SANMAIME_E004` | `Element:` before any `Screen:`.                                                                                       | the line                        | `'Element:' must appear inside a 'Screen:'.`                                                                                                                                                                                                                                          |
+| `SANMAIME_E005` | `When:` before any `Element:` of the current screen (or before any `Screen:`).                                         | the line                        | `'When:' must appear inside an 'Element:'.`                                                                                                                                                                                                                                           |
+| `SANMAIME_E006` | `Show:`, `Hide:`, `And:`, `Enable` or `Disable` before any `Element:` of the current screen (or before any `Screen:`). | the line                        | `'{Keyword}' must appear inside an 'Element:'.`                                                                                                                                                                                                                                       |
+| `SANMAIME_E007` | `And:` with no `Show:`/`Hide:` group to continue in the same block (§5.6).                                             | the `And:` line                 | `'And:' must follow 'Show:', 'Hide:' or 'And:' in the same block.`                                                                                                                                                                                                                    |
+| `SANMAIME_E008` | A `When:` block with no expectations.                                                                                  | the `When:` line                | `Condition '{name}' has no expectations.`                                                                                                                                                                                                                                             |
+| `SANMAIME_E009` | An `Element:` with no expectations at all (no unconditional block and no `When:` block).                               | the `Element:` line             | `Element '{name}' has no expectations.`                                                                                                                                                                                                                                               |
+| `SANMAIME_E010` | A `Screen:` with no `Element:`.                                                                                        | the `Screen:` line              | `Screen '{name}' has no elements.`                                                                                                                                                                                                                                                    |
+| `SANMAIME_E011` | Two screens with the same name in one file.                                                                            | the second `Screen:` line       | `Duplicate screen '{name}' (first declared on line {n}).`                                                                                                                                                                                                                             |
+| `SANMAIME_E012` | Two elements with the same name in one screen.                                                                         | the second `Element:` line      | `Duplicate element '{name}' in screen '{screen}' (first declared on line {n}).`                                                                                                                                                                                                       |
+| `SANMAIME_E013` | Two `When:` blocks with the same name in one element.                                                                  | the second `When:` line         | `Duplicate condition '{name}' in element '{element}' (first declared on line {n}). Merge the two blocks.`                                                                                                                                                                             |
+| `SANMAIME_E014` | A target asserted twice in the same block (§6 rule 1).                                                                 | the second line                 | `'{target}' is already asserted in this block (line {n}).`                                                                                                                                                                                                                            |
+| `SANMAIME_E015` | More than one `Enable`/`Disable` in the same block (§6 rule 2).                                                        | the second line                 | `This block already declares '{Keyword}' (line {n}).`                                                                                                                                                                                                                                 |
+| `SANMAIME_E016` | A condition block re-asserts a target or state already asserted by the element's unconditional block (§6 rule 3).      | the line in the condition block | `'{target}' is already asserted unconditionally for element '{element}' (line {n}). Unconditional expectations hold in every state.`                                                                                                                                                  |
+| `SANMAIME_E017` | Invalid language directive: unsupported or empty language, or a second directive in the header.                        | the directive line              | `Unsupported language '{code}'. Supported languages: en.` / `Duplicate language directive (first on line {n}).`                                                                                                                                                                       |
+| `SANMAIME_E018` | Tag lines not followed by `Screen:` or `Element:` (followed by another keyword or by end of file).                     | the first tag line of the group | `Tags must be followed by 'Screen:' or 'Element:'.`                                                                                                                                                                                                                                   |
+| `SANMAIME_E019` | Use of the reserved keyword `Background:`.                                                                             | the line                        | `'Background:' is reserved for a future version of Sanmaime and is not supported in v0.`                                                                                                                                                                                              |
+| `SANMAIME_E020` | Malformed tag line.                                                                                                    | the line                        | `Invalid tag '{token}'. A tag is '@' followed by characters other than whitespace, '@' and '#'.`                                                                                                                                                                                      |
 
 Codes are never reused. New diagnostics get new numbers.
 
@@ -473,17 +473,17 @@ Parsers SHOULD report **all** diagnostics of a file in source order, and
 MUST report at least the first one. To avoid cascades, a parser that
 continues after an error SHOULD recover as follows:
 
-| After    | Recovery |
-|----------|----------|
-| `E001`, `E019`, `E020` | ignore the line (for `E020`, discard the tags of that line). |
-| `E002`   | treat the line as its keyword with an empty name. |
-| `E003`   | treat the line as the bare `Enable` / `Disable`. |
-| `E004`   | ignore lines up to the next `Screen:` or tag line. |
-| `E005`, `E006` | ignore lines up to the next `Element:`, `Screen:` or tag line. |
-| `E007`   | ignore the line. |
-| `E017`   | continue with the default language `en`. |
-| `E018`   | discard the tags. |
-| others   | keep the offending construct in the AST and continue. |
+| After                  | Recovery                                                       |
+| ---------------------- | -------------------------------------------------------------- |
+| `E001`, `E019`, `E020` | ignore the line (for `E020`, discard the tags of that line).   |
+| `E002`                 | treat the line as its keyword with an empty name.              |
+| `E003`                 | treat the line as the bare `Enable` / `Disable`.               |
+| `E004`                 | ignore lines up to the next `Screen:` or tag line.             |
+| `E005`, `E006`         | ignore lines up to the next `Element:`, `Screen:` or tag line. |
+| `E007`                 | ignore the line.                                               |
+| `E017`                 | continue with the default language `en`.                       |
+| `E018`                 | discard the tags.                                              |
+| others                 | keep the offending construct in the AST and continue.          |
 
 A document with at least one error has no defined meaning; generators MUST
 NOT generate tests from it.
@@ -496,20 +496,20 @@ v0 is intentionally strict: every line that is not listed in §3.8 is an
 error. Therefore each extension below can be added later without changing
 the meaning of any valid v0 file.
 
-| Extension | Reserved now | Planned for |
-|-----------|--------------|-------------|
-| **i18n keywords** (Japanese first) | `# language: <code>` directive (§3.4); only `en` is accepted in v0. | issue #5 |
-| **Tags** | `@tag` lines before `Screen:` / `Element:` are tokenised and attached to the node (§3.7), without semantics. | issue #15 |
-| **Description** (free text under a header, like Gherkin's description) | Free-text lines are `E001` in v0. A future version may accept non-keyword lines directly after `Screen:` or `Element:` as a description. | v1 |
-| **Background** (conditions shared by all elements of a screen) | The keyword `Background:` is reserved and is `E019` in v0. | v1 |
-| **More expectation kinds** (text, count, value, …) | Any `Word:` line that is not a v0 keyword is `E001`, so new keywords can be introduced freely. | later |
-| **Trailing comments** | `#` inside a line is part of the name in v0; trailing comments will not be introduced in a way that changes existing names without a new language version. | not planned |
+| Extension                                                              | Reserved now                                                                                                                                               | Planned for |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| **i18n keywords** (Japanese first)                                     | `# language: <code>` directive (§3.4); only `en` is accepted in v0.                                                                                        | issue #5    |
+| **Tags**                                                               | `@tag` lines before `Screen:` / `Element:` are tokenised and attached to the node (§3.7), without semantics.                                               | issue #15   |
+| **Description** (free text under a header, like Gherkin's description) | Free-text lines are `E001` in v0. A future version may accept non-keyword lines directly after `Screen:` or `Element:` as a description.                   | v1          |
+| **Background** (conditions shared by all elements of a screen)         | The keyword `Background:` is reserved and is `E019` in v0.                                                                                                 | v1          |
+| **More expectation kinds** (text, count, value, …)                     | Any `Word:` line that is not a v0 keyword is `E001`, so new keywords can be introduced freely.                                                             | later       |
+| **Trailing comments**                                                  | `#` inside a line is part of the name in v0; trailing comments will not be introduced in a way that changes existing names without a new language version. | not planned |
 
 ---
 
 ## 9. Recommended style
 
-Indentation is not significant, but tools that *write* Sanmaime (the AI
+Indentation is not significant, but tools that _write_ Sanmaime (the AI
 workflow, formatters, snippet generators) SHOULD produce this canonical
 layout, which is the layout used in the README:
 
@@ -549,14 +549,20 @@ The parser API is defined by its own issue. This shape is a suggestion
 that captures everything the language defines:
 
 ```ts
-interface Location { line: number; column: number }          // 1-based
+interface Location {
+  line: number;
+  column: number;
+} // 1-based
 
 interface SanmaimeDocument {
-  language: string;                 // "en" in v0
+  language: string; // "en" in v0
   screens: Screen[];
 }
 
-interface Tag { name: string; location: Location }           // name includes "@"
+interface Tag {
+  name: string;
+  location: Location;
+} // name includes "@"
 
 interface Screen {
   name: string;
@@ -569,24 +575,24 @@ interface Element {
   name: string;
   tags: Tag[];
   location: Location;
-  unconditional: Expectation[];     // may be empty
-  conditions: ConditionBlock[];     // may be empty (but not both)
+  unconditional: Expectation[]; // may be empty
+  conditions: ConditionBlock[]; // may be empty (but not both)
 }
 
 interface ConditionBlock {
-  name: string;                     // the text after "When:"
+  name: string; // the text after "When:"
   location: Location;
   expectations: Expectation[];
 }
 
 type Expectation =
-  | { kind: "show" | "hide";        // And: already resolved
+  | {
+      kind: 'show' | 'hide'; // And: already resolved
       target: string;
-      keyword: "Show" | "Hide" | "And";
-      location: Location }
-  | { kind: "enable" | "disable";
-      keyword: "Enable" | "Disable";
-      location: Location };
+      keyword: 'Show' | 'Hide' | 'And';
+      location: Location;
+    }
+  | { kind: 'enable' | 'disable'; keyword: 'Enable' | 'Disable'; location: Location };
 
 interface Diagnostic {
   code: `SANMAIME_E${string}`;
@@ -650,27 +656,27 @@ Screen: Login
 
 Resolved meaning:
 
-| Screen | Element | Condition | Expectations |
-|--------|---------|-----------|--------------|
-| User Details | Page Header | *(unconditional)* | show Page title, show Back link |
-| User Details | User Information | Viewing your own profile | show Username, show Full name, show Email address |
-| User Details | User Information | Viewing another user's profile | show Username, hide Full name, hide Email address |
-| User Details | Edit Button | *(unconditional)* | show Edit icon |
-| User Details | Edit Button | Viewing your own profile | element enabled |
-| User Details | Edit Button | Viewing another user's profile | element disabled |
-| Login | Login Form | *(unconditional)* | show Email address, show Password, show Login button |
-| Login | Login Button | Input is valid | element enabled |
-| Login | Login Button | Input is invalid | element disabled |
+| Screen       | Element          | Condition                      | Expectations                                         |
+| ------------ | ---------------- | ------------------------------ | ---------------------------------------------------- |
+| User Details | Page Header      | _(unconditional)_              | show Page title, show Back link                      |
+| User Details | User Information | Viewing your own profile       | show Username, show Full name, show Email address    |
+| User Details | User Information | Viewing another user's profile | show Username, hide Full name, hide Email address    |
+| User Details | Edit Button      | _(unconditional)_              | show Edit icon                                       |
+| User Details | Edit Button      | Viewing your own profile       | element enabled                                      |
+| User Details | Edit Button      | Viewing another user's profile | element disabled                                     |
+| Login        | Login Form       | _(unconditional)_              | show Email address, show Password, show Login button |
+| Login        | Login Button     | Input is valid                 | element enabled                                      |
+| Login        | Login Button     | Input is invalid               | element disabled                                     |
 
 Notes:
 
-- `Viewing your own profile` is used by two elements of *User Details*; it is
+- `Viewing your own profile` is used by two elements of _User Details_; it is
   one condition, established once.
-- `Email address` on *User Details / User Information* and on
-  *Login / Login Form* are unrelated targets (different elements).
-- *Page Header* and *Edit Button / Edit icon* are invariants: they hold in
+- `Email address` on _User Details / User Information_ and on
+  _Login / Login Form_ are unrelated targets (different elements).
+- _Page Header_ and _Edit Button / Edit icon_ are invariants: they hold in
   the base state and in both condition states.
-- The screen *User Details* carries the tag `@profile`, which has no effect
+- The screen _User Details_ carries the tag `@profile`, which has no effect
   in v0.
 
 ---
@@ -707,23 +713,23 @@ normalising them.
 
 ## 13. Design decisions
 
-| # | Decision | Reason |
-|---|----------|--------|
-| D1 | Extension `.sanmaime`, UTF-8, BOM ignored, LF/CRLF/CR accepted. | Mirrors `.feature`; UTF-8 is needed for Japanese names; tolerant line endings avoid Windows friction. |
-| D2 | Line-oriented grammar; **indentation is not significant**; lines are trimmed. | Same as Gherkin. Indentation errors are the most common mistake in hand-written and AI-written text, and the keyword order already determines the structure unambiguously. A formatter can normalise layout. |
-| D3 | Structure by keyword nesting: `Screen:` > `Element:` > `When:` > expectations. | Matches every README example; each keyword has exactly one possible parent. |
-| D4 | Keywords are case-sensitive and English-only in v0. | Predictable tokenising; i18n is a separate concern (#5) reserved via `# language:`. |
-| D5 | Name keywords end with `:` and take the rest of the line as the name; `Enable`/`Disable` have no colon and no argument. | The colon visually marks "a name follows". Bare keywords state a property of the element itself, as in the README Login example. |
-| D6 | Names are arbitrary text (any script, any punctuation), trimmed, compared exactly, unquoted. | Names must read naturally in any language and must match TypeScript definition keys literally (`defineElement("User Information", { "Username": … })`). |
-| D7 | `#` starts a comment only as the first non-whitespace character; no trailing comments. | Lets names contain `#` (`Order #1234`), same as Gherkin. |
-| D8 | Blank lines are ignored and never end a block. | The README uses blank lines freely inside elements. |
-| D9 | `And:` continues the nearest `Show:`/`Hide:` group in the same block; it cannot start a block or follow `Enable`/`Disable`. | Required by the README (`Hide: Full name` / `And: Email address` means hidden). Forbidding the edge cases removes all ambiguity. |
-| D10 | Expectations before the first `When:` are an unconditional block with invariant meaning; everything after a `When:` belongs to it until the next `When:`/`Element:`/`Screen:`. | Matches the README Login and AI-draft examples. The "until next header" rule makes blocks unambiguous without indentation. |
-| D11 | Multiple `When:` blocks per element; multiple screens per file; the same condition name may appear in several elements of a screen and denotes one condition. | README examples; lets the runtime set up a state once for several elements. |
-| D12 | Duplicates (screen, element, condition, target in a block, state in a block) and re-assertion of unconditional facts are errors. | Keeps one canonical place for every fact, which matters for human review of AI drafts. Strict now, relaxable later without breaking files. |
-| D13 | Empty screen / element / condition block is an error; an empty file is valid. | A header with nothing under it is almost always a truncated specification; an empty file is harmless (same as an empty `.feature`). |
-| D14 | Unknown lines are errors (no free-text description in v0); `Background:` reserved; tags tokenised but without semantics. | Every future extension (description, background, new expectation kinds, tags) can be added without changing the meaning of existing valid files. |
-| D15 | Stable diagnostic codes `SANMAIME_Ennn` with line and column; fixtures declare the expected code and location. | Tests, editors and AI repair loops can match on codes rather than message text. |
+| #   | Decision                                                                                                                                                                       | Reason                                                                                                                                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Extension `.sanmaime`, UTF-8, BOM ignored, LF/CRLF/CR accepted.                                                                                                                | Mirrors `.feature`; UTF-8 is needed for Japanese names; tolerant line endings avoid Windows friction.                                                                                                        |
+| D2  | Line-oriented grammar; **indentation is not significant**; lines are trimmed.                                                                                                  | Same as Gherkin. Indentation errors are the most common mistake in hand-written and AI-written text, and the keyword order already determines the structure unambiguously. A formatter can normalise layout. |
+| D3  | Structure by keyword nesting: `Screen:` > `Element:` > `When:` > expectations.                                                                                                 | Matches every README example; each keyword has exactly one possible parent.                                                                                                                                  |
+| D4  | Keywords are case-sensitive and English-only in v0.                                                                                                                            | Predictable tokenising; i18n is a separate concern (#5) reserved via `# language:`.                                                                                                                          |
+| D5  | Name keywords end with `:` and take the rest of the line as the name; `Enable`/`Disable` have no colon and no argument.                                                        | The colon visually marks "a name follows". Bare keywords state a property of the element itself, as in the README Login example.                                                                             |
+| D6  | Names are arbitrary text (any script, any punctuation), trimmed, compared exactly, unquoted.                                                                                   | Names must read naturally in any language and must match TypeScript definition keys literally (`defineElement("User Information", { "Username": … })`).                                                      |
+| D7  | `#` starts a comment only as the first non-whitespace character; no trailing comments.                                                                                         | Lets names contain `#` (`Order #1234`), same as Gherkin.                                                                                                                                                     |
+| D8  | Blank lines are ignored and never end a block.                                                                                                                                 | The README uses blank lines freely inside elements.                                                                                                                                                          |
+| D9  | `And:` continues the nearest `Show:`/`Hide:` group in the same block; it cannot start a block or follow `Enable`/`Disable`.                                                    | Required by the README (`Hide: Full name` / `And: Email address` means hidden). Forbidding the edge cases removes all ambiguity.                                                                             |
+| D10 | Expectations before the first `When:` are an unconditional block with invariant meaning; everything after a `When:` belongs to it until the next `When:`/`Element:`/`Screen:`. | Matches the README Login and AI-draft examples. The "until next header" rule makes blocks unambiguous without indentation.                                                                                   |
+| D11 | Multiple `When:` blocks per element; multiple screens per file; the same condition name may appear in several elements of a screen and denotes one condition.                  | README examples; lets the runtime set up a state once for several elements.                                                                                                                                  |
+| D12 | Duplicates (screen, element, condition, target in a block, state in a block) and re-assertion of unconditional facts are errors.                                               | Keeps one canonical place for every fact, which matters for human review of AI drafts. Strict now, relaxable later without breaking files.                                                                   |
+| D13 | Empty screen / element / condition block is an error; an empty file is valid.                                                                                                  | A header with nothing under it is almost always a truncated specification; an empty file is harmless (same as an empty `.feature`).                                                                          |
+| D14 | Unknown lines are errors (no free-text description in v0); `Background:` reserved; tags tokenised but without semantics.                                                       | Every future extension (description, background, new expectation kinds, tags) can be added without changing the meaning of existing valid files.                                                             |
+| D15 | Stable diagnostic codes `SANMAIME_Ennn` with line and column; fixtures declare the expected code and location.                                                                 | Tests, editors and AI repair loops can match on codes rather than message text.                                                                                                                              |
 
 ---
 

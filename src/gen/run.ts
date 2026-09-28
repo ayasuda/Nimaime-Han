@@ -7,7 +7,6 @@
 import path from 'node:path';
 import { clearSanmaimeConfigs, loadPlaywrightConfig } from '../config';
 import type { ResolvedSanmaimeConfig } from '../config/types';
-import { formatDiagnostic } from '../parser';
 import { resolveDefinitionFiles, resolveSpecFiles } from './files';
 import {
   generateSpecFile,
@@ -17,9 +16,21 @@ import {
 } from './generate';
 import { loadDefinitions } from './load-definitions';
 import { loadSpecs } from './load-specs';
-import { matchSpecs } from './match';
+import {
+  matchSpecs,
+  type ResolvedDocument,
+  type ResolvedElement,
+  type ResolvedExpectation,
+} from './match';
 import { cleanOutputDir, writeGeneratedFiles } from './output';
-import { displayPath, formatMissing, formatUnused } from './report';
+import {
+  displayPath,
+  formatDiagnostics,
+  formatMissing,
+  formatUnused,
+  type FileDiagnostic,
+  type ReportFormat,
+} from './report';
 
 /** `generate` writes files; `export` lists the tests; `check` validates without writing. */
 export type GenerationMode = 'generate' | 'export' | 'check';
@@ -41,6 +52,13 @@ export interface RunGenerationOptions {
   mode?: GenerationMode | undefined;
   /** Verbose output for every config (`--verbose`), in addition to the config's `verbose`. */
   verbose?: boolean | undefined;
+  /**
+   * `--allow-missing`: missing definitions are warnings instead of errors; the tests (blocks) that
+   * use them are not generated, the others are. Default: `false`.
+   */
+  allowMissing?: boolean | undefined;
+  /** `--format`: how problems are printed. Default: `'pretty'`. */
+  format?: ReportFormat | undefined;
   /** Normal output (summary, `export` list). */
   stdout: TextOutput;
   /** Problems (diagnostics, missing definitions, warnings, errors). */
@@ -50,14 +68,26 @@ export interface RunGenerationOptions {
 /** What happened for one config. */
 export interface ConfigGenerationResult {
   config: ResolvedSanmaimeConfig;
-  /** Number of errors (parser errors, missing definitions, definition load errors). */
+  /**
+   * Number of errors (parser errors, definition load errors, and missing definitions unless
+   * `allowMissing` is set).
+   */
   errors: number;
+  /** With `allowMissing`: the tests left out because they use missing definitions. */
+  skipped: SkippedTest[];
   /** The generated files (empty when there were errors). */
   files: GeneratedSpecFile[];
   /** The tests of the generated files. */
   tests: GeneratedTest[];
   /** Whether files were written (`generate` mode without errors). */
   written: boolean;
+}
+
+/** A test that is not generated because it uses a missing definition (`--allow-missing`). */
+export interface SkippedTest {
+  /** Absolute path of the `.sanmaime` file. */
+  file: string;
+  titlePath: string[];
 }
 
 export interface RunGenerationResult {
@@ -134,6 +164,8 @@ interface ProcessOptions {
   cwd: string;
   mode: GenerationMode;
   verbose: boolean;
+  allowMissing?: boolean | undefined;
+  format?: ReportFormat | undefined;
   stdout: TextOutput;
   stderr: TextOutput;
 }
@@ -144,9 +176,12 @@ export async function processConfig(
   options: ProcessOptions,
 ): Promise<ConfigGenerationResult> {
   const { cwd, mode, verbose, stdout, stderr } = options;
+  const allowMissing = options.allowMissing === true;
+  const format = options.format ?? 'pretty';
   const result: ConfigGenerationResult = {
     config,
     errors: 0,
+    skipped: [],
     files: [],
     tests: [],
     written: false,
@@ -178,18 +213,25 @@ export async function processConfig(
   }
 
   const specs = await loadSpecs(specFiles, config);
-  for (const spec of specs) {
-    for (const diagnostic of spec.diagnostics) {
-      stderr.write(`${formatDiagnostic(diagnostic, displayPath(spec.file, cwd))}\n`);
-      if (diagnostic.severity === 'error') result.errors++;
-    }
-  }
+  const diagnostics: FileDiagnostic[] = specs.flatMap((spec) =>
+    spec.diagnostics.map((diagnostic) => ({ ...diagnostic, file: spec.file })),
+  );
+  for (const line of formatDiagnostics(diagnostics, { cwd, format })) stderr.write(`${line}\n`);
+  result.errors += diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length;
 
   const match = matchSpecs(specs, registry);
-  for (const line of formatMissing(match.missing, { cwd, includeInfo: verbose })) {
-    stderr.write(`${line}\n`);
+  const missingReport = formatMissing(match.missing, {
+    cwd,
+    includeInfo: verbose,
+    format,
+    asWarnings: allowMissing,
+    quotes: config.quotes,
+    documents: match.documents,
+  });
+  for (const line of missingReport) stderr.write(`${line}\n`);
+  if (!allowMissing) {
+    result.errors += match.missing.filter((entry) => entry.severity === 'error').length;
   }
-  result.errors += match.missing.filter((entry) => entry.severity === 'error').length;
   if (verbose) {
     for (const line of formatUnused(match.unused, { cwd })) stderr.write(`${line}\n`);
   }
@@ -201,7 +243,33 @@ export async function processConfig(
     return result;
   }
 
-  for (const doc of match.documents) {
+  let documents = match.documents;
+  if (allowMissing) {
+    documents = [];
+    for (const doc of match.documents) {
+      const pruned = withoutMissingDefinitions(doc);
+      const kept = new Set(listTests(pruned).map((test) => JSON.stringify(test.titlePath)));
+      const all = listTests(doc);
+      for (const test of all) {
+        if (!kept.has(JSON.stringify(test.titlePath))) {
+          result.skipped.push({ file: doc.file, titlePath: test.titlePath });
+        }
+      }
+      // A spec whose tests all use missing definitions gets no file.
+      if (kept.size > 0 || all.length === 0) documents.push(pruned);
+    }
+    if (result.skipped.length > 0) {
+      stderr.write(
+        `nimaime-gen: --allow-missing: ${plural(result.skipped.length, 'test')} that use missing definitions ` +
+          `${result.skipped.length === 1 ? 'is' : 'are'} not generated:\n`,
+      );
+      for (const test of result.skipped) {
+        stderr.write(`  ${displayPath(test.file, cwd)}: ${test.titlePath.join(' > ')}\n`);
+      }
+    }
+  }
+
+  for (const doc of documents) {
     if (mode === 'export') {
       result.tests.push(...listTests(doc));
       continue;
@@ -226,12 +294,12 @@ export async function processConfig(
 
   switch (mode) {
     case 'export':
-      for (const doc of match.documents) {
+      for (const doc of documents) {
         stdout.write(`${displayPath(doc.file, cwd)}\n`);
         for (const test of listTests(doc)) stdout.write(`  ${test.titlePath.join(' > ')}\n`);
       }
       stdout.write(
-        `${plural(result.tests.length, 'test')} in ${plural(match.documents.length, 'spec file')}.\n`,
+        `${plural(result.tests.length, 'test')} in ${plural(documents.length, 'spec file')}.\n`,
       );
       break;
     case 'check':
@@ -258,4 +326,38 @@ export async function processConfig(
     }
   }
   return result;
+}
+
+function expectationDefined(expectation: ResolvedExpectation): boolean {
+  return 'targetDefined' in expectation ? expectation.targetDefined : expectation.selfDefined;
+}
+
+/**
+ * `doc` without the blocks (tests) that use a missing definition (`--allow-missing`): an element
+ * without a definition loses all its blocks, the unconditional block goes when one of its targets
+ * or its `self` locator is missing, a `When:` block when its condition, one of its targets or the
+ * `self` locator is missing. Elements left without blocks and screens left without elements are
+ * dropped. A screen without `defineScreen` is allowed and kept.
+ */
+export function withoutMissingDefinitions(doc: ResolvedDocument): ResolvedDocument {
+  const screens = doc.screens
+    .map((screen) => ({
+      ...screen,
+      elements: screen.elements
+        .filter((element) => element.definition !== undefined)
+        .map((element): ResolvedElement => ({
+          ...element,
+          unconditional: element.unconditional.every(expectationDefined)
+            ? element.unconditional
+            : [],
+          conditions: element.conditions.filter(
+            (condition) =>
+              condition.definition !== undefined &&
+              condition.expectations.every(expectationDefined),
+          ),
+        }))
+        .filter((element) => element.unconditional.length > 0 || element.conditions.length > 0),
+    }))
+    .filter((screen) => screen.elements.length > 0);
+  return { ...doc, screens };
 }

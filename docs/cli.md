@@ -14,8 +14,12 @@ It reads the Playwright config, and for every configuration registered with
 2. loads the [definition files](./definitions.md) (with Playwright's TypeScript loader);
 3. parses the `.sanmaime` files ([sanmaime.md](./sanmaime.md));
 4. matches every Screen / Element / target / condition name to a definition;
-5. reports problems — if there is any error, **nothing is written** for that configuration;
+5. reports problems, with [definition snippets](#missing-definitions-and-snippets) for missing
+   definitions — if there is any error, **nothing is written** for that configuration;
 6. otherwise removes the previously generated files from `outputDir` and writes the new ones.
+
+With [`--allow-missing`](#--allow-missing), missing definitions are warnings: the tests that use
+them are left out and the others are generated.
 
 ## Commands
 
@@ -41,6 +45,8 @@ specs/login.sanmaime
 | Option                | Description                                                                                                                                                                                                                                             |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `-c, --config <path>` | The Playwright config file, or a directory containing one, relative to the current directory. Default: `playwright.config.{ts,js,mts,mjs,cts,cjs}` in the current directory (the same lookup as `playwright test -c`).                                  |
+| `--allow-missing`     | Reports missing definitions as warnings instead of errors and generates every test that does not use one; see [below](#--allow-missing).                                                                                                                |
+| `--format <name>`     | How problems are printed: `pretty` (default: counted blocks and definition snippets) or `compact` (one `file:line:column: severity: message` line per problem, for editors and problem matchers).                                                       |
 | `--verbose`           | Also prints: the number of spec and definition files, screens without `defineScreen`, unused definitions, every generated file, files kept in `outputDir`, and stack traces of errors. The `verbose` config option does the same for one configuration. |
 | `-h, --help`          | Prints the help.                                                                                                                                                                                                                                        |
 | `-v, --version`       | Prints the version.                                                                                                                                                                                                                                     |
@@ -51,9 +57,55 @@ to regenerate in a child process. It is left for a later version.
 
 ## Output and exit codes
 
-Normal output (the summary, the `export` list) goes to stdout; problems go to stderr, in the
-editor/problem-matcher friendly form `file:line:column: severity: message`, with paths relative to
-the current directory:
+Normal output (the summary, the `export` list) goes to stdout; problems go to stderr, with paths
+relative to the current directory. By default (`--format pretty`) parser diagnostics and missing
+definitions are printed as counted blocks, sorted by file and position, followed by the
+[definition snippets](#missing-definitions-and-snippets):
+
+```text
+Syntax errors: 1
+
+  specs/login.sanmaime:7:5
+    SANMAIME_E007: 'And:' must follow 'Show:', 'Hide:' or 'And:' in the same block.
+
+Missing definitions: 2
+
+  specs/user-details.sanmaime:4:5
+    Condition "Viewing your own profile" is not defined
+
+  specs/user-details.sanmaime:6:5
+    Element "User Information" has no definition for "Full name"
+
+Snippets:
+
+// import { createNimaime } from 'nimaime-han';
+// const { defineElement, defineCondition } = createNimaime(test);
+
+// Add to the existing defineElement('User Information', { … }):
+  'Full name': ({ page }) => page.getByTestId('TODO'),
+
+// Used on Screen "User Details" (add { screen: 'User Details' } to define it for that screen only).
+defineCondition('Viewing your own profile', async ({ page }) => {
+  // TODO: bring the screen into this state
+});
+
+nimaime-gen: nothing was generated into .sanmaime-gen (3 errors).
+```
+
+The messages of missing definitions:
+
+| Message                                                             | Missing                                                                      |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `Element "X" is not defined`                                        | `defineElement('X', …)`                                                      |
+| `Element "X" has no definition for "Y"`                             | the target `Y` in the existing `defineElement('X', { … })`                   |
+| `Element "X" has no self locator (needed by Enable/Disable)`        | the element's own locator: `defineElement('X', self, targets)`               |
+| `Condition "C" is not defined`                                      | `defineCondition('C', …)` (global, or for the screen)                        |
+| `Screen "S" is not defined (optional: without defineScreen …)` (\*) | `defineScreen('S', …)`; allowed, the screen is just not opened (information) |
+
+(\*) Only with `--verbose`.
+
+`--format compact` prints one editor/problem-matcher friendly line per problem instead, and no
+snippets:
 
 ```text
 specs/login.sanmaime:7:5: error SANMAIME_E007: 'And:' must follow 'Show:', 'Hide:' or 'And:' in the same block.
@@ -63,18 +115,18 @@ specs/login.sanmaime:12:5: error: Condition "When: Input is valid" (Screen "Logi
 nimaime-gen: nothing was generated into .sanmaime-gen (4 errors).
 ```
 
-| Exit code | Meaning                                                                                                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`       | Success (warnings do not change the exit code).                                                                                                                    |
-| `1`       | Spec or definition errors: parser errors, missing definitions, a definition file that fails to load (or an unexpected error, with its stack).                      |
-| `2`       | Usage or configuration errors: unknown command or option, Playwright config not found, invalid `defineSanmaimeConfig()` options, no `defineSanmaimeConfig()` call. |
+| Exit code | Meaning                                                                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`       | Success (warnings do not change the exit code). With `--allow-missing`, also when definitions are missing.                                                                     |
+| `1`       | Spec or definition errors: parser errors, missing definitions (unless `--allow-missing`), a definition file that fails to load (or an unexpected error, with its stack).       |
+| `2`       | Usage or configuration errors: unknown command, option or `--format`, Playwright config not found, invalid `defineSanmaimeConfig()` options, no `defineSanmaimeConfig()` call. |
 
 What is an error, a warning or information:
 
 | Problem                                                                     | Severity                                         |
 | --------------------------------------------------------------------------- | ------------------------------------------------ |
 | parser diagnostic (`SANMAIME_Ennn`)                                         | error                                            |
-| missing element, target, `self` locator (for `Enable`/`Disable`), condition | error                                            |
+| missing element, target, `self` locator (for `Enable`/`Disable`), condition | error (warning with `--allow-missing`)           |
 | definition file that throws while loading (incl. duplicate definitions)     | error (message only; the stack with `--verbose`) |
 | no `.sanmaime` file matches `specs`                                         | warning (an empty `outputDir` is still produced) |
 | a callback whose fixtures cannot be determined (see below)                  | warning                                          |
@@ -83,6 +135,58 @@ What is an error, a warning or information:
 
 With several configurations (Playwright projects), each one is processed independently: one with
 errors writes nothing, the others are still generated, and the exit code is 1.
+
+## Missing definitions and snippets
+
+Like playwright-bdd's snippets for undefined steps, the `pretty` report ends with TypeScript to
+paste into a [definition file](./definitions.md) (in the configuration's `quotes` style). Locators
+are `page.getByTestId('TODO')` placeholders; replace them with real locators.
+
+- **An element that is not defined** gets a whole `defineElement()` with every target the specs
+  use with it (in all spec files). If the specs use `Enable` / `Disable` on it, the snippet has a
+  `self` locator: `defineElement('X', ({ page }) => …, { … })`, or `defineElement('X', ({ page }) => …)`
+  when there are no targets.
+- **An element that is defined but lacks targets** gets a comment
+  `// Add to the existing defineElement('X', { … }):` followed by just the target lines, to paste
+  into the existing object.
+- **An element that is defined but lacks its `self` locator** gets a comment showing how to pass
+  one as the second argument of the existing `defineElement()`.
+- **A condition** gets one global `defineCondition('C', async ({ page }) => { … })`. A comment
+  names the screens that use it; add `{ screen: 'S' }` to define it for one screen only
+  ([definitions.md](./definitions.md)).
+- **A screen** without `defineScreen` is allowed, so its `defineScreen('S', { open })` snippet is
+  printed only with `--verbose`.
+
+Every element, target, condition and screen appears once, however many specs use it. The first
+two lines are a commented-out reminder of where the `defineXxx` functions come from
+(`createNimaime(test)`, [definitions.md](./definitions.md)), naming only the functions the snippets
+use.
+
+## `--allow-missing`
+
+While writing specifications before their definitions, `--allow-missing` lets you generate and run
+what is already defined:
+
+- missing definitions are reported (with snippets) as warnings, and the exit code is 0;
+- every **test** (block) that uses a missing definition is left out; the other tests are
+  generated. A block uses a definition when it is the element, its condition (`When:`), one of its
+  targets, or the element's `self` locator for `Enable` / `Disable`. An element or screen left
+  without tests is left out, and a spec file left without tests gets no generated file;
+- the left-out tests are listed on stderr:
+
+```text
+nimaime-gen: --allow-missing: 2 tests that use missing definitions are not generated:
+  specs/user-details.sanmaime: Screen: User Details > Element: User Information > When: Viewing your own profile
+  specs/user-details.sanmaime: Screen: User Details > Element: Edit Button > Always
+```
+
+Left-out tests are not generated as `test.skip()` / `test.fixme()` on purpose: a skipped test has
+no definition to call, would appear in reports as if it were part of the suite, and would still
+need the missing names in its plan. Leaving them out keeps the generated files exactly what a run
+without `--allow-missing` generates once the definitions exist. Parser errors (`SANMAIME_Ennn`)
+and definition files that fail to load are still errors: nothing is written and the exit code is
+still 1. `--allow-missing` works with every command (`export` lists only the tests that would be
+generated; `check` succeeds).
 
 ## Generated files
 
@@ -260,8 +364,11 @@ end-to-end test of the generator (`npm run test:e2e:gen` does it).
 
 ## Programmatic use (internal)
 
-The CLI is a thin wrapper around `runGeneration({ cli, cwd, mode, verbose, stdout, stderr })` in
-`src/gen/run.ts`, which returns `{ exitCode, results }`. It loads each Playwright config file at
+The CLI is a thin wrapper around
+`runGeneration({ cli, cwd, mode, verbose, allowMissing, format, stdout, stderr })` in
+`src/gen/run.ts`, which returns `{ exitCode, results }`. The reports are built by `src/gen/report.ts`
+(`formatDiagnostics`, `formatMissing`, `formatUnused`) and the snippets by `generateSnippets()` in
+`src/gen/snippets.ts`. It loads each Playwright config file at
 most once per process, so call it once per process.
 
 ## Testing the generator

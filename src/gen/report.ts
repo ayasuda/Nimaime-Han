@@ -117,8 +117,8 @@ function describeMissingCompact(entry: MissingDefinition): string {
       return `Element "${entry.element ?? ''}" has no definition for target "${entry.name}".`;
     case 'self':
       return (
-        `Element "${entry.name}" has no locator for the element itself, which Enable / Disable ` +
-        'need (defineElement(name, self, targets)).'
+        `Element "${entry.name}" has no locator for the element itself, which bare state keywords ` +
+        '(Enable, Check, …) need (defineElement(name, self, targets)).'
       );
     case 'condition':
       return entry.element === undefined
@@ -137,7 +137,7 @@ function describeMissingPretty(entry: MissingDefinition): string {
     case 'target':
       return `Element "${entry.element ?? ''}" has no definition for "${entry.name}"`;
     case 'self':
-      return `Element "${entry.name}" has no self locator (needed by Enable/Disable)`;
+      return `Element "${entry.name}" has no self locator (needed by bare Enable, Check, …)`;
     case 'condition':
       return `Condition "${entry.name}" is not defined`;
   }

@@ -71,8 +71,8 @@ describe('parse: # language: ja', () => {
     );
     expect(codes(result)).toEqual(['SANMAIME_E001@5:1', 'SANMAIME_E001@6:1']);
     expect(result.diagnostics.map((d) => d.message)).toEqual([
-      `Unrecognised line 'Hide: B'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Hide:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '非表示:'?`,
-      `Unrecognised line 'Enable'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, 表示:, 非表示:, かつ:, 有効, 無効, a comment (#) or tags (@). 'Enable' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '有効'?`,
+      `Unrecognised line 'Hide: B'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, an expectation (表示:, 非表示:, かつ:, 有効, 無効, チェック, 未チェック, フォーカス, 編集可, 読取専用, 空, テキスト:, 含む:, 件数:), a comment (#) or tags (@). 'Hide:' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '非表示:'?`,
+      `Unrecognised line 'Enable'. Expected 画面:, 背景:, 要素:, 条件:, かつ条件:, an expectation (表示:, 非表示:, かつ:, 有効, 無効, チェック, 未チェック, フォーカス, 編集可, 読取専用, 空, テキスト:, 含む:, 件数:), a comment (#) or tags (@). 'Enable' is a keyword of English (en), but this file uses Japanese (ja) keywords. Did you mean '有効'?`,
     ]);
   });
 
@@ -114,7 +114,7 @@ describe('parse: # language: ja', () => {
         '要素: E',
         'かつ: A', // E007
         '表示: B',
-        '有効：Z', // E003
+        '有効 Z', // E003
         '条件: C',
         '無効', // E016
         '無効', // E015
@@ -122,6 +122,9 @@ describe('parse: # language: ja', () => {
         'かつ条件：Y', // E023
         '@t',
         '表示: D', // E018
+        'テキスト: T', // E026
+        '件数: N = 多い', // E027
+        'テキスト: T = 文', // E027
       ),
     ).diagnostics.map((d) => [d.code, d.message]);
     expect(messages).toEqual([
@@ -132,7 +135,10 @@ describe('parse: # language: ja', () => {
       ['SANMAIME_E002', `'表示:' requires a name.`],
       ['SANMAIME_E006', `'表示:' must appear inside an '要素:'.`],
       ['SANMAIME_E007', `'かつ:' must follow '表示:', '非表示:' or 'かつ:' in the same block.`],
-      ['SANMAIME_E003', `'有効' takes no argument. Write '有効' on its own line.`],
+      [
+        'SANMAIME_E003',
+        `'有効' takes no argument without a colon. Write '有効' on its own line for the element itself, or '有効: Z' for a target.`,
+      ],
       [
         'SANMAIME_E016',
         `'無効' is not allowed here: element 'E' already declares '有効' unconditionally (line 11). Unconditional expectations hold in every state.`,
@@ -141,6 +147,15 @@ describe('parse: # language: ja', () => {
       ['SANMAIME_E025', `'背景:' must appear directly under a '画面:', before its first '要素:'.`],
       ['SANMAIME_E023', `'かつ条件:' must directly follow '条件:' or 'かつ条件:'.`],
       ['SANMAIME_E018', `Tags must be followed by '画面:', '要素:' or '条件:'.`],
+      [
+        'SANMAIME_E026',
+        `'テキスト:' needs a value after ' = '. Write 'テキスト: T = "<text>"' (with spaces around '=').`,
+      ],
+      ['SANMAIME_E027', `Invalid number '多い' for '件数:'. Write a whole number: 0, 1, 2, …`],
+      [
+        'SANMAIME_E027',
+        `Invalid text '文' for 'テキスト:'. Write the text in double quotes, e.g. "Welcome"; inside them write \\" for a quote and \\\\ for a backslash.`,
+      ],
     ]);
   });
 

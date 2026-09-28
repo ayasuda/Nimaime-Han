@@ -30,5 +30,6 @@ export type {
   StateExpectation,
   StatusDirective,
   Tag,
+  ValueExpectation,
   VisibilityExpectation,
 } from './ast';

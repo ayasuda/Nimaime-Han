@@ -1,6 +1,12 @@
 import type { Locator } from '@playwright/test';
+import {
+  expectationSpec,
+  parseExpectedText,
+  type ExpectationKind,
+  type ExpectationValue,
+} from './expectations';
 import { formatSanmaimeLocation } from './resolve';
-import type { ExpectationKind, SanmaimePosition } from './plan';
+import type { SanmaimePosition } from './plan';
 
 /** Everything known about a failed Sanmaime expectation (data for failure messages / reporters). */
 export interface ExpectationFailureContext {
@@ -9,12 +15,14 @@ export interface ExpectationFailureContext {
   /** `When:` name; `undefined` for the base state (unconditional block). */
   condition: string | undefined;
   kind: ExpectationKind;
-  /** Target name for `show` / `hide`. */
+  /** Target name (`undefined` when the expectation is about the element itself: `Enable`). */
   target: string | undefined;
+  /** The value of `text` / `contain` / `count`. */
+  value?: ExpectationValue | undefined;
   /** The `.sanmaime` file, for display (relative to the working directory when possible). */
   file: string | undefined;
   location: SanmaimePosition | undefined;
-  /** What was expected, e.g. `Username is shown`, `disabled`. */
+  /** What was expected, e.g. `Username is shown`, `disabled`, `Title has text "Welcome"`. */
   expected: string;
   /** What was observed after the assertion failed, e.g. `hidden`; `undefined` if unknown. */
   actual: string | undefined;
@@ -37,8 +45,12 @@ export interface ExpectationFailureJSON {
   screen: string | null;
   element: string;
   condition: string | null;
-  expectation: { kind: ExpectationKind; target: string | null };
-  /** `Username is shown` / `Username is hidden` / `enabled` / `disabled`. */
+  /** The expectation; `value` only for `text` / `contain` / `count`. */
+  expectation: { kind: ExpectationKind; target: string | null; value?: ExpectationValue };
+  /**
+   * `Username is shown` / `enabled` / `Remember me is checked` / `Title has text "Welcome"` /
+   * `Count of Items is 3` (`describeExpected` of the kind, docs/expectations.md).
+   */
   expected: string;
   /** The observed state without the timeout (`hidden`, `hidden (not found)`, …). */
   actual: string | null;
@@ -79,7 +91,11 @@ export class NimaimeExpectationError extends Error {
       screen: ctx.screen ?? null,
       element: ctx.element,
       condition: ctx.condition ?? null,
-      expectation: { kind: ctx.kind, target: ctx.target ?? null },
+      expectation: {
+        kind: ctx.kind,
+        target: ctx.target ?? null,
+        ...(ctx.value === undefined ? {} : { value: ctx.value }),
+      },
       expected: ctx.expected,
       actual: ctx.actual ?? null,
       timeout: ctx.timeout ?? null,
@@ -104,18 +120,17 @@ export interface SanmaimeFrame {
   column: number;
 }
 
-/** `Username is shown` / `Full name is hidden` / `enabled` / `disabled`. */
-export function describeExpected(kind: ExpectationKind, target: string | undefined): string {
-  switch (kind) {
-    case 'show':
-      return `${target ?? ''} is shown`;
-    case 'hide':
-      return `${target ?? ''} is hidden`;
-    case 'enable':
-      return 'enabled';
-    case 'disable':
-      return 'disabled';
-  }
+/**
+ * The `Expected:` text of an expectation, from the vocabulary table: `Username is shown`,
+ * `Full name is hidden`, `enabled` (the element itself), `Remember me is checked`,
+ * `Title has text "Welcome"`, `Count of Items is 3`.
+ */
+export function describeExpected(
+  kind: ExpectationKind,
+  target: string | undefined,
+  value?: ExpectationValue,
+): string {
+  return expectationSpec(kind).describeExpected(target, value);
 }
 
 /**
@@ -127,11 +142,7 @@ export async function probeActual(
   locator: Locator,
 ): Promise<string | undefined> {
   try {
-    const count = await locator.count();
-    if (count === 0) return kind === 'show' || kind === 'hide' ? 'hidden (not found)' : 'not found';
-    if (count > 1) return `${String(count)} matching elements (expected exactly one)`;
-    if (kind === 'show' || kind === 'hide') return (await locator.isVisible()) ? 'shown' : 'hidden';
-    return (await locator.isEnabled({ timeout: 1000 })) ? 'enabled' : 'disabled';
+    return await expectationSpec(kind).probeActual(locator);
   } catch {
     return undefined;
   }
@@ -357,11 +368,13 @@ export function parseExpectationFailure(message: string): ExpectationFailureJSON
 }
 
 function parseExpected(expected: string): ExpectationFailureJSON['expectation'] | undefined {
-  if (expected === 'enabled') return { kind: 'enable', target: null };
-  if (expected === 'disabled') return { kind: 'disable', target: null };
-  const match = /^(.*) is (shown|hidden)$/.exec(expected);
-  if (!match) return undefined;
-  return { kind: match[2] === 'shown' ? 'show' : 'hide', target: match[1] ?? '' };
+  const parsed = parseExpectedText(expected);
+  if (!parsed) return undefined;
+  return {
+    kind: parsed.kind,
+    target: parsed.target ?? null,
+    ...(parsed.value === undefined ? {} : { value: parsed.value }),
+  };
 }
 
 function parseActual(text: string): { actual: string | null; timeout: number | null } {

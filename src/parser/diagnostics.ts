@@ -4,6 +4,11 @@
  * Codes and locations are normative; message texts follow the spec's suggestions but may evolve.
  * Messages are in English, but keywords quoted in them are spelled in the file's keyword language.
  */
+import {
+  EXPECTATION_KINDS,
+  EXPECTATIONS,
+  type ExpectationValueType,
+} from '../runtime/expectations';
 import type { Location } from './ast';
 import type { CanonicalKeyword } from './tokens';
 
@@ -13,7 +18,7 @@ export const DiagnosticCode = {
   UnrecognisedLine: 'SANMAIME_E001',
   /** A name keyword has an empty name. */
   MissingName: 'SANMAIME_E002',
-  /** `Enable` / `Disable` followed by a colon or an argument. */
+  /** A state keyword (`Enable`, `Check`, …) followed by an argument without a colon. */
   BareKeywordWithArgument: 'SANMAIME_E003',
   /** `Element:` before any `Screen:`. */
   ElementOutsideScreen: 'SANMAIME_E004',
@@ -35,9 +40,9 @@ export const DiagnosticCode = {
   DuplicateElement: 'SANMAIME_E012',
   /** Two `When:` blocks with the same name in one element. */
   DuplicateCondition: 'SANMAIME_E013',
-  /** A target asserted twice in the same block. */
+  /** The same fact about a target asserted twice in the same block (same target and family). */
   DuplicateTarget: 'SANMAIME_E014',
-  /** More than one `Enable`/`Disable` in the same block. */
+  /** Two states of the same family of the element itself in one block (`Enable` + `Disable`). */
   DuplicateState: 'SANMAIME_E015',
   /** A condition block re-asserts something the unconditional block already asserts. */
   ConflictsWithUnconditional: 'SANMAIME_E016',
@@ -66,6 +71,10 @@ export const DiagnosticCode = {
   InvalidStatus: 'SANMAIME_E024',
   /** `Background:` outside a screen or after the screen's first `Element:` (v0.2). */
   MisplacedBackground: 'SANMAIME_E025',
+  /** A value keyword (`Text:`, `Contain:`, `Count:`) without ` = <value>` (v0.3). */
+  MissingValue: 'SANMAIME_E026',
+  /** A value that is not a valid quoted text / whole number (v0.3). */
+  InvalidValue: 'SANMAIME_E027',
 } as const;
 
 export type DiagnosticCode = (typeof DiagnosticCode)[keyof typeof DiagnosticCode];
@@ -100,13 +109,20 @@ export type KeywordSpellings = Readonly<Record<CanonicalKeyword, string>>;
  * language; arguments named `keyword` are keywords as written in the source.
  */
 export function createMessages(k: KeywordSpellings) {
+  const expectations = expectationKeywordList(k);
   return {
     unrecognisedLine: (text: string, hint: string | undefined): string =>
-      `Unrecognised line '${text}'. Expected ${k.Screen}:, ${k.Background}:, ${k.Element}:, ${k.When}:, ${k.AndWhen}:, ${k.Show}:, ${k.Hide}:, ${k.And}:, ${k.Enable}, ${k.Disable}, a comment (#) or tags (@).` +
+      `Unrecognised line '${text}'. Expected ${k.Screen}:, ${k.Background}:, ${k.Element}:, ${k.When}:, ${k.AndWhen}:, an expectation (${expectations}), a comment (#) or tags (@).` +
       (hint === undefined ? '' : ` ${hint}`),
     missingName: (keyword: string): string => `'${keyword}:' requires a name.`,
-    bareKeywordWithArgument: (keyword: string): string =>
-      `'${keyword}' takes no argument. Write '${keyword}' on its own line.`,
+    bareKeywordWithArgument: (keyword: string, argument: string): string =>
+      `'${keyword}' takes no argument without a colon. Write '${keyword}' on its own line for the element itself, or '${keyword}: ${argument}' for a target.`,
+    missingValue: (keyword: string, target: string, type: ExpectationValueType): string =>
+      `'${keyword}:' needs a value after ' = '. Write '${keyword}: ${target === '' ? '<target>' : target} = ${type === 'text' ? '"<text>"' : '<number>'}' (with spaces around '=').`,
+    invalidValue: (keyword: string, value: string, type: ExpectationValueType): string =>
+      type === 'text'
+        ? `Invalid text ${value === '' ? '(nothing)' : `'${value}'`} for '${keyword}:'. Write the text in double quotes, e.g. "Welcome"; inside them write \\" for a quote and \\\\ for a backslash.`
+        : `Invalid number ${value === '' ? '(nothing)' : `'${value}'`} for '${keyword}:'. Write a whole number: 0, 1, 2, …`,
     elementOutsideScreen: (): string => `'${k.Element}:' must appear inside a '${k.Screen}:'.`,
     whenOutsideElement: (): string => `'${k.When}:' must appear inside an '${k.Element}:'.`,
     expectationOutsideElement: (keyword: string): string =>
@@ -163,3 +179,17 @@ export function createMessages(k: KeywordSpellings) {
 }
 
 export type Messages = ReturnType<typeof createMessages>;
+
+/**
+ * The expectation keywords as listed in `E001`, from the vocabulary table: `Show:, Hide:, And:,
+ * Enable, Disable, …, Text:, Contain:, Count:`. State keywords are listed bare.
+ */
+function expectationKeywordList(k: KeywordSpellings): string {
+  const list: string[] = [];
+  for (const kind of EXPECTATION_KINDS) {
+    const { arity, keyword } = EXPECTATIONS[kind];
+    list.push(arity === 'optional-target' ? k[keyword] : `${k[keyword]}:`);
+    if (kind === 'hide') list.push(`${k.And}:`);
+  }
+  return list.join(', ');
+}

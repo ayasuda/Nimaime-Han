@@ -217,6 +217,75 @@ describe('formatDiff', () => {
     );
   });
 
+  it('lists expectations a draft never proposes as not compared (v0.3)', () => {
+    const spec = lines(
+      'Screen: Login',
+      '  Element: Login Form',
+      '    Show: Email address',
+      '    Text: Title = "Welcome"',
+      '    Count: Links = 2',
+      '    Check: Remember me',
+      '  Element: Login Button',
+      '    Enable',
+      '    Focus',
+      '  Element: Help',
+      '    Contain: Hint = "password"',
+    );
+    const other = lines(
+      'Screen: Login',
+      '  Element: Login Form',
+      '    Show: Email address',
+      '  Element: Login Button',
+      '    Disable',
+    );
+    const diff = diffDocuments(doc(spec), doc(other));
+    expect(diff.counts).toEqual({ screens: 0, elements: 1, expectations: 1 });
+    expect(diff.screens[0]?.notCompared).toEqual([
+      {
+        side: 'spec',
+        element: 'Login Form',
+        expectation: { kind: 'text', target: 'Title', value: 'Welcome' },
+      },
+      {
+        side: 'spec',
+        element: 'Login Form',
+        expectation: { kind: 'count', target: 'Links', value: 2 },
+      },
+      {
+        side: 'spec',
+        element: 'Login Form',
+        expectation: { kind: 'check', target: 'Remember me' },
+      },
+      { side: 'spec', element: 'Login Button', expectation: { kind: 'focus' } },
+    ]);
+    const text = formatDiff(diff, {
+      spec: 'specs/login.sanmaime',
+      other: 'http://localhost/login',
+    });
+    expect(text).toBe(
+      lines(
+        'Screen: Login  (specs/login.sanmaime vs http://localhost/login)',
+        '',
+        '  Element: Login Form',
+        '    = Show: Email address',
+        '',
+        '  Element: Login Button',
+        '    ! Enable     (in spec; observed: Disable)',
+        '',
+        '  Element: Help  (in spec, not observed)',
+        '    - Contain: Hint = "password"',
+        '',
+        '  Not compared (only Show:, Hide:, Enable and Disable outside When: blocks are compared):',
+        '    Element: Login Form > Text: Title = "Welcome"',
+        '    Element: Login Form > Count: Links = 2',
+        '    Element: Login Form > Check: Remember me',
+        '    Element: Login Button > Focus',
+        '',
+        '1 element and 1 expectation differ.',
+      ),
+    );
+  });
+
   it("uses the spec's keywords and names the other file", () => {
     const spec = lines('# language: ja', '画面: ログイン', '  要素: ボタン', '    無効');
     const other = lines('# language: ja', '画面: ログイン', '  要素: ボタン', '    有効');

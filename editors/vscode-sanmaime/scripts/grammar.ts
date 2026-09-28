@@ -1,7 +1,10 @@
 /**
  * Builds the TextMate grammar of Sanmaime (`syntaxes/sanmaime.tmLanguage.json`) from the keyword
  * dictionaries of the parser (`src/parser/languages.ts`), so that the editor grammar can never
- * drift from the language. Pure: no I/O. `build-grammar.ts` writes the result to disk and
+ * drift from the language. Which slots are state keywords (`Enable`, `Check`, …: bare, or with a
+ * target) and value keywords (`Text:`, `Count:`, …) follows the vocabulary table of
+ * `src/runtime/expectations.ts` (`STATE_SLOTS` / `TEXT_VALUE_SLOTS` / `NUMBER_VALUE_SLOTS` below;
+ * `test/editors/grammar.test.ts` checks that they agree). Pure: no I/O. `build-grammar.ts` writes the result to disk and
  * `test/editors/grammar.test.ts` checks that the committed file is up to date.
  *
  * The grammar follows the line classification of docs/sanmaime.md §3.8: every rule is anchored at
@@ -58,6 +61,16 @@ export const SCOPES = {
   expectation: 'keyword.operator.expectation.sanmaime',
   target: 'string.unquoted.target.sanmaime',
   state: 'keyword.operator.state.sanmaime',
+  /** The ` = ` between the target and the value of `Text:` / `Contain:` / `Count:` (v0.3). */
+  valueSeparator: 'keyword.operator.assignment.sanmaime',
+  /** A quoted text value (`"Welcome"`). */
+  text: 'string.quoted.double.sanmaime',
+  /** A number value (`3`). */
+  number: 'constant.numeric.integer.sanmaime',
+  /** A value that is not a valid text / number (SANMAIME_E027). */
+  invalidValue: 'invalid.illegal.value.sanmaime',
+  /** The argument of a value keyword without ` = ` (SANMAIME_E026). */
+  missingValue: 'invalid.illegal.missing-value.sanmaime',
   missingName: 'invalid.illegal.missing-name.sanmaime',
   illegal: 'invalid.illegal.sanmaime',
 } as const;
@@ -81,6 +94,27 @@ function charClass(chars: Iterable<string>): string {
   const body = unique.map((c) => escapeRegExp(c)).join('');
   return unique.length === 1 ? body : `[${body}]`;
 }
+
+/** Slots of the state keywords: alone on a line (the element itself), or with a target. */
+export const STATE_SLOTS = [
+  'enable',
+  'disable',
+  'check',
+  'uncheck',
+  'focus',
+  'editable',
+  'readOnly',
+  'empty',
+] as const satisfies readonly (keyof LanguageKeywords)[];
+
+/** Slots of the value keywords whose value is a quoted text. */
+export const TEXT_VALUE_SLOTS = [
+  'text',
+  'contain',
+] as const satisfies readonly (keyof LanguageKeywords)[];
+
+/** Slots of the value keywords whose value is a whole number. */
+export const NUMBER_VALUE_SLOTS = ['count'] as const satisfies readonly (keyof LanguageKeywords)[];
 
 /** Spellings of one keyword kind, each with the colons its language(s) accept. */
 type Spellings = Map<string, Set<string>>;
@@ -149,6 +183,62 @@ function nameKeywordRules(
 }
 
 /**
+ * Rules for `Text: <target> = "<text>"` and `Count: <target> = <n>` (v0.3). The target ends at
+ * the first `=` that stands alone (whitespace on both sides), as in the parser; a valid value is
+ * scoped as a string or a number, anything else as an invalid value (E027), and an argument
+ * without a standalone `=` as a missing value (E026).
+ */
+function valueKeywordRules(languages: readonly LanguageDefinition[]): GrammarRule[] {
+  const colon = `(${allColons(languages)})`;
+  const keywordOf = (slots: readonly (keyof LanguageKeywords)[]): string =>
+    `((?:${keywordBeforeColon(collect(languages, slots))}))`;
+  const all = keywordOf([...TEXT_VALUE_SLOTS, ...NUMBER_VALUE_SLOTS]);
+  // The target: no character of it starts a standalone ` = `.
+  const target = `((?:(?!${WS}=(?:${WS}|$)).)*?)`;
+  const head = (keyword: string): string => `^${WS}*${keyword}${colon}${WS}*${target}${WS}+(=)`;
+  const captures = (valueScope: string): Record<string, GrammarRule> => ({
+    '1': { name: SCOPES.expectation },
+    '2': { name: SCOPES.colon },
+    '3': { name: SCOPES.target },
+    '4': { name: SCOPES.valueSeparator },
+    '5': { name: valueScope },
+  });
+  return [
+    {
+      // `Text:` without anything (SANMAIME_E002).
+      match: `^${WS}*(${all}${colon})${WS}*$`,
+      captures: {
+        '1': { name: SCOPES.missingName },
+        '2': { name: SCOPES.expectation },
+        '3': { name: SCOPES.colon },
+      },
+    },
+    {
+      match: `${head(keywordOf(TEXT_VALUE_SLOTS))}${WS}+("(?:[^"\\\\]|\\\\["\\\\])*")${WS}*$`,
+      captures: captures(SCOPES.text),
+    },
+    {
+      match: `${head(keywordOf(NUMBER_VALUE_SLOTS))}${WS}+([0-9]+)${WS}*$`,
+      captures: captures(SCOPES.number),
+    },
+    {
+      // A value that is not valid for its keyword (SANMAIME_E027).
+      match: `${head(all)}(?:${WS}+(.*?))?${WS}*$`,
+      captures: captures(SCOPES.invalidValue),
+    },
+    {
+      // No standalone ` = ` (SANMAIME_E026).
+      match: `^${WS}*${all}${colon}${WS}*(.*?)${WS}*$`,
+      captures: {
+        '1': { name: SCOPES.expectation },
+        '2': { name: SCOPES.colon },
+        '3': { name: SCOPES.missingValue },
+      },
+    },
+  ];
+}
+
+/**
  * The rules of the body of a file whose keywords are those of `languages`. `everyColon` holds the
  * colons of every supported language, used to flag `Word:` lines as unknown keywords.
  */
@@ -156,11 +246,9 @@ function bodyRules(
   languages: readonly LanguageDefinition[],
   everyColon: readonly string[],
 ): GrammarRule[] {
-  const bare = ordered(collect(languages, ['enable', 'disable']));
+  const bare = ordered(collect(languages, STATE_SLOTS));
   const bareExact = bare.map(([text]) => escapeRegExp(text)).join('|');
-  const bareWithArgument = bare
-    .map(([text, colons]) => `${escapeRegExp(text)}(?=${charClass(colons)}|${WS})`)
-    .join('|');
+  const bareWithArgument = bare.map(([text]) => `${escapeRegExp(text)}(?=${WS})`).join('|');
   return [
     { include: '#comment' },
     { include: '#tags' },
@@ -173,13 +261,16 @@ function bodyRules(
       SCOPES.conditionName,
     ),
     ...nameKeywordRules(languages, ['show', 'hide', 'and'], SCOPES.expectation, SCOPES.target),
+    ...valueKeywordRules(languages),
+    // `Enable: X`, `Check: X`: a state of a target (v0.3).
+    ...nameKeywordRules(languages, STATE_SLOTS, SCOPES.state, SCOPES.target),
     {
-      // `Enable` / `Disable`: the whole trimmed line is the keyword.
+      // `Enable`, `Check`, …: the whole trimmed line is the keyword (the element itself).
       match: `^${WS}*(${bareExact})${WS}*$`,
       captures: { '1': { name: SCOPES.state } },
     },
     {
-      // `Enable: X`, `Enable X` (SANMAIME_E003).
+      // `Enable X`: an argument without a colon (SANMAIME_E003).
       match: `^${WS}*((?:${bareWithArgument}).*?)${WS}*$`,
       captures: { '1': { name: SCOPES.illegal } },
     },

@@ -106,11 +106,73 @@
           }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(Disable|Enable|有効|無効)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:Contain(?=:)|Count(?=:)|Text(?=:)|テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：]))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.expectation.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Text(?=:)|テキスト(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+(\"(?:[^\"\\\\]|\\\\[\"\\\\])*\")[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "string.quoted.double.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Count(?=:)|件数(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+([0-9]+)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "constant.numeric.integer.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Count(?=:)|Text(?=:)|テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)(?:[\\s\\p{Zs}\\x{FEFF}]+(.*?))?[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "invalid.illegal.value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Count(?=:)|Text(?=:)|テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "invalid.illegal.missing-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:Editable(?=:)|ReadOnly(?=:)|Disable(?=:)|Uncheck(?=:)|Enable(?=:)|Check(?=:)|Empty(?=:)|Focus(?=:)|フォーカス(?=[:：])|未チェック(?=[:：])|チェック(?=[:：])|読取専用(?=[:：])|編集可(?=[:：])|有効(?=[:：])|無効(?=[:：])|空(?=[:：]))([:：])))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.state.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Editable(?=:)|ReadOnly(?=:)|Disable(?=:)|Uncheck(?=:)|Enable(?=:)|Check(?=:)|Empty(?=:)|Focus(?=:)|フォーカス(?=[:：])|未チェック(?=[:：])|チェック(?=[:：])|読取専用(?=[:：])|編集可(?=[:：])|有効(?=[:：])|無効(?=[:：])|空(?=[:：]))([:：]))[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.state.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(Editable|ReadOnly|Disable|Uncheck|Enable|Check|Empty|Focus|フォーカス|未チェック|チェック|読取専用|編集可|有効|無効|空)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "keyword.operator.state.sanmaime" } }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Disable(?=:|[\\s\\p{Zs}\\x{FEFF}])|Enable(?=:|[\\s\\p{Zs}\\x{FEFF}])|有効(?=[:：]|[\\s\\p{Zs}\\x{FEFF}])|無効(?=[:：]|[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Editable(?=[\\s\\p{Zs}\\x{FEFF}])|ReadOnly(?=[\\s\\p{Zs}\\x{FEFF}])|Disable(?=[\\s\\p{Zs}\\x{FEFF}])|Uncheck(?=[\\s\\p{Zs}\\x{FEFF}])|Enable(?=[\\s\\p{Zs}\\x{FEFF}])|Check(?=[\\s\\p{Zs}\\x{FEFF}])|Empty(?=[\\s\\p{Zs}\\x{FEFF}])|Focus(?=[\\s\\p{Zs}\\x{FEFF}])|フォーカス(?=[\\s\\p{Zs}\\x{FEFF}])|未チェック(?=[\\s\\p{Zs}\\x{FEFF}])|チェック(?=[\\s\\p{Zs}\\x{FEFF}])|読取専用(?=[\\s\\p{Zs}\\x{FEFF}])|編集可(?=[\\s\\p{Zs}\\x{FEFF}])|有効(?=[\\s\\p{Zs}\\x{FEFF}])|無効(?=[\\s\\p{Zs}\\x{FEFF}])|空(?=[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "invalid.illegal.sanmaime" } }
         },
         {
@@ -184,11 +246,73 @@
           }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(Disable|Enable)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:Contain(?=:)|Count(?=:)|Text(?=:)))(:))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.expectation.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Text(?=:)))(:)[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+(\"(?:[^\"\\\\]|\\\\[\"\\\\])*\")[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "string.quoted.double.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Count(?=:)))(:)[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+([0-9]+)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "constant.numeric.integer.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Count(?=:)|Text(?=:)))(:)[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)(?:[\\s\\p{Zs}\\x{FEFF}]+(.*?))?[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "invalid.illegal.value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Contain(?=:)|Count(?=:)|Text(?=:)))(:)[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "invalid.illegal.missing-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:Editable(?=:)|ReadOnly(?=:)|Disable(?=:)|Uncheck(?=:)|Enable(?=:)|Check(?=:)|Empty(?=:)|Focus(?=:))(:)))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.state.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Editable(?=:)|ReadOnly(?=:)|Disable(?=:)|Uncheck(?=:)|Enable(?=:)|Check(?=:)|Empty(?=:)|Focus(?=:))(:))[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.state.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(Editable|ReadOnly|Disable|Uncheck|Enable|Check|Empty|Focus)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "keyword.operator.state.sanmaime" } }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Disable(?=:|[\\s\\p{Zs}\\x{FEFF}])|Enable(?=:|[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:Editable(?=[\\s\\p{Zs}\\x{FEFF}])|ReadOnly(?=[\\s\\p{Zs}\\x{FEFF}])|Disable(?=[\\s\\p{Zs}\\x{FEFF}])|Uncheck(?=[\\s\\p{Zs}\\x{FEFF}])|Enable(?=[\\s\\p{Zs}\\x{FEFF}])|Check(?=[\\s\\p{Zs}\\x{FEFF}])|Empty(?=[\\s\\p{Zs}\\x{FEFF}])|Focus(?=[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "invalid.illegal.sanmaime" } }
         },
         {
@@ -262,11 +386,73 @@
           }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(有効|無効)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：]))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.expectation.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:テキスト(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+(\"(?:[^\"\\\\]|\\\\[\"\\\\])*\")[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "string.quoted.double.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:件数(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)[\\s\\p{Zs}\\x{FEFF}]+([0-9]+)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "constant.numeric.integer.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*((?:(?![\\s\\p{Zs}\\x{FEFF}]=(?:[\\s\\p{Zs}\\x{FEFF}]|$)).)*?)[\\s\\p{Zs}\\x{FEFF}]+(=)(?:[\\s\\p{Zs}\\x{FEFF}]+(.*?))?[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" },
+            "4": { "name": "keyword.operator.assignment.sanmaime" },
+            "5": { "name": "invalid.illegal.value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:テキスト(?=[:：])|件数(?=[:：])|含む(?=[:：])))([:：])[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.expectation.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "invalid.illegal.missing-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(((?:フォーカス(?=[:：])|未チェック(?=[:：])|チェック(?=[:：])|読取専用(?=[:：])|編集可(?=[:：])|有効(?=[:：])|無効(?=[:：])|空(?=[:：]))([:：])))[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "invalid.illegal.missing-name.sanmaime" },
+            "2": { "name": "keyword.operator.state.sanmaime" },
+            "3": { "name": "punctuation.separator.key-value.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:フォーカス(?=[:：])|未チェック(?=[:：])|チェック(?=[:：])|読取専用(?=[:：])|編集可(?=[:：])|有効(?=[:：])|無効(?=[:：])|空(?=[:：]))([:：]))[\\s\\p{Zs}\\x{FEFF}]*(.*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "captures": {
+            "1": { "name": "keyword.operator.state.sanmaime" },
+            "2": { "name": "punctuation.separator.key-value.sanmaime" },
+            "3": { "name": "string.unquoted.target.sanmaime" }
+          }
+        },
+        {
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*(フォーカス|未チェック|チェック|読取専用|編集可|有効|無効|空)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "keyword.operator.state.sanmaime" } }
         },
         {
-          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:有効(?=[:：]|[\\s\\p{Zs}\\x{FEFF}])|無効(?=[:：]|[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
+          "match": "^[\\s\\p{Zs}\\x{FEFF}]*((?:フォーカス(?=[\\s\\p{Zs}\\x{FEFF}])|未チェック(?=[\\s\\p{Zs}\\x{FEFF}])|チェック(?=[\\s\\p{Zs}\\x{FEFF}])|読取専用(?=[\\s\\p{Zs}\\x{FEFF}])|編集可(?=[\\s\\p{Zs}\\x{FEFF}])|有効(?=[\\s\\p{Zs}\\x{FEFF}])|無効(?=[\\s\\p{Zs}\\x{FEFF}])|空(?=[\\s\\p{Zs}\\x{FEFF}])).*?)[\\s\\p{Zs}\\x{FEFF}]*$",
           "captures": { "1": { "name": "invalid.illegal.sanmaime" } }
         },
         {

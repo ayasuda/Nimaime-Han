@@ -3,8 +3,8 @@
  * playwright-bdd's `bddgen` prints for undefined steps). See docs/cli.md, "Missing definitions".
  *
  * The output is TypeScript to paste into a definition file: one `defineElement()` per element that
- * is not defined at all (with every target the specs use, and a `self` locator when they use
- * `Enable` / `Disable`), the lines to add to an existing `defineElement()` for missing targets, one
+ * is not defined at all (with every target the specs use, and a `self` locator when they use a
+ * bare state keyword such as `Enable` or `Check`), the lines to add to an existing `defineElement()` for missing targets, one
  * global `defineCondition()` per missing condition and — only when asked, since a screen without
  * `defineScreen` is allowed — one `defineScreen()` per screen without a definition. Locators are
  * `page.getByTestId('TODO')` placeholders.
@@ -14,7 +14,7 @@
  */
 import type { QuoteStyle } from '../config/types';
 import { quote, textWidth } from './generate';
-import type { MissingDefinition, ResolvedDocument, ResolvedExpectation } from './match';
+import { expectationTarget, type MissingDefinition, type ResolvedDocument } from './match';
 
 export interface SnippetOptions {
   /** Quote style of string literals (`config.quotes`). */
@@ -43,13 +43,10 @@ interface ElementGroup {
   self: boolean;
 }
 
-function isVisibility(
-  expectation: ResolvedExpectation,
-): expectation is Extract<ResolvedExpectation, { kind: 'show' | 'hide' }> {
-  return expectation.kind === 'show' || expectation.kind === 'hide';
-}
-
-/** The targets and `Enable` / `Disable` use of an undefined element, in order of first use. */
+/**
+ * The targets and the `self` use (a bare state keyword: `Enable`, `Check`, …) of an undefined
+ * element, in order of first use.
+ */
 function usageOf(
   element: string,
   documents: readonly ResolvedDocument[],
@@ -65,7 +62,8 @@ function usageOf(
           ...resolved.conditions.flatMap((condition) => condition.expectations),
         ];
         for (const expectation of expectations) {
-          if (isVisibility(expectation)) targets.add(expectation.target);
+          const target = expectationTarget(expectation);
+          if (target !== undefined) targets.add(target);
           else self = true;
         }
       }
@@ -114,7 +112,7 @@ class SnippetWriter {
       if (group.self) {
         lines.push(
           `// The existing defineElement(${name}, …) has no locator for the element itself,`,
-          '// which Enable / Disable need. Pass it as the second argument, before the targets:',
+          '// which bare state keywords (Enable, Check, …) need. Pass it as the second argument:',
           `// defineElement(${name}, ${this.locator()}, { … });`,
         );
       }

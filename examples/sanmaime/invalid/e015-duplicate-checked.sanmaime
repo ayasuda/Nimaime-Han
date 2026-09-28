@@ -1,0 +1,8 @@
+# expect: SANMAIME_E015
+# at: 8:5
+# At most one state of each family (enabled, checked, editable, …) of the element itself per block.
+Screen: Settings
+  Element: Newsletter Checkbox
+    Enable
+    Check
+    Uncheck

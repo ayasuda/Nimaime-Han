@@ -14,9 +14,24 @@ import {
   type StateStack,
 } from 'vscode-textmate';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildGrammar, SCOPE_NAME, SCOPES } from '../../editors/vscode-sanmaime/scripts/grammar';
+import {
+  buildGrammar,
+  NUMBER_VALUE_SLOTS,
+  SCOPE_NAME,
+  SCOPES,
+  STATE_SLOTS,
+  TEXT_VALUE_SLOTS,
+} from '../../editors/vscode-sanmaime/scripts/grammar';
 import { LANGUAGES, SUPPORTED_LANGUAGES } from '../../src/parser';
 import { classifyLine, keywordTable, type LineToken } from '../../src/parser/tokens';
+import {
+  EXPECTATION_KINDS,
+  EXPECTATIONS,
+  expectationSpec,
+  kindOfKeyword,
+  parseValue,
+  splitTargetValue,
+} from '../../src/runtime/expectations';
 import { listFixtures } from '../parser/fixtures';
 
 const EXTENSION_DIR = new URL('../../editors/vscode-sanmaime/', import.meta.url);
@@ -156,6 +171,74 @@ describe('English keywords', () => {
     expect(line('Disable  ')).toEqual([['Disable', SCOPES.state]]);
   });
 
+  it('scopes the state keywords, alone or with a target (v0.3)', () => {
+    for (const keyword of ['Check', 'Uncheck', 'Focus', 'Editable', 'ReadOnly', 'Empty']) {
+      expect(line(`    ${keyword}`)).toEqual([[keyword, SCOPES.state]]);
+      expect(line(`${keyword}: Remember me`)).toEqual([
+        [keyword, SCOPES.state],
+        [':', SCOPES.colon],
+        ['Remember me', SCOPES.target],
+      ]);
+    }
+    expect(line('Enable: Submit')).toEqual([
+      ['Enable', SCOPES.state],
+      [':', SCOPES.colon],
+      ['Submit', SCOPES.target],
+    ]);
+    expect(line('Check Remember me')).toEqual([['Check Remember me', SCOPES.illegal]]);
+    expect(tokenize('Check:')[0]?.[0]?.scopes).toEqual([SCOPES.missingName, SCOPES.state]);
+    expect(line('Checkout: X')).toEqual([['Checkout:', SCOPES.illegal]]);
+  });
+
+  it('scopes Text:, Contain: and Count: with their target and value (v0.3)', () => {
+    expect(line('    Text: Title = "Say \\"hi\\""')).toEqual([
+      ['Text', SCOPES.expectation],
+      [':', SCOPES.colon],
+      ['Title', SCOPES.target],
+      ['=', SCOPES.valueSeparator],
+      ['"Say \\"hi\\""', SCOPES.text],
+    ]);
+    expect(line('Contain: A=b = "x = y"')).toEqual([
+      ['Contain', SCOPES.expectation],
+      [':', SCOPES.colon],
+      ['A=b', SCOPES.target],
+      ['=', SCOPES.valueSeparator],
+      ['"x = y"', SCOPES.text],
+    ]);
+    expect(line('Count: Items = 3')).toEqual([
+      ['Count', SCOPES.expectation],
+      [':', SCOPES.colon],
+      ['Items', SCOPES.target],
+      ['=', SCOPES.valueSeparator],
+      ['3', SCOPES.number],
+    ]);
+    // E027: a value that is not valid for the keyword; E026: no standalone `=`.
+    expect(line('Count: Items = "3"').at(-1)).toEqual(['"3"', SCOPES.invalidValue]);
+    expect(line('Text: Title = Welcome').at(-1)).toEqual(['Welcome', SCOPES.invalidValue]);
+    expect(line('Text: A = b = "c"').at(-1)).toEqual(['b = "c"', SCOPES.invalidValue]);
+    expect(line('Count: Items=3')).toEqual([
+      ['Count', SCOPES.expectation],
+      [':', SCOPES.colon],
+      ['Items=3', SCOPES.missingValue],
+    ]);
+    expect(tokenize('Text:')[0]?.[0]?.scopes).toEqual([SCOPES.missingName, SCOPES.expectation]);
+    // Japanese keywords, with a full-width colon.
+    expect(line('件数：結果 = 3')[0]).toEqual(['件数', SCOPES.expectation]);
+    expect(line('テキスト: タイトル = "ようこそ"').at(-1)).toEqual(['"ようこそ"', SCOPES.text]);
+  });
+
+  it('agrees with the vocabulary table on which keywords are states and values', () => {
+    const slotsOf = (arity: string, valueType?: string): string[] =>
+      EXPECTATION_KINDS.filter(
+        (kind) =>
+          EXPECTATIONS[kind].arity === arity &&
+          (valueType === undefined || expectationSpec(kind).valueType === valueType),
+      ).map((kind) => EXPECTATIONS[kind].slot);
+    expect([...STATE_SLOTS]).toEqual(slotsOf('optional-target'));
+    expect([...TEXT_VALUE_SLOTS]).toEqual(slotsOf('target-value', 'text'));
+    expect([...NUMBER_VALUE_SLOTS]).toEqual(slotsOf('target-value', 'int'));
+  });
+
   it('scopes Background: and And when: as conditions (v0.2)', () => {
     expect(line('  Background: Logged in')).toEqual([
       ['Background', SCOPES.condition],
@@ -191,7 +274,6 @@ describe('English keywords', () => {
     // Not a keyword (whitespace before the colon) and not `Word:` either: left unscoped.
     expect(line('Show :Username')).toEqual([]);
     expect(line('A description line')).toEqual([]);
-    expect(line('Enable: Submit')).toEqual([['Enable: Submit', SCOPES.illegal]]);
     expect(line('Disable now')).toEqual([['Disable now', SCOPES.illegal]]);
     expect(line('Show:  ')).toEqual([
       ['Show', SCOPES.expectation],
@@ -234,7 +316,14 @@ describe('Japanese keywords', () => {
     ]);
     expect(line('かつ条件: カートに商品がある')[0]).toEqual(['かつ条件', SCOPES.condition]);
     expect(line('有効期限: 30日')).toEqual([['有効期限:', SCOPES.illegal]]);
-    expect(line('有効：送信')).toEqual([['有効：送信', SCOPES.illegal]]);
+    expect(line('有効 送信')).toEqual([['有効 送信', SCOPES.illegal]]);
+    expect(line('有効：送信')).toEqual([
+      ['有効', SCOPES.state],
+      ['：', SCOPES.colon],
+      ['送信', SCOPES.target],
+    ]);
+    expect(line('未チェック')).toEqual([['未チェック', SCOPES.state]]);
+    expect(line('チェック：ログイン状態を保持')[0]).toEqual(['チェック', SCOPES.state]);
   });
 
   it('accepts the full-width colon only for Japanese keywords', () => {
@@ -342,6 +431,14 @@ const KEYWORD_SCOPES: Record<string, [string, string]> = {
   Show: [SCOPES.expectation, SCOPES.target],
   Hide: [SCOPES.expectation, SCOPES.target],
   And: [SCOPES.expectation, SCOPES.target],
+  Text: [SCOPES.expectation, SCOPES.target],
+  Contain: [SCOPES.expectation, SCOPES.target],
+  Count: [SCOPES.expectation, SCOPES.target],
+  ...Object.fromEntries(
+    ['Enable', 'Disable', 'Check', 'Uncheck', 'Focus', 'Editable', 'ReadOnly', 'Empty'].map(
+      (keyword) => [keyword, [SCOPES.state, SCOPES.target]],
+    ),
+  ),
 };
 
 const PRIORITY: LineToken['type'][] = [
@@ -392,8 +489,27 @@ function checkLine(tokens: Token[], expected: LineToken, inHeader: boolean): voi
       const [keywordScope, nameScope] = KEYWORD_SCOPES[expected.keyword] ?? ['', ''];
       expect(first?.text).toBe(expected.text);
       expect(scopes.at(-1)).toBe(keywordScope);
+      const kind = kindOfKeyword(expected.keyword);
+      const spec = kind === undefined ? undefined : expectationSpec(kind);
       if (expected.name === '') {
         expect(scopes[0]).toBe(SCOPES.missingName);
+      } else if (spec?.valueType !== undefined) {
+        // `Text: <target> = <value>`: the target, and the value scoped by its validity.
+        const split = splitTargetValue(expected.name);
+        const scoped = (scope: string): string | undefined =>
+          significant.find((t) => t.scopes.includes(scope))?.text;
+        if (!split) {
+          expect(scoped(SCOPES.missingValue)).toBe(expected.name);
+        } else {
+          if (split.target !== '') expect(scoped(nameScope)).toBe(split.target);
+          const valid = parseValue(spec.valueType, split.value) !== undefined;
+          const valueScope = !valid
+            ? SCOPES.invalidValue
+            : spec.valueType === 'int'
+              ? SCOPES.number
+              : SCOPES.text;
+          if (split.value !== '') expect(scoped(valueScope)).toBe(split.value);
+        }
       } else {
         const name = significant.find((t) => t.scopes.includes(nameScope));
         expect(name?.text).toBe(expected.name);

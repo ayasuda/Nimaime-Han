@@ -109,6 +109,28 @@ describe('generateSnippets', () => {
     await expectPrettier(snippets, 'double');
   });
 
+  it('lists the targets of every kind, and self for bare state keywords (v0.3)', async () => {
+    const result = match(
+      spec(
+        'Screen: A\n  Element: Settings\n    Text: Title = "Hi"\n    Check: Remember me\n    Count: Items = 2\n    ReadOnly\n',
+      ),
+    );
+    const snippets = generateSnippets(result.missing, {
+      quotes: 'single',
+      documents: result.documents,
+    });
+    expect(snippets).toContain(
+      [
+        "defineElement('Settings', ({ page }) => page.getByTestId('TODO'), {",
+        "  Title: ({ page }) => page.getByTestId('TODO'),",
+        "  'Remember me': ({ page }) => page.getByTestId('TODO'),",
+        "  Items: ({ page }) => page.getByTestId('TODO'),",
+        '});',
+      ].join('\n'),
+    );
+    await expectPrettier(snippets, 'single');
+  });
+
   it('prints the lines to add to an existing element for missing targets and self', () => {
     defineElement('Login Form', { Password: locator });
     const result = match(
@@ -123,7 +145,7 @@ describe('generateSnippets', () => {
         '// const { defineElement } = createNimaime(test);',
         '',
         "// The existing defineElement('Login Form', …) has no locator for the element itself,",
-        '// which Enable / Disable need. Pass it as the second argument, before the targets:',
+        '// which bare state keywords (Enable, Check, …) need. Pass it as the second argument:',
         "// defineElement('Login Form', ({ page }) => page.getByTestId('TODO'), { … });",
         "// Add to the existing defineElement('Login Form', { … }):",
         "  'Remember me': ({ page }) => page.getByTestId('TODO'),",
@@ -286,7 +308,7 @@ describe('formatMissing', () => {
           Condition "Input is valid" is not defined
 
         specs/login.sanmaime:9:5
-          Element "Login Button" has no self locator (needed by Enable/Disable)
+          Element "Login Button" has no self locator (needed by bare Enable, Check, …)
 
         specs/login.sanmaime:11:3
           Element "Banner" is not defined
@@ -300,7 +322,7 @@ describe('formatMissing', () => {
         'Remember me': ({ page }) => page.getByTestId('TODO'),
 
       // The existing defineElement('Login Button', …) has no locator for the element itself,
-      // which Enable / Disable need. Pass it as the second argument, before the targets:
+      // which bare state keywords (Enable, Check, …) need. Pass it as the second argument:
       // defineElement('Login Button', ({ page }) => page.getByTestId('TODO'), { … });
 
       defineElement('Banner', {
@@ -341,7 +363,7 @@ describe('formatMissing', () => {
       [
         "specs/login.sanmaime:5:5: error: Element "Login Form" has no definition for target "Remember me".",
         "specs/login.sanmaime:8:5: error: Condition "When: Input is valid" (Screen "Login", Element "Login Button") has no definition (defineCondition).",
-        "specs/login.sanmaime:9:5: error: Element "Login Button" has no locator for the element itself, which Enable / Disable need (defineElement(name, self, targets)).",
+        "specs/login.sanmaime:9:5: error: Element "Login Button" has no locator for the element itself, which bare state keywords (Enable, Check, …) need (defineElement(name, self, targets)).",
         "specs/login.sanmaime:11:3: error: Element "Banner" of Screen "Login" has no definition (defineElement).",
         "specs/details.sanmaime:3:5: error: Condition "When: Viewing your own profile" (Screen "User Information Page", Element "Login Form") has no definition (defineCondition).",
       ]
@@ -389,7 +411,7 @@ describe('formatDiagnostics', () => {
           SANMAIME_E009: Element 'X' has no expectations.
 
         specs/broken.sanmaime:3:5
-          SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).
+          SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, an expectation (Show:, Hide:, And:, Enable, Disable, Check, Uncheck, Focus, Editable, ReadOnly, Empty, Text:, Contain:, Count:), a comment (#) or tags (@).
       "
     `);
   });
@@ -397,7 +419,7 @@ describe('formatDiagnostics', () => {
   it('prints formatDiagnostic lines in compact form, and nothing for no diagnostics', () => {
     expect(formatDiagnostics(diagnostics, { cwd: root, format: 'compact' })).toEqual([
       "specs/broken.sanmaime:2:3: error SANMAIME_E009: Element 'X' has no expectations.",
-      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, Show:, Hide:, And:, Enable, Disable, a comment (#) or tags (@).",
+      "specs/broken.sanmaime:3:5: error SANMAIME_E001: Unrecognised line 'Shw: Y'. Expected Screen:, Background:, Element:, When:, And when:, an expectation (Show:, Hide:, And:, Enable, Disable, Check, Uncheck, Focus, Editable, ReadOnly, Empty, Text:, Contain:, Count:), a comment (#) or tags (@).",
     ]);
     expect(formatDiagnostics([], { cwd: root })).toEqual([]);
   });

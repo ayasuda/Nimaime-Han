@@ -199,6 +199,54 @@ describe('matchSpecs', () => {
     expect(element?.conditions[1]?.definition).toBeUndefined();
   });
 
+  it('resolves the targets of value and targeted state keywords, and bare states to self (v0.3)', () => {
+    defineScreen('Settings');
+    defineElement('Newsletter', { Title: locator });
+    const source = `Screen: Settings
+  Element: Newsletter
+    Text: Title = "Welcome"
+    Count: Items = 2
+    Check: Remember me
+    Focus
+`;
+    const input = spec(source);
+    expect(input.diagnostics).toEqual([]);
+    const result = matchSpecs([input], getRegistry());
+    // Targets of every kind are `target`s; a bare state keyword needs the `self` locator.
+    expect(result.missing.map((m) => [m.kind, m.name, m.location.line])).toEqual([
+      ['target', 'Items', 4],
+      ['target', 'Remember me', 5],
+      ['self', 'Newsletter', 6],
+    ]);
+    expect(result.unused).toEqual([]);
+    expect(result.documents[0]?.screens[0]?.elements[0]?.unconditional).toEqual([
+      {
+        kind: 'text',
+        keyword: 'Text',
+        target: 'Title',
+        value: 'Welcome',
+        targetDefined: true,
+        location: { line: 3, column: 5 },
+      },
+      {
+        kind: 'count',
+        keyword: 'Count',
+        target: 'Items',
+        value: 2,
+        targetDefined: false,
+        location: { line: 4, column: 5 },
+      },
+      {
+        kind: 'check',
+        keyword: 'Check',
+        target: 'Remember me',
+        targetDefined: false,
+        location: { line: 5, column: 5 },
+      },
+      { kind: 'focus', keyword: 'Focus', selfDefined: false, location: { line: 6, column: 5 } },
+    ]);
+  });
+
   it('resolves screen-scoped conditions before global ones', () => {
     const scoped = () => undefined;
     const global = () => undefined;

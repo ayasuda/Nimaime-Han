@@ -7,6 +7,15 @@
  */
 import type { Location, Tag } from './ast';
 import {
+  EXPECTATION_KINDS,
+  EXPECTATIONS,
+  type ExpectationArity,
+  type ExpectationKeyword,
+  type ExpectationSlot,
+  type StateKind,
+  type ValueKind,
+} from '../runtime/expectations';
+import {
   DEFAULT_LANGUAGE,
   type LanguageDefinition,
   type LanguageKeywords,
@@ -14,42 +23,59 @@ import {
 } from './languages';
 
 // Canonical keywords. The parser and the AST speak only in these (English) identifiers; the
-// spellings of each language come from the dictionaries in `languages.ts`.
+// spellings of each language come from the dictionaries in `languages.ts`, and the expectation
+// keywords (and what they take) from the vocabulary table in `src/runtime/expectations.ts`.
+
+/** Keywords that structure a file and take a name: `Screen:`, `And when:` (`AndWhen`), … */
+export const STRUCTURE_KEYWORDS = ['Screen', 'Element', 'Background', 'When', 'AndWhen'] as const;
+export type StructureKeyword = (typeof STRUCTURE_KEYWORDS)[number];
+
+/** Canonical keyword of the state kinds (`Enable`, `Check`, …): bare, or with a target. */
+export type StateKeyword = (typeof EXPECTATIONS)[StateKind]['keyword'];
+/** Canonical keyword of the value kinds: `Text`, `Contain`, `Count`. */
+export type ValueKeyword = (typeof EXPECTATIONS)[ValueKind]['keyword'];
+
+function keywordsOf<K extends ExpectationKeyword>(arity: ExpectationArity): K[] {
+  return EXPECTATION_KINDS.filter((kind) => EXPECTATIONS[kind].arity === arity).map(
+    (kind) => EXPECTATIONS[kind].keyword as K,
+  );
+}
 
 /**
  * Keywords that take a name after their colon (`Show: Username`). `AndWhen` is `And when:` and
- * `Background` is `Background:` (both v0.2).
+ * `Background` is `Background:` (both v0.2). Since v0.3 this includes the value keywords
+ * (`Text: Title = "Welcome"`) and the state keywords with a target (`Check: Remember me`).
  */
-export const NAME_KEYWORDS = [
-  'Screen',
-  'Element',
-  'Background',
-  'When',
-  'AndWhen',
-  'Show',
-  'Hide',
+export const NAME_KEYWORDS: readonly NameKeyword[] = [
+  ...STRUCTURE_KEYWORDS,
   'And',
-] as const;
-export type NameKeyword = (typeof NAME_KEYWORDS)[number];
+  ...EXPECTATION_KINDS.map((kind) => EXPECTATIONS[kind].keyword),
+];
+export type NameKeyword = StructureKeyword | 'And' | ExpectationKeyword;
 
-/** Keywords that stand alone on their line and take no argument. */
-export const BARE_KEYWORDS = ['Enable', 'Disable'] as const;
-export type BareKeyword = (typeof BARE_KEYWORDS)[number];
+/**
+ * Keywords that may stand alone on their line, without argument (the element itself): the state
+ * keywords `Enable`, `Disable`, `Check`, `Uncheck`, `Focus`, `Editable`, `ReadOnly`, `Empty`.
+ */
+export const BARE_KEYWORDS: readonly StateKeyword[] = keywordsOf<StateKeyword>('optional-target');
+export type BareKeyword = StateKeyword;
 
 export type CanonicalKeyword = NameKeyword | BareKeyword;
 
-/** The dictionary slot of every canonical keyword. */
+/**
+ * The dictionary slot of every canonical keyword. (The type also checks that every slot of the
+ * vocabulary table, `ExpectationSlot`, is a slot of the language dictionaries.)
+ */
 export const KEYWORD_SLOTS: Readonly<Record<CanonicalKeyword, keyof LanguageKeywords>> = {
   Screen: 'screen',
   Element: 'element',
   Background: 'background',
   When: 'when',
   AndWhen: 'andWhen',
-  Show: 'show',
-  Hide: 'hide',
   And: 'and',
-  Enable: 'enable',
-  Disable: 'disable',
+  ...(Object.fromEntries(
+    EXPECTATION_KINDS.map((kind) => [EXPECTATIONS[kind].keyword, EXPECTATIONS[kind].slot]),
+  ) as Record<ExpectationKeyword, ExpectationSlot>),
 };
 
 /** One spelling of a keyword in a language. */
@@ -149,8 +175,10 @@ export interface InvalidTagsToken {
 }
 
 /**
- * `Screen:`, `Element:`, `Background:`, `When:`, `And when:`, `Show:`, `Hide:` or `And:`; `name` is
- * `""` when missing (E002).
+ * A keyword followed by its colon: `Screen:`, `Element:`, `Background:`, `When:`, `And when:`,
+ * `Show:`, `Hide:`, `And:`, a value keyword (`Text:`, whose `name` is the whole argument
+ * `Title = "Welcome"`) or a state keyword with a target (`Check: Remember me`). `name` is `""`
+ * when missing (E002).
  */
 export interface NameKeywordToken {
   type: 'name-keyword';
@@ -162,7 +190,10 @@ export interface NameKeywordToken {
   location: Location;
 }
 
-/** `Enable` / `Disable`. `hasArgument` is set for `Enable: X`, `Disable:` etc. (E003). */
+/**
+ * A state keyword alone on its line (`Enable`, `Check`). `hasArgument` is set when an argument
+ * follows it without a colon (`Enable X`, E003).
+ */
 export interface BareKeywordToken {
   type: 'bare-keyword';
   /** Canonical keyword. */
@@ -170,6 +201,8 @@ export interface BareKeywordToken {
   /** The keyword as written (`"Enable"`, `"有効"`). */
   text: string;
   hasArgument: boolean;
+  /** The argument written after the keyword without a colon (`"X"` for `Enable X`), else `""`. */
+  argument: string;
   location: Location;
 }
 
@@ -255,13 +288,17 @@ export function classifyLine(
     }
   }
 
-  // Rules 5 and 6: bare keyword, or bare keyword followed by whitespace or a colon.
+  // Rules 5 and 6: a state keyword alone, or followed by whitespace and an argument (no colon:
+  // with a colon, rule 4 made it a state keyword with a target).
   for (const { text, keyword } of table.bare) {
-    if (t === text) return { type: 'bare-keyword', keyword, text, hasArgument: false, location };
+    if (t === text) {
+      return { type: 'bare-keyword', keyword, text, hasArgument: false, argument: '', location };
+    }
     if (t.startsWith(text)) {
       const rest = t.slice(text.length);
-      if (colonAt(rest, table.colons) > 0 || /^\s/.test(rest)) {
-        return { type: 'bare-keyword', keyword, text, hasArgument: true, location };
+      if (/^\s/.test(rest)) {
+        const argument = rest.trim();
+        return { type: 'bare-keyword', keyword, text, hasArgument: true, argument, location };
       }
     }
   }

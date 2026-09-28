@@ -22,10 +22,28 @@ export interface LanguageKeywords {
   hide: readonly string[];
   /** `And:` — name keyword. */
   and: readonly string[];
-  /** `Enable` — bare keyword. */
+  /** `Enable` / `Enable: <target>` — state keyword (the target is optional since v0.3). */
   enable: readonly string[];
-  /** `Disable` — bare keyword. */
+  /** `Disable` / `Disable: <target>` — state keyword. */
   disable: readonly string[];
+  /** `Check` / `Check: <target>` — state keyword (v0.3). */
+  check: readonly string[];
+  /** `Uncheck` / `Uncheck: <target>` — state keyword (v0.3). */
+  uncheck: readonly string[];
+  /** `Focus` / `Focus: <target>` — state keyword (v0.3). */
+  focus: readonly string[];
+  /** `Editable` / `Editable: <target>` — state keyword (v0.3). */
+  editable: readonly string[];
+  /** `ReadOnly` / `ReadOnly: <target>` — state keyword (v0.3). */
+  readOnly: readonly string[];
+  /** `Empty` / `Empty: <target>` — state keyword (v0.3). */
+  empty: readonly string[];
+  /** `Text: <target> = "<text>"` — value keyword (v0.3). */
+  text: readonly string[];
+  /** `Contain: <target> = "<text>"` — value keyword (v0.3). */
+  contain: readonly string[];
+  /** `Count: <target> = <number>` — value keyword (v0.3). */
+  count: readonly string[];
   /** `Background:` — name keyword (conditions shared by every element of a screen, v0.2). */
   background: readonly string[];
 }
@@ -34,8 +52,9 @@ export interface LanguageKeywords {
  * One keyword language.
  *
  * Keyword spellings are stored **without** a colon. The lexer appends a colon to name keywords
- * (`screen` … `and`, `andWhen` and `background`) and matches bare keywords (`enable`,
- * `disable`) against the whole line. Every slot has at least one spelling; the first one is the
+ * (`screen` … `and`, `andWhen`, `background` and the value keywords `text`, `contain`, `count`),
+ * and matches state keywords (`enable` … `empty`) both against the whole line (the element itself)
+ * and followed by a colon (a target). Every slot has at least one spelling; the first one is the
  * *primary* spelling used in diagnostics and by tools that write Sanmaime. Further spellings are
  * synonyms, as in Gherkin.
  */
@@ -69,6 +88,15 @@ const en: LanguageDefinition = {
     and: ['And'],
     enable: ['Enable'],
     disable: ['Disable'],
+    check: ['Check'],
+    uncheck: ['Uncheck'],
+    focus: ['Focus'],
+    editable: ['Editable'],
+    readOnly: ['ReadOnly'],
+    empty: ['Empty'],
+    text: ['Text'],
+    contain: ['Contain'],
+    count: ['Count'],
     background: ['Background'],
   },
 };
@@ -88,6 +116,15 @@ const ja: LanguageDefinition = {
     and: ['かつ'],
     enable: ['有効'],
     disable: ['無効'],
+    check: ['チェック'],
+    uncheck: ['未チェック'],
+    focus: ['フォーカス'],
+    editable: ['編集可'],
+    readOnly: ['読取専用'],
+    empty: ['空'],
+    text: ['テキスト'],
+    contain: ['含む'],
+    count: ['件数'],
     background: ['背景'],
   },
 };

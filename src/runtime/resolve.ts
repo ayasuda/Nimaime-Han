@@ -1,11 +1,13 @@
 import type { Locator } from '@playwright/test';
 import { NimaimeRuntimeError } from './errors';
+import { expectationSpec, isExpectationKind } from './expectations';
 import {
   planConditionLocation,
   planConditions,
   planConditionTitle,
   type ConditionStepKeyword,
   type ExpectationContext,
+  type NimaimeExpectation,
   type NimaimePlan,
   type SanmaimePosition,
 } from './plan';
@@ -56,7 +58,7 @@ export function resolveElement(element: string, ctx: ExpectationContext = {}): E
   return def;
 }
 
-/** The locator function of `target` of `element` (for `Show:` / `Hide:`). */
+/** The locator function of `target` of `element` (`Show: X`, `Check: X`, `Text: X = …`). */
 export function resolveTarget(
   element: string,
   target: string,
@@ -75,12 +77,12 @@ export function resolveTarget(
   return fn;
 }
 
-/** The locator function of the element itself (for `Enable` / `Disable`). */
+/** The locator function of the element itself (for a bare state keyword: `Enable`, `Check`, …). */
 export function resolveSelf(element: string, ctx: ExpectationContext = {}): LocatorFn<AnyFixtures> {
   const def = resolveElement(element, ctx);
   if (!def.self) {
     throw runtimeError(
-      `Element "${element}" has no locator for the element itself, which Enable / Disable need. ` +
+      `Element "${element}" has no locator for the element itself, which bare state keywords (Enable, Check, …) need. ` +
         `Define it with defineElement('${element}', ({ page }) => …, { …targets }).`,
       ctx,
     );
@@ -145,15 +147,36 @@ export function validateExpectations(plan: NimaimePlan): void {
   const condition = planConditionTitle(plan);
   for (const expectation of plan.expectations) {
     const ctx = { ...base, condition, location: expectation.location };
-    if (expectation.kind === 'show' || expectation.kind === 'hide') {
-      if (expectation.target === undefined) {
-        throw runtimeError(`A "${expectation.kind}" expectation needs a target name.`, ctx);
-      }
-      resolveTarget(plan.element, expectation.target, ctx);
-    } else {
-      resolveSelf(plan.element, ctx);
-    }
+    const problem = expectationShapeProblem(expectation, plan.element);
+    if (problem !== undefined) throw runtimeError(problem, ctx);
+    if (expectation.target === undefined) resolveSelf(plan.element, ctx);
+    else resolveTarget(plan.element, expectation.target, ctx);
   }
+}
+
+/**
+ * Why `expectation` cannot be checked as it is (an unknown kind, a missing target, a value of the
+ * wrong type: a hand-written plan, or one of another version), or `undefined` when it can.
+ */
+export function expectationShapeProblem(
+  expectation: NimaimeExpectation,
+  element: string,
+): string | undefined {
+  const { kind, target, value } = expectation;
+  if (!isExpectationKind(kind)) {
+    return `Unknown expectation kind "${String(kind)}" for element "${element}".`;
+  }
+  const spec = expectationSpec(kind);
+  if (spec.arity !== 'optional-target' && target === undefined) {
+    return `"${spec.keyword}:" of element "${element}" needs a target name.`;
+  }
+  if (spec.valueType === 'int' && !(typeof value === 'number' && Number.isInteger(value))) {
+    return `"${spec.keyword}:" of element "${element}" needs a whole number value.`;
+  }
+  if (spec.valueType === 'text' && typeof value !== 'string') {
+    return `"${spec.keyword}:" of element "${element}" needs a text value.`;
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -265,10 +288,14 @@ export function collectFixtureNames(plan: NimaimePlan): PlanFixtures {
   const element = findElement(plan.element);
   if (element) {
     for (const expectation of plan.expectations) {
-      if (expectation.kind === 'show' || expectation.kind === 'hide') {
-        const target = expectation.target ?? '';
+      const target = expectation.target;
+      if (target !== undefined) {
         add(`element "${plan.element}" target "${target}"`, element.targets.get(target));
-      } else {
+      } else if (
+        isExpectationKind(expectation.kind) &&
+        expectationSpec(expectation.kind).arity === 'optional-target'
+      ) {
+        // A bare state keyword: the element itself. (A missing target is reported by the runtime.)
         add(`element "${plan.element}" self`, element.self);
       }
     }

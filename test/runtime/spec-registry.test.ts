@@ -107,6 +107,19 @@ describe('screenSpecsFromDocument', () => {
     });
   });
 
+  it('keeps the targets and values of the vocabulary v1 (v0.3)', () => {
+    const { document } = parse(
+      'Screen: S\n  Element: E\n    Text: Title = "Hi"\n    Count: Items = 2\n    Check\n    Check: Box\n',
+    );
+    const [spec] = screenSpecsFromDocument(document);
+    expect(spec?.elements[0]?.unconditional).toEqual([
+      { kind: 'text', target: 'Title', value: 'Hi', location: { line: 3, column: 5 } },
+      { kind: 'count', target: 'Items', value: 2, location: { line: 4, column: 5 } },
+      { kind: 'check', location: { line: 5, column: 5 } },
+      { kind: 'check', target: 'Box', location: { line: 6, column: 5 } },
+    ]);
+  });
+
   it('leaves out file when not given', () => {
     const { document } = parse('Screen: A\n  Element: B\n    Show: C\n');
     expect(screenSpecsFromDocument(document)[0]).not.toHaveProperty('file');

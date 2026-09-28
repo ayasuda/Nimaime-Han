@@ -1,9 +1,9 @@
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Locator } from '@playwright/test';
 import { NimaimeRuntimeError } from './errors';
+import type { ExpectationValue } from './expectations';
 import { createExpectationError, describeExpected, describeLocator } from './failure';
 import {
-  EXPECTATION_KEYWORDS,
   expectationTitle,
   planConditionLocation,
   planConditions,
@@ -16,6 +16,7 @@ import {
   type SanmaimePosition,
 } from './plan';
 import {
+  expectationShapeProblem,
   guardFixtures,
   locate,
   resolveCondition,
@@ -40,7 +41,8 @@ export type NimaimeFixtures = object;
  * them to the definition callbacks.
  *
  * Each action is wrapped in `test.step()` titled like the Sanmaime line (`Screen: User Details`,
- * `When: Viewing your own profile`, `Show: Username`, `Enable`), located at that line when the
+ * `When: Viewing your own profile`, `Show: Username`, `Enable`, `Text: Title = "Welcome"`),
+ * located at that line when the
  * `.sanmaime` file and position are known, so traces and reports show the specification.
  */
 export interface Nimaime {
@@ -100,7 +102,10 @@ export interface Nimaime {
     element: string,
     ctx?: ExpectationContext,
   ): Promise<void>;
-  /** Checks one expectation of `element` (dispatches to the four methods above). */
+  /**
+   * Checks one expectation of `element`, of any kind (`EXPECTATIONS`): on its target's locator, or
+   * on the element's `self` locator for a state kind without target (`Enable`, `Check`, …).
+   */
   check(
     fixtures: NimaimeFixtures,
     element: string,
@@ -120,8 +125,11 @@ export interface StepLocation {
 export interface NimaimeDriver {
   /** `test.step(title, body, { box, location })`. */
   step(title: string, body: () => Promise<void>, location: StepLocation | undefined): Promise<void>;
-  /** The web-first assertion of `kind` (`toBeVisible` / `toBeHidden` / `toBeEnabled` / `toBeDisabled`). */
-  assert(kind: ExpectationKind, locator: Locator): Promise<void>;
+  /**
+   * The web-first assertion of `kind` (the matcher of `EXPECTATIONS[kind]`: `toBeVisible`,
+   * `toBeEnabled`, `toHaveText(value)`, …). `value` is set for `text` / `contain` / `count`.
+   */
+  assert(kind: ExpectationKind, locator: Locator, value?: ExpectationValue): Promise<void>;
   /** Observes the actual state after a failure (see `probeActual`). */
   probe(kind: ExpectationKind, locator: Locator): Promise<string | undefined>;
   /** The running spec file; relative `.sanmaime` paths are resolved against its directory. */
@@ -160,12 +168,13 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
     kind: ExpectationKind,
     element: string,
     target: string | undefined,
+    value: ExpectationValue | undefined,
     locator: Locator,
     ctx: ExpectationContext,
   ): Promise<void> => {
     const location = stepLocation(ctx.file, ctx.location);
     try {
-      await driver.assert(kind, locator);
+      await driver.assert(kind, locator, value);
     } catch (error) {
       const actual = await driver.probe(kind, locator);
       throw createExpectationError(
@@ -175,48 +184,37 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
           condition: ctx.condition,
           kind,
           target,
+          ...(value === undefined ? {} : { value }),
           file: displayFile(ctx.file),
           location: ctx.location,
-          expected: describeExpected(kind, target),
+          expected: describeExpected(kind, target, value),
           actual,
           locator: describeLocator(locator),
         },
         error,
-        location && { ...location, title: expectationTitle(kind, target) },
+        location && { ...location, title: expectationTitle(kind, target, value) },
       );
     }
   };
 
-  const expectTarget = async (
-    kind: 'show' | 'hide',
+  /** Checks `kind` on `target` of `element`, or on the element itself when `target` is undefined. */
+  const expectOn = async (
+    kind: ExpectationKind,
     fixtures: NimaimeFixtures,
     element: string,
-    target: string,
+    target: string | undefined,
+    value: ExpectationValue | undefined,
     ctx: ExpectationContext = {},
   ): Promise<void> => {
-    const fn = resolveTarget(element, target, ctx);
+    const fn =
+      target === undefined ? resolveSelf(element, ctx) : resolveTarget(element, target, ctx);
     await driver.step(
-      expectationTitle(kind, target),
+      expectationTitle(kind, target, value),
       async () => {
-        const locator = locate(fn, fixtures, `Element "${element}" target "${target}"`);
-        await checkLocator(kind, element, target, locator, ctx);
-      },
-      stepLocation(ctx.file, ctx.location),
-    );
-  };
-
-  const expectSelf = async (
-    kind: 'enable' | 'disable',
-    fixtures: NimaimeFixtures,
-    element: string,
-    ctx: ExpectationContext = {},
-  ): Promise<void> => {
-    const fn = resolveSelf(element, ctx);
-    await driver.step(
-      expectationTitle(kind),
-      async () => {
-        const locator = locate(fn, fixtures, `Element "${element}"`);
-        await checkLocator(kind, element, undefined, locator, ctx);
+        const label =
+          target === undefined ? `Element "${element}"` : `Element "${element}" target "${target}"`;
+        const locator = locate(fn, fixtures, label);
+        await checkLocator(kind, element, target, value, locator, ctx);
       },
       stepLocation(ctx.file, ctx.location),
     );
@@ -331,29 +329,26 @@ export function createNimaimeRuntime(driver: NimaimeDriver): Nimaime {
       establish('Background', fixtures, condition, ctx),
 
     expectShow: (fixtures, element, target, ctx) =>
-      expectTarget('show', fixtures, element, target, ctx),
+      expectOn('show', fixtures, element, target, undefined, ctx),
     expectHide: (fixtures, element, target, ctx) =>
-      expectTarget('hide', fixtures, element, target, ctx),
-    expectEnable: (fixtures, element, ctx) => expectSelf('enable', fixtures, element, ctx),
-    expectDisable: (fixtures, element, ctx) => expectSelf('disable', fixtures, element, ctx),
+      expectOn('hide', fixtures, element, target, undefined, ctx),
+    expectEnable: (fixtures, element, ctx) =>
+      expectOn('enable', fixtures, element, undefined, undefined, ctx),
+    expectDisable: (fixtures, element, ctx) =>
+      expectOn('disable', fixtures, element, undefined, undefined, ctx),
 
     async check(fixtures, element, expectation, ctx = {}) {
       const full = { ...ctx, location: expectation.location ?? ctx.location };
-      switch (expectation.kind) {
-        case 'show':
-        case 'hide':
-          if (expectation.target === undefined) {
-            throw new NimaimeRuntimeError(
-              `"${EXPECTATION_KEYWORDS[expectation.kind]}:" of element "${element}" needs a target name.`,
-            );
-          }
-          await expectTarget(expectation.kind, fixtures, element, expectation.target, full);
-          return;
-        case 'enable':
-        case 'disable':
-          await expectSelf(expectation.kind, fixtures, element, full);
-          return;
-      }
+      const problem = expectationShapeProblem(expectation, element);
+      if (problem !== undefined) throw new NimaimeRuntimeError(problem);
+      await expectOn(
+        expectation.kind,
+        fixtures,
+        element,
+        expectation.target,
+        expectation.value,
+        full,
+      );
     },
   };
   return nimaime;

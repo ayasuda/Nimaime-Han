@@ -70,7 +70,7 @@ describe('resolution', () => {
       'Element "Login Form" has no target "Password". Defined targets: "Email".',
     );
     expect(thrown(() => resolveSelf('Login Form')).message).toMatch(
-      /^Element "Login Form" has no locator for the element itself, which Enable \/ Disable need/,
+      /^Element "Login Form" has no locator for the element itself, which bare state keywords \(Enable, Check, …\) need/,
     );
     expect(thrown(() => resolveCondition('Input is invalid', { screen: 'Home' })).message).toMatch(
       /^No condition definition for "When: Input is invalid" in Screen "Home"/,

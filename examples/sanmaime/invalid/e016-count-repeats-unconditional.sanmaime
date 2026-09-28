@@ -1,0 +1,9 @@
+# expect: SANMAIME_E016
+# at: 9:5
+# Unconditional expectations hold in every state: a When: block must not repeat (or contradict)
+# the Count: of the same target.
+Screen: Cart
+  Element: Cart List
+    Count: Items = 0
+    When: An item was added
+    Count: Items = 1

@@ -1,4 +1,12 @@
 import { joinConditions } from '../parser';
+import {
+  EXPECTATION_KINDS,
+  EXPECTATIONS,
+  type ExpectationKind,
+  type ExpectationValue,
+} from './expectations';
+
+export { expectationTitle, type ExpectationKind, type ExpectationValue } from './expectations';
 
 /** A position in a `.sanmaime` file (1-based). */
 export interface SanmaimePosition {
@@ -6,14 +14,22 @@ export interface SanmaimePosition {
   column: number;
 }
 
-/** The kind of a Sanmaime expectation (`And:` is resolved to `show` / `hide` by the parser). */
-export type ExpectationKind = 'show' | 'hide' | 'enable' | 'disable';
-
-/** One expectation of a plan: `Show: X` / `Hide: X` (with `target`) or `Enable` / `Disable`. */
+/**
+ * One expectation of a plan: `Show: X` (`{ kind: 'show', target: 'X' }`), `Enable` (`{ kind:
+ * 'enable' }`, the element itself), `Check: X` (`{ kind: 'check', target: 'X' }`),
+ * `Text: X = "a"` (`{ kind: 'text', target: 'X', value: 'a' }`), `Count: X = 3` (`value: 3`).
+ * See `EXPECTATIONS` (src/runtime/expectations.ts) for every kind.
+ */
 export interface NimaimeExpectation {
   kind: ExpectationKind;
-  /** The target name, required for `show` / `hide`, ignored for `enable` / `disable`. */
+  /**
+   * The target name: required for `show` / `hide` and the value kinds (`text`, `contain`,
+   * `count`); for the state kinds (`enable`, `check`, …) the target, or absent for the element
+   * itself (its `self` locator).
+   */
   target?: string;
+  /** The value of `text` / `contain` (a string) and `count` (a number). */
+  value?: ExpectationValue;
   /** Position of the expectation line in the `.sanmaime` file. */
   location?: SanmaimePosition;
 }
@@ -111,16 +127,10 @@ export interface ExpectationContext {
 /** Step title prefixes of the conditions a test establishes (`Background: X`, `And when: Y`). */
 export type ConditionStepKeyword = 'Background' | 'When' | 'And when';
 
-/** Keyword of an expectation kind as written in English Sanmaime (the step title prefix). */
-export const EXPECTATION_KEYWORDS: Readonly<Record<ExpectationKind, string>> = {
-  show: 'Show',
-  hide: 'Hide',
-  enable: 'Enable',
-  disable: 'Disable',
-};
-
-/** Step title of an expectation: `Show: Username`, `Hide: Full name`, `Enable`, `Disable`. */
-export function expectationTitle(kind: ExpectationKind, target?: string): string {
-  const keyword = EXPECTATION_KEYWORDS[kind];
-  return kind === 'show' || kind === 'hide' ? `${keyword}: ${target ?? ''}` : keyword;
-}
+/**
+ * Keyword of an expectation kind as written in English Sanmaime (the step title prefix), from the
+ * vocabulary table (`EXPECTATIONS`).
+ */
+export const EXPECTATION_KEYWORDS: Readonly<Record<ExpectationKind, string>> = Object.fromEntries(
+  EXPECTATION_KINDS.map((kind) => [kind, EXPECTATIONS[kind].keyword]),
+) as Record<ExpectationKind, string>;

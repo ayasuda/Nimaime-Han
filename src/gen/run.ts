@@ -422,7 +422,9 @@ export async function processConfig(
 }
 
 function expectationDefined(expectation: ResolvedExpectation): boolean {
-  return 'targetDefined' in expectation ? expectation.targetDefined : expectation.selfDefined;
+  return 'targetDefined' in expectation
+    ? expectation.targetDefined === true
+    : 'selfDefined' in expectation && expectation.selfDefined === true;
 }
 
 /**

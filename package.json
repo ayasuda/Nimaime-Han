@@ -88,6 +88,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test -c test/e2e/playwright.config.ts",
     "test:e2e:gen": "npm run build && node test/e2e/gen/run.js",
+    "test:tool": "npm run build && vitest run -c vitest.tool.config.ts",
     "test:example:basic": "npm run build && npm ci --prefix examples/basic && npm test --prefix examples/basic && npm run typecheck --prefix examples/basic",
     "build:grammar": "node --experimental-strip-types --disable-warning=ExperimentalWarning editors/vscode-sanmaime/scripts/build-grammar.ts",
     "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"

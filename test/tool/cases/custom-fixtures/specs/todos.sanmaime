@@ -1,0 +1,12 @@
+Screen: Todos
+
+  Element: Todo List
+    Show: First item
+    Hide: Empty message
+
+  Element: Clear Button
+    When: Three items were added
+    Enable
+
+    When: Nothing was added
+    Disable

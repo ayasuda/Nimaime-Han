@@ -1,0 +1,7 @@
+Screen: Profile
+
+  Element: Name
+    Show: Name
+
+# A Screen line without a name (SANMAIME_E002), which then has no elements (SANMAIME_E010).
+Screen:

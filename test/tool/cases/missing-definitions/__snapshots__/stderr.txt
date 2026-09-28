@@ -1,0 +1,27 @@
+Missing definitions: 3
+
+  specs/user-details.sanmaime:8:5
+    Condition "Viewing your own profile" is not defined
+
+  specs/user-details.sanmaime:9:5
+    Element "User Information" has no definition for "Full name"
+
+  specs/user-details.sanmaime:14:3
+    Element "Edit Button" is not defined
+
+Snippets:
+
+// import { createNimaime } from 'nimaime-han';
+// const { defineElement, defineCondition } = createNimaime(test);
+
+// Add to the existing defineElement('User Information', { … }):
+  'Full name': ({ page }) => page.getByTestId('TODO'),
+
+defineElement('Edit Button', ({ page }) => page.getByTestId('TODO'));
+
+// Used on Screen "User Details" (add { screen: 'User Details' } to define it for that screen only).
+defineCondition('Viewing your own profile', async ({ page }) => {
+  // TODO: bring the screen into this state
+});
+
+nimaime-gen: nothing was generated into .sanmaime-gen (3 errors).

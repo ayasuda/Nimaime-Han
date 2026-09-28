@@ -1,0 +1,5 @@
+Screen: Dashboard
+
+  Element: Admin Menu
+    Show: Users
+    And: Settings

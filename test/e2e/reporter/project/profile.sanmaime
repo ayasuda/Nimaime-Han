@@ -1,0 +1,13 @@
+Screen: Profile
+
+  Element: User Information
+    Show: Username
+    And: Full name
+    And: Greeting
+
+  Element: Login Button
+    When: Input is valid
+    Disable
+
+    When: Viewing your own profile
+    Show: Greeting

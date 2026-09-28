@@ -63,4 +63,5 @@ export type {
   ScreenDefinition,
 } from './registry';
 export { NimaimeDefinitionError, NimaimeRuntimeError } from './errors';
+export { tagsFixtures, tagsOf, type NimaimeTagsTestArgs } from './tags';
 export type { SourceLocation } from './source';

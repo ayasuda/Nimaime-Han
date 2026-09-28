@@ -1,0 +1,13 @@
+# Tags (docs/sanmaime.md §5.8). run.js checks that `playwright test --grep @smoke` runs exactly
+# these tests, that `nimaime-gen export --tags @smoke` lists them, and the condition checks $tags.
+@smoke
+Screen: Tagged Login
+
+  Element: Login Form
+    Show: Email address
+
+  @tagged
+  Element: Login Button
+    @uses-tags
+    When: The tags are known
+    Disable

@@ -73,6 +73,7 @@ describe('AST snapshots of the README fixtures', () => {
                       "line": 11,
                     },
                     "name": "Input is valid",
+                    "tags": [],
                   },
                   {
                     "expectations": [
@@ -90,6 +91,7 @@ describe('AST snapshots of the README fixtures', () => {
                       "line": 14,
                     },
                     "name": "Input is invalid",
+                    "tags": [],
                   },
                 ],
                 "location": {
@@ -165,6 +167,7 @@ describe('AST snapshots of the README fixtures', () => {
                       "line": 8,
                     },
                     "name": "Viewing your own profile",
+                    "tags": [],
                   },
                   {
                     "expectations": [
@@ -204,6 +207,7 @@ describe('AST snapshots of the README fixtures', () => {
                       "line": 13,
                     },
                     "name": "Viewing another user's profile",
+                    "tags": [],
                   },
                 ],
                 "location": {
@@ -228,49 +232,46 @@ describe('AST snapshots of the README fixtures', () => {
     `);
   });
 
-  it('tags-reserved', () => {
-    const f = readFixture('valid', 'tags-reserved');
+  it('tags', () => {
+    const f = readFixture('valid', 'tags');
     const { document } = parse(f.source, { uri: f.uri });
+    const names = (tags: readonly { name: string }[]): string => tags.map((t) => t.name).join(' ');
     expect(
       document.screens.map((s) => ({
         screen: s.name,
         tags: s.tags,
-        elements: s.elements.map((e) => ({ element: e.name, tags: e.tags })),
+        elements: s.elements.map((e) => ({
+          element: e.name,
+          tags: names(e.tags),
+          conditions: e.conditions.map((c) => ({ condition: c.name, tags: c.tags })),
+        })),
       })),
     ).toMatchInlineSnapshot(`
       [
         {
           "elements": [
             {
-              "element": "User Information",
-              "tags": [
+              "conditions": [
                 {
-                  "location": {
-                    "column": 3,
-                    "line": 7,
-                  },
-                  "name": "@critical",
+                  "condition": "Viewing another user's profile",
+                  "tags": [
+                    {
+                      "location": {
+                        "column": 5,
+                        "line": 13,
+                      },
+                      "name": "@slow",
+                    },
+                  ],
                 },
               ],
+              "element": "User Information",
+              "tags": "@critical",
             },
             {
+              "conditions": [],
               "element": "Edit Action",
-              "tags": [
-                {
-                  "location": {
-                    "column": 3,
-                    "line": 13,
-                  },
-                  "name": "@wip",
-                },
-                {
-                  "location": {
-                    "column": 8,
-                    "line": 13,
-                  },
-                  "name": "@日本語タグ",
-                },
-              ],
+              "tags": "@wip @日本語タグ",
             },
           ],
           "screen": "User Details",

@@ -47,6 +47,8 @@ export type ResolvedExpectation = ResolvedVisibilityExpectation | ResolvedStateE
 /** `When: <name>` resolved to its definition (screen-scoped first, then global). */
 export interface ResolvedCondition {
   name: string;
+  /** Tags written before `When:` (block-level tags). */
+  tags: Tag[];
   location: Location;
   definition: ConditionDefinition | undefined;
   expectations: ResolvedExpectation[];
@@ -323,6 +325,7 @@ export function matchSpecs(specs: readonly ParsedSpec[], registry: Registry): Ma
           }
           return {
             name: conditionName,
+            tags: condition.tags,
             location: condition.location,
             definition: conditionDef,
             expectations: condition.expectations.map(resolveExpectation),

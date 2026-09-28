@@ -282,6 +282,54 @@ describe('parse: diagnostics', () => {
     ]);
   });
 
+  it('attaches tags to Screen:, Element: and When: (several lines and tags per line)', () => {
+    const { document, diagnostics } = parse(
+      lines(
+        '@s1 @s2',
+        '# comment',
+        '@s3',
+        'Screen: S',
+        '  @e1',
+        '  Element: E',
+        '    Show: A',
+        '',
+        '    @c1   @c2',
+        '',
+        '    When: C1',
+        '    Hide: X',
+        '    When: C2',
+        '    Show: B',
+        '    @c3',
+        '    When: C3',
+        '    Enable',
+      ),
+    );
+    expect(diagnostics).toEqual([]);
+    const names = (tags: readonly { name: string }[]): string[] => tags.map((t) => t.name);
+    const screen = document.screens[0];
+    expect(names(screen?.tags ?? [])).toEqual(['@s1', '@s2', '@s3']);
+    expect(screen?.tags[2]?.location).toEqual({ line: 3, column: 1 });
+    const element = screen?.elements[0];
+    expect(names(element?.tags ?? [])).toEqual(['@e1']);
+    expect(element?.conditions.map((c) => names(c.tags))).toEqual([['@c1', '@c2'], [], ['@c3']]);
+    expect(element?.conditions[0]?.tags[1]?.location).toEqual({ line: 9, column: 11 });
+  });
+
+  it('E018: tags between When: and its expectations; E005 discards the tags of When:', () => {
+    expect(
+      parse(lines('Screen: S', 'Element: E', 'When: C', '@t', 'Enable')).diagnostics.map((d) => [
+        d.code,
+        d.location.line,
+        d.message,
+      ]),
+    ).toEqual([['SANMAIME_E018', 4, `Tags must be followed by 'Screen:', 'Element:' or 'When:'.`]]);
+    // No E018: the tags were taken by the When: line (and discarded with it).
+    expect(codes(lines('Screen: S', '@t', 'When: C', 'Enable'))).toEqual([
+      'SANMAIME_E010@1:1',
+      'SANMAIME_E005@3:1',
+    ]);
+  });
+
   it('E020: discards the tags of the malformed line only', () => {
     const { document, diagnostics } = parse(
       lines('@ok', '@bad tag', 'Screen: S', 'Element: E', 'Enable'),

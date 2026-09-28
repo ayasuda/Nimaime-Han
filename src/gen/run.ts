@@ -15,7 +15,7 @@ import {
   type GeneratedTest,
 } from './generate';
 import { loadDefinitions } from './load-definitions';
-import { loadSpecs } from './load-specs';
+import { hasErrors, loadSpecs, type ParsedSpec } from './load-specs';
 import {
   matchSpecs,
   type ResolvedDocument,
@@ -31,6 +31,8 @@ import {
   type FileDiagnostic,
   type ReportFormat,
 } from './report';
+import { parseTagExpression, TagExpressionError } from './tag-expression';
+import { filterDocumentByTags } from './tags';
 
 /** `generate` writes files; `export` lists the tests; `check` validates without writing. */
 export type GenerationMode = 'generate' | 'export' | 'check';
@@ -59,6 +61,11 @@ export interface RunGenerationOptions {
   allowMissing?: boolean | undefined;
   /** `--format`: how problems are printed. Default: `'pretty'`. */
   format?: ReportFormat | undefined;
+  /**
+   * `--tags`: tag expression selecting the tests to generate (e.g. `'@smoke and not @wip'`);
+   * overrides the config's `tags`. A syntax error is a usage error (exit code 2).
+   */
+  tags?: string | undefined;
   /** Normal output (summary, `export` list). */
   stdout: TextOutput;
   /** Problems (diagnostics, missing definitions, warnings, errors). */
@@ -75,6 +82,10 @@ export interface ConfigGenerationResult {
   errors: number;
   /** With `allowMissing`: the tests left out because they use missing definitions. */
   skipped: SkippedTest[];
+  /** The tag expression applied (`--tags`, else the config's `tags`), if any. */
+  tags?: string;
+  /** Number of tests left out because their tags do not match `tags`. */
+  excludedByTags: number;
   /** The generated files (empty when there were errors). */
   files: GeneratedSpecFile[];
   /** The tests of the generated files. */
@@ -128,6 +139,16 @@ export async function runGeneration(options: RunGenerationOptions): Promise<RunG
   const mode = options.mode ?? 'generate';
   const { stderr } = options;
 
+  if (options.tags !== undefined) {
+    try {
+      parseTagExpression(options.tags);
+    } catch (error) {
+      if (!(error instanceof TagExpressionError)) throw error;
+      stderr.write(`nimaime-gen: --tags: ${error.message}\n`);
+      return { exitCode: 2, results: [] };
+    }
+  }
+
   clearSanmaimeConfigs();
   let loaded;
   try {
@@ -166,6 +187,8 @@ interface ProcessOptions {
   verbose: boolean;
   allowMissing?: boolean | undefined;
   format?: ReportFormat | undefined;
+  /** Overrides `config.tags`. */
+  tags?: string | undefined;
   stdout: TextOutput;
   stderr: TextOutput;
 }
@@ -182,6 +205,7 @@ export async function processConfig(
     config,
     errors: 0,
     skipped: [],
+    excludedByTags: 0,
     files: [],
     tests: [],
     written: false,
@@ -219,7 +243,34 @@ export async function processConfig(
   for (const line of formatDiagnostics(diagnostics, { cwd, format })) stderr.write(`${line}\n`);
   result.errors += diagnostics.filter((diagnostic) => diagnostic.severity === 'error').length;
 
-  const match = matchSpecs(specs, registry);
+  // Tag filtering happens before matching, so that missing definitions are only reported for the
+  // selected tests. Specs with errors are kept (they are reported and fail the run regardless).
+  let selected: ParsedSpec[] = specs;
+  const tags = options.tags ?? config.tags;
+  if (tags !== undefined) {
+    result.tags = tags;
+    const expression = parseTagExpression(tags);
+    let kept = 0;
+    selected = [];
+    for (const spec of specs) {
+      if (hasErrors(spec)) {
+        selected.push(spec);
+        continue;
+      }
+      const filtered = filterDocumentByTags(spec.document, expression);
+      kept += filtered.kept;
+      result.excludedByTags += filtered.removed;
+      // A spec without selected tests gets no file.
+      if (filtered.kept > 0) selected.push({ ...spec, document: filtered.document });
+    }
+    if (verbose) {
+      stderr.write(
+        `Tags "${tags}": ${plural(kept, 'test')} selected, ${plural(result.excludedByTags, 'test')} filtered out.\n`,
+      );
+    }
+  }
+
+  const match = matchSpecs(selected, registry);
   const missingReport = formatMissing(match.missing, {
     cwd,
     includeInfo: verbose,
@@ -233,7 +284,9 @@ export async function processConfig(
     result.errors += match.missing.filter((entry) => entry.severity === 'error').length;
   }
   if (verbose) {
-    for (const line of formatUnused(match.unused, { cwd })) stderr.write(`${line}\n`);
+    // Unused means unused by every spec, not only by the tests selected by tags.
+    const unused = selected === specs ? match.unused : matchSpecs(specs, registry).unused;
+    for (const line of formatUnused(unused, { cwd })) stderr.write(`${line}\n`);
   }
 
   if (result.errors > 0) {
@@ -296,7 +349,10 @@ export async function processConfig(
     case 'export':
       for (const doc of documents) {
         stdout.write(`${displayPath(doc.file, cwd)}\n`);
-        for (const test of listTests(doc)) stdout.write(`  ${test.titlePath.join(' > ')}\n`);
+        for (const test of listTests(doc)) {
+          const tags = test.tags.length > 0 ? `  ${test.tags.join(' ')}` : '';
+          stdout.write(`  ${test.titlePath.join(' > ')}${tags}\n`);
+        }
       }
       stdout.write(
         `${plural(result.tests.length, 'test')} in ${plural(documents.length, 'spec file')}.\n`,

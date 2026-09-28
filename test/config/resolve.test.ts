@@ -119,6 +119,10 @@ describe('resolveSanmaimeConfig', () => {
       /option "tags" must be a non-empty string\. Received: false \(boolean\)\./,
     ],
     [
+      { ...minimal, tags: '@smoke and' },
+      /option "tags" must be a tag expression such as "@smoke and not @wip"\. Invalid tag expression '@smoke and' \(column 11\): expected a tag, 'not' or '\(' after 'and', found the end of the expression\./,
+    ],
+    [
       { ...minimal, quotes: 'backtick' },
       /option "quotes" must be "single" or "double"\. Received: "backtick" \(string\)\./,
     ],

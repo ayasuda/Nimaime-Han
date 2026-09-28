@@ -17,7 +17,8 @@ playwright-bdd's special fixtures (`$bddContext`, `$test`, …).
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `test`                                                                     | `@playwright/test`'s `test` extended with `$nimaime`                                              |
 | `expect`                                                                   | re-export of `@playwright/test`'s `expect`                                                        |
-| `nimaimeFixtures`                                                          | `{ $nimaime: [fixture, { scope: 'test', box: true }] }` — for `anyTest.extend(…)`                 |
+| `nimaimeFixtures`                                                          | `{ $nimaime, $tags }` fixtures (test-scoped, boxed) — for `anyTest.extend(…)`                     |
+| `tagsFixtures`, `tagsOf(testInfo)`, `NimaimeTagsTestArgs`                  | the [`$tags`](#tags) fixture alone, and how it reads `testInfo.tags`                              |
 | `createNimaimeTest(base)`                                                  | `base.extend(nimaimeFixtures)`, typed: keeps `base`'s custom fixtures                             |
 | `Nimaime`, `NimaimeTestArgs`                                               | the fixture's type; `{ $nimaime: Nimaime }`                                                       |
 | `NimaimePlan`, `NimaimeExpectation`, `SanmaimePosition`, `ExpectationKind` | the plan emitted by the generator                                                                 |
@@ -29,6 +30,22 @@ playwright-bdd's special fixtures (`$bddContext`, `$test`, …).
 | `formatExpectationFailure(ctx, err)`                                       | builds the failure message (see [Failures](#failures))                                            |
 | `parseExpectationFailure(message)`                                         | recovers the structured failure from a message (for reporters)                                    |
 | registry queries                                                           | `findScreen`, `findElement`, `findCondition`, `listDefinitions`, … (see definitions.md)           |
+
+## `$tags`
+
+`createNimaimeTest(base)` (and the `test` of `nimaime-han/runtime`) also adds `$tags`: the tags of
+the running test, deduplicated — for a generated test, the Sanmaime tags of its screen, element
+and `When:` block ([sanmaime.md §5.8](./sanmaime.md#58-tags)), read from Playwright's
+`testInfo.tags` (Playwright 1.43+; `[]` on older versions). Definition callbacks destructure it
+like any fixture, and the generated test then requests and passes it:
+
+```ts
+defineCondition('Logged in', async ({ page, $tags }) => {
+  await login(page, $tags.includes('@admin') ? 'admin' : 'alice');
+});
+```
+
+`$tags` is part of the fixture types of `createNimaime()` definitions.
 
 ## Why the fixtures are passed explicitly
 

@@ -1,7 +1,8 @@
 // End-to-end test of nimaime-gen (npm run test:e2e:gen): runs the built CLI (dist/) on this
 // project, then `playwright test` on the generated specs, and checks the outcome:
 // every test passes except the one of specs/failing/broken-on-purpose.sanmaime, which must fail
-// with a Sanmaime failure message.
+// with a Sanmaime failure message. Then checks tags: `nimaime-gen export --tags @smoke` and
+// `playwright test --grep @smoke` select exactly the tests of specs/tagged.sanmaime.
 //
 // Needs `npm run build` first (the npm script does it): the CLI and the `nimaime-han` imports of
 // the generated specs and definitions resolve to dist/.
@@ -18,6 +19,10 @@ const config = path.relative(root, path.join(here, 'playwright.config.ts'));
 const outputDir = path.join(here, '.sanmaime-gen');
 const playwrightCli = createRequire(import.meta.url).resolve('@playwright/test/cli');
 
+const TAGGED = [
+  'Screen: Tagged Login > Element: Login Form > Always',
+  'Screen: Tagged Login > Element: Login Button > When: The tags are known',
+];
 const EXPECTED_PASSED = [
   'Screen: Login > Element: Login Form > Always',
   'Screen: Login > Element: Login Button > When: Input is valid',
@@ -27,6 +32,7 @@ const EXPECTED_PASSED = [
   'Screen: ユーザー詳細 > Element: ユーザー情報 > When: 他のユーザーのプロフィールを閲覧している',
   'Screen: ユーザー詳細 > Element: 編集ボタン > When: 自分のプロフィールを閲覧している',
   'Screen: ユーザー詳細 > Element: 編集ボタン > When: 他のユーザーのプロフィールを閲覧している',
+  ...TAGGED,
 ];
 const EXPECTED_FAILED = ['Screen: Login > Element: Login Button > When: Input is valid'];
 
@@ -60,9 +66,13 @@ const gen = run([cli, '-c', config]);
 process.stdout.write(gen.stdout);
 process.stderr.write(gen.stderr);
 check(gen.status === 0, 'nimaime-gen exits with 0');
-check(/^Generated 3 spec files \(9 tests\) into /.test(gen.stdout), 'nimaime-gen prints a summary');
+check(
+  /^Generated 4 spec files \(11 tests\) into /.test(gen.stdout),
+  'nimaime-gen prints a summary',
+);
 for (const file of [
   'login.spec.ts',
+  'tagged.spec.ts',
   'ja/user-details.spec.ts',
   'failing/broken-on-purpose.spec.ts',
 ]) {
@@ -113,7 +123,7 @@ const json = JSON.parse(fs.readFileSync(report, 'utf8'));
 const tests = json.suites.flatMap((suite) => collect(suite));
 const passed = tests.filter((t) => t.status === 'passed');
 const failed = tests.filter((t) => t.status !== 'passed');
-check(tests.length === 9, `9 tests ran (got ${tests.length})`);
+check(tests.length === 11, `11 tests ran (got ${tests.length})`);
 check(
   JSON.stringify(passed.map((t) => t.title).sort()) === JSON.stringify([...EXPECTED_PASSED].sort()),
   `the expected tests passed: ${passed.map((t) => t.title).join(' | ')}`,
@@ -132,6 +142,37 @@ check(
   'the failure carries the Sanmaime header and the .sanmaime location',
 );
 check(/toBeDisabled/.test(message), "the failure includes Playwright's assertion");
+
+console.log(`\nnimaime-gen export -c ${config} --tags @smoke`);
+const exported = run([cli, 'export', '-c', config, '--tags', '@smoke']);
+process.stdout.write(exported.stdout);
+process.stderr.write(exported.stderr);
+check(
+  exported.status === 0 &&
+    exported.stdout ===
+      [
+        'test/e2e/gen/specs/tagged.sanmaime',
+        ...TAGGED.map((title, i) => `  ${title}  @smoke${i === 1 ? ' @tagged @uses-tags' : ''}`),
+        '2 tests in 1 spec file.',
+        '',
+      ].join('\n'),
+  'nimaime-gen export --tags @smoke lists only the tagged tests, with their tags',
+);
+
+console.log(`\nplaywright test -c ${config} --grep @smoke`);
+const grepReport = path.join(path.dirname(report), 'grep.json');
+const grep = run([playwrightCli, 'test', '-c', config, '--grep', '@smoke', '--reporter=json'], {
+  PLAYWRIGHT_JSON_OUTPUT_FILE: grepReport,
+});
+check(grep.status === 0, `playwright test --grep @smoke exits with 0; got ${grep.status}`);
+const grepTests = fs.existsSync(grepReport)
+  ? JSON.parse(fs.readFileSync(grepReport, 'utf8')).suites.flatMap((suite) => collect(suite))
+  : [];
+check(
+  JSON.stringify(grepTests.map((t) => t.title).sort()) === JSON.stringify([...TAGGED].sort()) &&
+    grepTests.every((t) => t.status === 'passed'),
+  `--grep @smoke runs only the tagged tests, which pass: ${grepTests.map((t) => `${t.title} (${t.status})`).join(' | ')}`,
+);
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed.`);

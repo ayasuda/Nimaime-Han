@@ -4,6 +4,7 @@
 import { parseArgs } from 'node:util';
 import type { ReportFormat } from '../gen/report';
 import type { GenerationMode } from '../gen/run';
+import { parseTagExpression, TagExpressionError } from '../gen/tag-expression';
 
 /** The commands of `nimaime-gen`; `generate` is the default. */
 export const COMMANDS: readonly GenerationMode[] = ['generate', 'export', 'check'];
@@ -27,6 +28,8 @@ Options:
                        (the tests that use a missing definition are left out; exit code 0)
       --format <name>  How problems are printed: pretty (default; with definition snippets)
                        or compact (one file:line:column: severity: message line per problem)
+      --tags <expr>    Generate only the tests whose tags match, e.g. "@smoke and not @wip"
+                       (and, or, not, parentheses; overrides the config's tags option)
       --verbose        Print more details (unused definitions, generated files, stack traces)
   -h, --help           Print this help
   -v, --version        Print the version
@@ -43,6 +46,8 @@ export interface CliArgs {
   verbose: boolean;
   allowMissing: boolean;
   format: ReportFormat;
+  /** `--tags` expression, if given (syntax already checked). */
+  tags: string | undefined;
   help: boolean;
   version: boolean;
 }
@@ -73,6 +78,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
         verbose: { type: 'boolean' },
         'allow-missing': { type: 'boolean' },
         format: { type: 'string' },
+        tags: { type: 'string' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
       },
@@ -93,12 +99,23 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
   if (!isFormat(format)) {
     throw new CliUsageError(`Unknown format '${format}'. Formats: ${FORMATS.join(', ')}.`);
   }
+  const tags = values.tags?.trim();
+  if (tags === '') throw new CliUsageError('Option --tags needs a tag expression.');
+  if (tags !== undefined) {
+    try {
+      parseTagExpression(tags);
+    } catch (error) {
+      if (!(error instanceof TagExpressionError)) throw error;
+      throw new CliUsageError(`--tags: ${error.message}`);
+    }
+  }
   return {
     command,
     config: values.config,
     verbose: values.verbose === true,
     allowMissing: values['allow-missing'] === true,
     format,
+    tags,
     help: values.help === true,
     version: values.version === true,
   };

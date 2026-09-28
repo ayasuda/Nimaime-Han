@@ -1,0 +1,8 @@
+# expect: SANMAIME_E009
+# at: 5:3
+# An Element: needs at least one expectation.
+Screen: User Details
+  Element: User Information
+
+  Element: Edit Action
+    Show: Edit button

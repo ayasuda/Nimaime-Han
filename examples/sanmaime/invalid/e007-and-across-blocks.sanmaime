@@ -1,0 +1,11 @@
+# expect: SANMAIME_E007
+# at: 10:5
+# And: cannot continue a Show:/Hide: group from a previous block.
+Screen: User Details
+  Element: User Information
+    When: Viewing your own profile
+    Show: Username
+
+    When: Viewing another user's profile
+    And: Username
+    Hide: Full name

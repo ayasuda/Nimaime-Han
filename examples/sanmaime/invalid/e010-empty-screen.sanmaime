@@ -1,0 +1,8 @@
+# expect: SANMAIME_E010
+# at: 4:1
+# A Screen: needs at least one Element:.
+Screen: User Details
+
+Screen: Login
+  Element: Login Form
+    Show: Email address

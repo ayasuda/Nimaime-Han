@@ -1,0 +1,12 @@
+# The "Relationship with Gherkin" example in README.md.
+Screen: User Details
+
+  Element: User Information
+    When: Viewing your own profile
+    Show: Username
+    And: Full name
+    And: Email address
+
+  Element: Edit Action
+    When: The user can edit the profile
+    Show: Edit button

@@ -1,0 +1,19 @@
+# And: always continues the nearest Show:/Hide: group in the same block.
+Screen: Dashboard
+
+  Element: Widgets
+    When: The user is an administrator
+    Show: Sales chart
+    And: User list
+    Hide: Upgrade banner
+    And: Trial notice
+    Show: Audit log
+    And: System status
+    Enable
+
+    When: The user is a guest
+    Disable
+    Hide: Sales chart
+    And: User list
+    And: Audit log
+    Show: Upgrade banner

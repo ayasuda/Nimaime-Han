@@ -1,0 +1,12 @@
+# expect: SANMAIME_E008
+# at: 9:5
+# A When: block needs at least one expectation.
+Screen: User Details
+  Element: User Information
+    When: Viewing your own profile
+    Show: Username
+
+    When: Viewing another user's profile
+
+  Element: Edit Action
+    Show: Edit button

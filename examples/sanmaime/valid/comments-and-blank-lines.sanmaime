@@ -1,0 +1,28 @@
+# Comments and blank lines may appear anywhere.
+
+# A comment before the first screen.
+
+
+Screen: Profile
+# A comment directly after a header line.
+
+  # An indented comment.
+  Element: Avatar
+
+    # Blank lines do not end a block: both Show lines below
+    # belong to "Has a picture".
+    When: Has a picture
+
+    Show: Picture
+
+      # Comments between a group and its And: line are fine.
+    And: Change picture link
+
+
+    When: Has no picture
+    Show: Placeholder picture
+    Hide: Picture
+    #And: this is a comment, not an And: line
+    And: Change picture link
+
+# End of file comment.

@@ -1,0 +1,10 @@
+# The AI-generated draft example in README.md (unconditional expectations only).
+Screen: User Details
+
+  Element: User Information
+    Show: Username
+    And: Full name
+    And: Email address
+
+  Element: Edit Action
+    Show: Edit button

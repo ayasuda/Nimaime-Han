@@ -1,0 +1,10 @@
+# Keyword language directive (issue #5). v0 supports only "en", the default.
+# language: en
+
+Screen: Home
+
+  Element: Header
+    Show: Logo
+
+# After the header this is an ordinary comment, not a directive:
+# language: xx

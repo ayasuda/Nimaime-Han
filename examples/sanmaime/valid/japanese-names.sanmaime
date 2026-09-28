@@ -1,0 +1,22 @@
+# Names may be written in any script. Keywords stay in English in v0
+# (Japanese keywords are specified by issue #5).
+Screen: ユーザー詳細
+
+  Element: ユーザー情報
+
+    When: 自分のプロフィールを表示している
+    Show: ユーザー名
+    And: 氏名
+    And: メールアドレス
+
+    When: 他のユーザーのプロフィールを表示している
+    Show: ユーザー名
+    Hide: 氏名
+    And: メールアドレス
+
+  Element: 編集ボタン
+    When: 自分のプロフィールを表示している
+    Enable
+
+    When: 他のユーザーのプロフィールを表示している
+    Disable

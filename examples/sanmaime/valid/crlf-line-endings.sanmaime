@@ -1,0 +1,10 @@
+# This file uses CRLF line endings.
+Screen: Login
+
+  Element: Login Form
+    Show: Email address
+    And: Password
+
+  Element: Login Button
+    When: Input is valid
+    Enable

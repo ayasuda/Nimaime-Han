@@ -1,0 +1,7 @@
+# expect: SANMAIME_E001
+# at: 5:3
+# Free-text description lines are reserved for a future version.
+Screen: User Details
+  Shows information about a single user.
+  Element: User Information
+    Show: Username

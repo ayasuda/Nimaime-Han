@@ -1,0 +1,7 @@
+# expect: SANMAIME_E003
+# at: 7:5
+# "Disable:" is not a keyword; write "Disable" without a colon.
+Screen: Login
+  Element: Login Button
+    When: Input is invalid
+    Disable:

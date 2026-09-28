@@ -1,0 +1,7 @@
+# expect: SANMAIME_E001
+# at: 7:5
+# Keywords are case-sensitive: "show:" is not "Show:".
+Screen: User Details
+  Element: User Information
+    Show: Username
+    show: Full name
